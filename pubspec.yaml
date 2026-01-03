@@ -51,6 +51,9 @@ dependencies:
   # Navigation
   go_router: ^13.1.0
 
+  # Fonts
+  google_fonts: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -62,6 +65,6 @@ flutter:
   uses-material-design: true
 
   # Assets folder for images, icons, etc.
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
+  assets:
+    - assets/images/
+    - assets/icons/
