@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,7 +8,85 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../config/routes.dart';
 import '../../providers/auth_provider.dart';
 
-/// Login screen with Figma design implementation
+// ============================================================================
+// Dynamic Colors for Light/Dark Mode Adaptation
+// ============================================================================
+
+/// Background gradient colors - adapts to light/dark mode
+const CupertinoDynamicColor _backgroundPrimary =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFF2F2F7), // Light mode: iOS system background
+      darkColor: Color(0xFF1a1a2e), // Dark mode: Deep dark blue
+    );
+
+const CupertinoDynamicColor _backgroundSecondary =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFE5E5EA), // Light mode
+      darkColor: Color(0xFF16213e), // Dark mode: Navy
+    );
+
+const CupertinoDynamicColor _backgroundTertiary =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFD1D1D6), // Light mode
+      darkColor: Color(0xFF0f3460), // Dark mode: Midnight blue
+    );
+
+/// Card background colors
+const CupertinoDynamicColor _cardBackgroundStart =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFFFFFFF), // Light mode: White
+      darkColor: Color(0xFF3B3B3B), // Dark mode: Dark gray
+    );
+
+const CupertinoDynamicColor _cardBackgroundEnd =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFF8F8F8), // Light mode: Off-white
+      darkColor: Color(0xFF262525), // Dark mode: Darker gray
+    );
+
+/// Text field colors
+const CupertinoDynamicColor _textFieldFill =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFE8E8E8), // Light mode: Light gray
+      darkColor: Color(0xFF1E1E1E), // Dark mode: Very dark gray
+    );
+
+/// Text colors
+const CupertinoDynamicColor _primaryText = CupertinoDynamicColor.withBrightness(
+  color: Color(0xFF000000), // Light mode: Black
+  darkColor: Color(0xFFFFFFFF), // Dark mode: White
+);
+
+// const CupertinoDynamicColor _secondaryText = // Removed as unused
+//     CupertinoDynamicColor.withBrightness(
+//       color: Color(0xFF6C6C70), // Light mode: Gray
+//       darkColor: Color(0xFF919191), // Dark mode: Light gray
+//     );
+
+// const CupertinoDynamicColor _tertiaryText = // Removed as unused
+//     CupertinoDynamicColor.withBrightness(
+//       color: Color(0xFF8E8E93), // Light mode
+//       darkColor: Color(0xFF666666), // Dark mode
+//     );
+
+/// Divider color
+const CupertinoDynamicColor _dividerColor =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFC6C6C8), // Light mode
+      darkColor: Color(0xFF4A4A4A), // Dark mode
+    );
+
+/// Shadow color
+const CupertinoDynamicColor _shadowColor = CupertinoDynamicColor.withBrightness(
+  color: Color(0x1A000000), // Light mode: Subtle shadow
+  darkColor: Color(0x80000000), // Dark mode: Stronger shadow
+);
+
+// ============================================================================
+// Login Screen Widget
+// ============================================================================
+
+/// Login screen with Figma design implementation and dynamic theming
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -42,56 +122,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Determine if we're in dark mode
+  bool _isDarkMode(BuildContext context) {
+    return MediaQuery.of(context).platformBrightness == Brightness.dark;
+  }
+
+  /// Resolve a CupertinoDynamicColor to its current brightness value
+  Color _resolveColor(
+    BuildContext context,
+    CupertinoDynamicColor dynamicColor,
+  ) {
+    return CupertinoDynamicColor.resolve(dynamicColor, context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
     final screenSize = MediaQuery.of(context).size;
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final isDark = _isDarkMode(context);
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      body: Stack(
-        children: [
-          // Background with gradient
-          _buildBackground(screenSize),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
+            // Background with gradient
+            _buildBackground(context, screenSize),
 
-          // Top gradient overlay
-          _buildTopGradient(screenSize),
+            // Top gradient overlay (only in dark mode)
+            if (isDark) _buildTopGradient(screenSize),
 
-          // Login card at bottom
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildLoginCard(
-              context,
-              authState,
-              screenSize,
-              bottomPadding,
-              keyboardHeight,
+            // Login card at bottom
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildLoginCard(
+                context,
+                authState,
+                screenSize,
+                bottomPadding,
+                keyboardHeight,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildBackground(Size screenSize) {
-    return Container(
+  Widget _buildBackground(BuildContext context, Size screenSize) {
+    return Image.asset(
+      'assets/images/IMG_6454.JPEG',
       width: screenSize.width,
       height: screenSize.height,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1a1a2e), // Deep dark blue
-            Color(0xFF16213e), // Navy
-            Color(0xFF0f3460), // Midnight blue
-          ],
-        ),
-      ),
+      fit: BoxFit.cover,
     );
   }
 
@@ -141,21 +229,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           topLeft: Radius.circular(50),
           topRight: Radius.circular(50),
         ),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          stops: [0.14, 0.67],
+          stops: const [0.14, 0.67],
           colors: [
-            Color(0xFF3B3B3B), // rgb(59, 59, 59)
-            Color(0xFF262525), // rgb(38, 37, 37)
+            _resolveColor(context, _cardBackgroundStart),
+            _resolveColor(context, _cardBackgroundEnd),
           ],
         ),
         boxShadow: [
-          const BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.5),
+          BoxShadow(
+            color: _resolveColor(context, _shadowColor),
             blurRadius: 30,
             spreadRadius: 10,
-            offset: Offset(0, -10),
+            offset: const Offset(0, -10),
           ),
         ],
       ),
@@ -175,39 +263,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Title section
-                _buildTitleSection(),
+                _buildTitleSection(context),
                 const SizedBox(height: 20),
 
                 // Error message
                 if (authState.error != null)
-                  _buildErrorMessage(authState.error!),
+                  _buildErrorMessage(context, authState.error!),
 
                 // Email field
-                _buildEmailField(),
+                _buildEmailField(context),
                 const SizedBox(height: 13),
 
                 // Password field
-                _buildPasswordField(),
-                const SizedBox(height: 8),
+                _buildPasswordField(context),
+                const SizedBox(height: 4),
 
                 // Forgot password
-                _buildForgotPassword(),
-                const SizedBox(height: 20),
+                _buildForgotPassword(context),
+                const SizedBox(height: 13),
 
                 // Login button
-                _buildLoginButton(authState.isLoading),
+                _buildLoginButton(context, authState.isLoading),
                 const SizedBox(height: 20),
 
                 // Or divider
-                _buildOrDivider(),
+                _buildOrDivider(context),
                 const SizedBox(height: 20),
 
                 // Social login buttons
-                _buildSocialLoginButtons(),
+                _buildSocialLoginButtons(context),
                 const SizedBox(height: 20),
 
                 // Register link
-                _buildRegisterLink(),
+                _buildRegisterLink(context),
               ],
             ),
           ),
@@ -216,7 +304,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildTitleSection() {
+  Widget _buildTitleSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
@@ -227,16 +315,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 24,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: _resolveColor(context, _primaryText),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 1),
           Text(
             'Enter your credentials',
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w400,
-              color: const Color(0xFF919191),
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.secondaryLabel,
+                context,
+              ),
             ),
           ),
         ],
@@ -244,24 +335,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildErrorMessage(String error) {
+  Widget _buildErrorMessage(BuildContext context, String error) {
+    final errorColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemRed,
+      context,
+    );
     return Container(
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color.fromRGBO(244, 67, 54, 0.15),
+        color: Color.fromRGBO(
+          errorColor.r.toInt(),
+          errorColor.g.toInt(),
+          errorColor.b.toInt(),
+          0.15,
+        ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color.fromRGBO(244, 67, 54, 0.3)),
+        border: Border.all(
+          color: Color.fromRGBO(
+            errorColor.r.toInt(),
+            errorColor.g.toInt(),
+            errorColor.b.toInt(),
+            0.3,
+          ),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+          Icon(
+            CupertinoIcons.exclamationmark_circle,
+            color: errorColor,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               error,
               style: GoogleFonts.plusJakartaSans(
-                color: Colors.redAccent,
+                color: errorColor,
                 fontSize: 14,
               ),
             ),
@@ -271,48 +382,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildEmailField() {
+  Widget _buildEmailField(BuildContext context) {
     return TextFormField(
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
       textInputAction: TextInputAction.next,
-      style: GoogleFonts.plusJakartaSans(color: Colors.white),
+      style: GoogleFonts.plusJakartaSans(
+        color: _resolveColor(context, _primaryText),
+      ),
       decoration: _buildInputDecoration(
+        context: context,
         label: 'Email Address',
-        hint: 'Enter your email',
-        icon: Icons.email_outlined,
+        hint: 'Enter your username or email',
+        icon: CupertinoIcons.person,
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Please enter your email';
-        }
-        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-          return 'Please enter a valid email';
         }
         return null;
       },
     );
   }
 
-  Widget _buildPasswordField() {
+  Widget _buildPasswordField(BuildContext context) {
+    final iconColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
     return TextFormField(
       controller: _passwordController,
       obscureText: _obscurePassword,
       textInputAction: TextInputAction.done,
       onFieldSubmitted: (_) => _handleLogin(),
-      style: GoogleFonts.plusJakartaSans(color: Colors.white),
+      style: GoogleFonts.plusJakartaSans(
+        color: _resolveColor(context, _primaryText),
+      ),
       decoration: _buildInputDecoration(
+        context: context,
         label: 'Password',
         hint: 'Enter your password',
-        icon: Icons.lock_outlined,
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscurePassword
-                ? Icons.visibility_outlined
-                : Icons.visibility_off_outlined,
-            color: const Color(0xFF919191),
+        icon: CupertinoIcons.lock,
+        suffixIcon: GestureDetector(
+          onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+          child: Icon(
+            _obscurePassword ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+            color: iconColor,
           ),
-          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
       ),
       validator: (value) {
@@ -328,61 +444,94 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   InputDecoration _buildInputDecoration({
+    required BuildContext context,
     required String label,
     required String hint,
     required IconData icon,
     Widget? suffixIcon,
   }) {
+    final labelColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
+    final hintColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.tertiaryLabel,
+      context,
+    );
+    final iconColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
+    final fillColor = _resolveColor(context, _textFieldFill);
+    final focusBorderColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemBlue,
+      context,
+    );
+    final errorBorderColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemRed,
+      context,
+    );
+
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      labelStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF919191)),
-      hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF666666)),
-      prefixIcon: Icon(icon, color: const Color(0xFF919191)),
-      suffixIcon: suffixIcon,
+      labelStyle: GoogleFonts.plusJakartaSans(color: labelColor),
+      hintStyle: GoogleFonts.plusJakartaSans(color: hintColor),
+      prefixIcon: Padding(
+        padding: const EdgeInsets.only(left: 25, right: 10),
+        child: Icon(icon, color: iconColor),
+      ),
+      prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      suffixIcon: suffixIcon != null
+          ? Padding(
+              padding: const EdgeInsets.only(right: 15),
+              child: suffixIcon,
+            )
+          : null,
+      suffixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
       filled: true,
-      fillColor: const Color(0xFF1E1E1E),
+      fillColor: fillColor,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(28),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(28),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(color: focusBorderColor, width: 2),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(color: errorBorderColor),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+        borderRadius: BorderRadius.circular(28),
+        borderSide: BorderSide(color: errorBorderColor, width: 2),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
     );
   }
 
-  Widget _buildForgotPassword() {
+  Widget _buildForgotPassword(BuildContext context) {
     return Align(
       alignment: Alignment.centerRight,
-      child: TextButton(
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
         onPressed: () {
           // TODO: Implement forgot password
         },
-        style: TextButton.styleFrom(
-          padding: EdgeInsets.zero,
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
         child: Text(
           'Forgot Password?',
           style: GoogleFonts.plusJakartaSans(
-            color: const Color(0xFF6366F1),
-            fontSize: 14,
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.secondaryLabel,
+              context,
+            ),
+            fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -390,65 +539,63 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildLoginButton(bool isLoading) {
-    return SizedBox(
-      height: 52,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : _handleLogin,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF6366F1),
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color.fromRGBO(99, 102, 241, 0.6),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          elevation: 0,
+  Widget _buildLoginButton(BuildContext context, bool isLoading) {
+    final buttonColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemBlue,
+      context,
+    );
+    return Center(
+      child: SizedBox(
+        height: 50,
+        width: MediaQuery.of(context).size.width * 0.35,
+        child: CupertinoButton(
+          color: buttonColor,
+          borderRadius: BorderRadius.circular(26),
+          padding: EdgeInsets.zero,
+          onPressed: isLoading ? null : _handleLogin,
+          child: isLoading
+              ? const CupertinoActivityIndicator(color: CupertinoColors.white)
+              : Text(
+                  'Sign In',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: CupertinoColors.white,
+                  ),
+                ),
         ),
-        child: isLoading
-            ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : Text(
-                'Sign In',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
       ),
     );
   }
 
-  Widget _buildOrDivider() {
+  Widget _buildOrDivider(BuildContext context) {
+    final dividerColor = _resolveColor(context, _dividerColor);
+    final textColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
     return Row(
       children: [
-        Expanded(child: Container(height: 1, color: const Color(0xFF4A4A4A))),
+        Expanded(child: Container(height: 1, color: dividerColor)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'or',
-            style: GoogleFonts.plusJakartaSans(
-              color: const Color(0xFF919191),
-              fontSize: 14,
-            ),
+            'or sign in using',
+            style: GoogleFonts.plusJakartaSans(color: textColor, fontSize: 14),
           ),
         ),
-        Expanded(child: Container(height: 1, color: const Color(0xFF4A4A4A))),
+        Expanded(child: Container(height: 1, color: dividerColor)),
       ],
     );
   }
 
-  Widget _buildSocialLoginButtons() {
+  Widget _buildSocialLoginButtons(BuildContext context) {
     return Row(
       children: [
         // Google Sign In
         Expanded(
           child: _buildSocialButton(
+            context: context,
             icon: Icons.g_mobiledata,
             label: 'Google',
             onTap: () {
@@ -460,6 +607,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         // Apple Sign In
         Expanded(
           child: _buildSocialButton(
+            context: context,
             icon: Icons.apple,
             label: 'Apple',
             onTap: () {
@@ -472,56 +620,76 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildSocialButton({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.black, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: GoogleFonts.roboto(
-                  color: Colors.black,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+    final isDark = _isDarkMode(context);
+    final bgColor = isDark
+        ? CupertinoColors.white
+        : CupertinoColors.systemGrey6;
+    final textColor = isDark ? CupertinoColors.black : CupertinoColors.label;
+
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onTap,
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: CupertinoDynamicColor.resolve(bgColor, context),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: CupertinoDynamicColor.resolve(textColor, context),
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.roboto(
+                color: CupertinoDynamicColor.resolve(textColor, context),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildRegisterLink() {
+  Widget _buildRegisterLink(BuildContext context) {
+    final secondaryText = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
+    final linkColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemBlue,
+      context,
+    );
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           "Don't have an account? ",
           style: GoogleFonts.plusJakartaSans(
-            color: const Color(0xFF919191),
+            color: secondaryText,
             fontSize: 14,
           ),
         ),
-        GestureDetector(
-          onTap: () => context.go(RoutePaths.register),
+        CupertinoButton(
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          onPressed: () => context.push(RoutePaths.register),
           child: Text(
             'Sign Up',
             style: GoogleFonts.plusJakartaSans(
-              color: const Color(0xFF6366F1),
+              color: linkColor,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),

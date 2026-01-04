@@ -20,9 +20,11 @@ void main() async {
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      statusBarBrightness: Brightness.light,
+      statusBarColor:
+          Colors.transparent, // Makes the status bar background transparent
+      statusBarIconBrightness:
+          Brightness.light, // For Android: sets icons to light/white color
+      statusBarBrightness: Brightness.dark, // For iOS: sets icons to dark color
     ),
   );
 

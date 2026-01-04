@@ -62,12 +62,12 @@ class AuthService {
     }
   }
 
-  /// Login with email and password
+  /// Login with email/username and password
   Future<User> login({required String email, required String password}) async {
     try {
       final response = await _apiClient.post(
         ApiEndpoints.login,
-        data: {'email': email, 'password': password},
+        data: {'identifier': email, 'password': password},
       );
 
       if (response.statusCode == 200) {
