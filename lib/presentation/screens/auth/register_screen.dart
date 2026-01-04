@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -56,6 +57,13 @@ const CupertinoDynamicColor _primaryText = CupertinoDynamicColor.withBrightness(
   color: Color(0xFF000000), // Light mode: Black
   darkColor: Color(0xFFFFFFFF), // Dark mode: White
 );
+
+/// Divider color
+const CupertinoDynamicColor _dividerColor =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFC6C6C8), // Light mode
+      darkColor: Color(0xFF4A4A4A), // Dark mode
+    );
 
 /// Shadow color
 const CupertinoDynamicColor _shadowColor = CupertinoDynamicColor.withBrightness(
@@ -375,6 +383,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 _buildRegisterButton(context, authState.isLoading),
                 const SizedBox(height: 16),
 
+                // Or divider
+                _buildOrDivider(context),
+                const SizedBox(height: 16),
+
+                // Social registration buttons
+                _buildSocialButtons(context),
+                const SizedBox(height: 16),
+
                 // Terms text
                 _buildTermsText(context),
                 const SizedBox(height: 20),
@@ -396,7 +412,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         CupertinoButton(
           padding: EdgeInsets.zero,
           minimumSize: Size.zero,
-          onPressed: () => context.pop(),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            context.pop();
+          },
           child: Container(
             width: 40,
             height: 40,
@@ -508,6 +527,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       textCapitalization: textCapitalization,
       style: GoogleFonts.plusJakartaSans(
         color: _resolveColor(context, _primaryText),
+        fontSize: 13,
       ),
       decoration: _buildInputDecoration(
         context: context,
@@ -592,8 +612,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      labelStyle: GoogleFonts.plusJakartaSans(color: labelColor),
-      hintStyle: GoogleFonts.plusJakartaSans(color: hintColor),
+      labelStyle: GoogleFonts.plusJakartaSans(color: labelColor, fontSize: 13),
+      hintStyle: GoogleFonts.plusJakartaSans(color: hintColor, fontSize: 13),
+      floatingLabelBehavior:
+          FloatingLabelBehavior.never, // Prevents label from cutting border
       prefixIcon: Padding(
         padding: const EdgeInsets.only(left: 25, right: 10),
         child: Icon(icon, color: iconColor),
@@ -628,7 +650,118 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         borderRadius: BorderRadius.circular(28),
         borderSide: BorderSide(color: errorBorderColor, width: 2),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    );
+  }
+
+  Widget _buildOrDivider(BuildContext context) {
+    final dividerColor = _resolveColor(context, _dividerColor);
+    final textColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
+    return Row(
+      children: [
+        Expanded(child: Container(height: 1, color: dividerColor)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'or register using',
+            style: GoogleFonts.plusJakartaSans(color: textColor, fontSize: 14),
+          ),
+        ),
+        Expanded(child: Container(height: 1, color: dividerColor)),
+      ],
+    );
+  }
+
+  Widget _buildSocialButtons(BuildContext context) {
+    return Row(
+      children: [
+        // Google Sign Up
+        Expanded(
+          child: _buildSocialButton(
+            context: context,
+            iconWidget: SvgPicture.asset(
+              'assets/icons/google_logo.svg',
+              width: 20,
+              height: 20,
+            ),
+            label: 'Sign up with Google',
+            onTap: () {
+              // TODO: Implement Google sign up
+            },
+          ),
+        ),
+        const SizedBox(width: 13),
+        // Apple Sign Up
+        Expanded(
+          child: _buildSocialButton(
+            context: context,
+            iconWidget: Icon(
+              Icons.apple,
+              color: CupertinoDynamicColor.resolve(
+                _isDarkMode(context)
+                    ? CupertinoColors.black
+                    : CupertinoColors.label,
+                context,
+              ),
+              size: 24,
+            ),
+            label: 'Sign up with Apple',
+            onTap: () {
+              // TODO: Implement Apple sign up
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialButton({
+    required BuildContext context,
+    required Widget iconWidget,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final isDark = _isDarkMode(context);
+    final bgColor = isDark
+        ? CupertinoColors.white
+        : CupertinoColors.systemGrey6;
+    final textColor = isDark ? CupertinoColors.black : CupertinoColors.label;
+
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onTap,
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: CupertinoDynamicColor.resolve(bgColor, context),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.systemGrey4,
+              context,
+            ),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            iconWidget,
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.roboto(
+                color: CupertinoDynamicColor.resolve(textColor, context),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -720,7 +853,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         CupertinoButton(
           padding: EdgeInsets.zero,
           minimumSize: Size.zero,
-          onPressed: () => context.pop(),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            context.pop();
+          },
           child: Text(
             'Sign In',
             style: GoogleFonts.plusJakartaSans(

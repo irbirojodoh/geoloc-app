@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -596,8 +597,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Expanded(
           child: _buildSocialButton(
             context: context,
-            icon: Icons.g_mobiledata,
-            label: 'Google',
+            iconWidget: SvgPicture.asset(
+              'assets/icons/google_logo.svg',
+              width: 20,
+              height: 20,
+            ),
+            label: 'Sign in with Google',
             onTap: () {
               // TODO: Implement Google sign in
             },
@@ -608,8 +613,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Expanded(
           child: _buildSocialButton(
             context: context,
-            icon: Icons.apple,
-            label: 'Apple',
+            iconWidget: Icon(
+              Icons.apple,
+              color: CupertinoDynamicColor.resolve(
+                _isDarkMode(context)
+                    ? CupertinoColors.black
+                    : CupertinoColors.label,
+                context,
+              ),
+              size: 24,
+            ),
+            label: 'Sign in with Apple',
             onTap: () {
               // TODO: Implement Apple sign in
             },
@@ -621,7 +635,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildSocialButton({
     required BuildContext context,
-    required IconData icon,
+    required Widget iconWidget,
     required String label,
     required VoidCallback onTap,
   }) {
@@ -639,15 +653,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         decoration: BoxDecoration(
           color: CupertinoDynamicColor.resolve(bgColor, context),
           borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.systemGrey4,
+              context,
+            ),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: CupertinoDynamicColor.resolve(textColor, context),
-              size: 24,
-            ),
+            iconWidget,
             const SizedBox(width: 8),
             Text(
               label,
@@ -685,7 +702,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         CupertinoButton(
           padding: EdgeInsets.zero,
           minimumSize: Size.zero,
-          onPressed: () => context.push(RoutePaths.register),
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            context.push(RoutePaths.register);
+          },
           child: Text(
             'Sign Up',
             style: GoogleFonts.plusJakartaSans(
