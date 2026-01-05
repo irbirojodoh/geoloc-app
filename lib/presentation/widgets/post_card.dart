@@ -1,11 +1,15 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../data/models/post.dart';
 import 'user_avatar.dart';
 
-/// Post card widget for displaying a post in the feed
+// ============================================================================
+
+/// Post card widget for displaying a post in the feed (Figma design)
 class PostCard extends StatelessWidget {
   final Post post;
   final VoidCallback? onTap;
@@ -26,127 +30,195 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Author row
-              _buildAuthorRow(theme),
-
-              const SizedBox(height: 12),
-
-              // Content
-              Text(post.content, style: theme.textTheme.bodyLarge),
-
-              // Media
-              if (post.mediaUrls.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _buildMedia(theme),
-              ],
-
-              const SizedBox(height: 12),
-
-              // Location info
-              _buildLocationInfo(theme),
-
-              const SizedBox(height: 12),
-
-              // Action buttons
-              _buildActionButtons(theme),
-            ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          // Match login screen card background colors
+          color: CupertinoDynamicColor.resolve(
+            const CupertinoDynamicColor.withBrightness(
+              color: Color(0xFFFFFFFF), // Light mode: White
+              darkColor: Color(0xFF1C1C1E), // Dark mode: iOS dark card
+            ),
+            context,
           ),
+          border: Border(
+            bottom: BorderSide(
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.separator,
+                context,
+              ),
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left column: Profile avatar and time
+            _buildProfileColumn(context),
+            const SizedBox(width: 10),
+            // Right column: Username, location, and content
+            Expanded(child: _buildContentColumn(context)),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildAuthorRow(ThemeData theme) {
+  Widget _buildProfileColumn(BuildContext context) {
     return GestureDetector(
       onTap: onUserTap,
-      child: Row(
+      child: Column(
         children: [
+          // Profile avatar
           UserAvatar(
             imageUrl: post.author?.profilePictureUrl,
             name: post.author?.username ?? 'U',
-            size: 44,
+            size: 40,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      post.author?.fullName ??
-                          post.author?.username ??
-                          'Unknown',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    if (post.author?.username != null)
-                      Text(
-                        '@${post.author!.username}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-                Text(
-                  timeago.format(post.createdAt),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 6),
+          // Time ago
+          Text(
+            _formatTime(post.createdAt),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11,
+              fontWeight: FontWeight.w300,
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.secondaryLabel,
+                context,
+              ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_horiz),
-            onPressed: () {
-              // TODO: Show post options menu
-            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMedia(ThemeData theme) {
+  Widget _buildContentColumn(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Username and location row
+        _buildUsernameLocationRow(context),
+        const SizedBox(height: 1),
+        // Post content
+        _buildPostContent(context),
+        // Media (if any)
+        if (post.mediaUrls.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _buildMedia(context),
+        ],
+        // Action buttons (optional - commented out to match Figma exactly)
+        const SizedBox(height: 8),
+        _buildActionButtons(context),
+      ],
+    );
+  }
+
+  Widget _buildUsernameLocationRow(BuildContext context) {
+    final locationName = _getLocationName();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      child: Row(
+        children: [
+          // Username
+          GestureDetector(
+            onTap: onUserTap,
+            child: Text(
+              post.author?.username ?? 'Username',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.label,
+                  context,
+                ),
+              ),
+            ),
+          ),
+          // Separator
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              '·',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.secondaryLabel,
+                  context,
+                ),
+              ),
+            ),
+          ),
+          // Location
+          Flexible(
+            child: Text(
+              locationName,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.secondaryLabel,
+                  context,
+                ),
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostContent(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 7, top: 4),
+      child: Text(
+        post.content,
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          height: 1.4,
+          color: CupertinoDynamicColor.resolve(CupertinoColors.label, context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMedia(BuildContext context) {
     if (post.mediaUrls.length == 1) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: CachedNetworkImage(
           imageUrl: post.mediaUrls.first,
           fit: BoxFit.cover,
           placeholder: (context, url) => Container(
-            height: 200,
-            color: theme.colorScheme.surfaceContainerHighest,
-            child: const Center(child: CircularProgressIndicator()),
+            height: 150,
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.systemGrey5,
+              context,
+            ),
+            child: const Center(child: CupertinoActivityIndicator()),
           ),
           errorWidget: (context, url, error) => Container(
-            height: 200,
-            color: theme.colorScheme.surfaceContainerHighest,
-            child: const Center(child: Icon(Icons.error)),
+            height: 150,
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.systemGrey5,
+              context,
+            ),
+            child: const Center(child: Icon(CupertinoIcons.photo, size: 32)),
           ),
         ),
       );
     }
 
-    // Multiple images - show grid
+    // Multiple images - horizontal scroll
     return SizedBox(
-      height: 200,
+      height: 150,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: post.mediaUrls.length,
@@ -156,11 +228,11 @@ class PostCard extends StatelessWidget {
               right: index < post.mediaUrls.length - 1 ? 8 : 0,
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               child: CachedNetworkImage(
                 imageUrl: post.mediaUrls[index],
                 fit: BoxFit.cover,
-                width: 200,
+                width: 150,
               ),
             ),
           );
@@ -169,58 +241,73 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  Widget _buildLocationInfo(ThemeData theme) {
-    return Row(
-      children: [
-        Icon(
-          Icons.location_on_outlined,
-          size: 16,
-          color: theme.colorScheme.primary,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          'Posted nearby',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.primary,
+  Widget _buildActionButtons(BuildContext context) {
+    final iconColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 02),
+      child: Row(
+        children: [
+          // Like button
+          _ActionButton(
+            icon: post.isLiked
+                ? CupertinoIcons.heart_fill
+                : CupertinoIcons.heart,
+            iconColor: post.isLiked ? CupertinoColors.systemRed : iconColor,
+            label: post.likeCount > 0 ? post.likeCount.toString() : '',
+            onTap: onLike,
           ),
-        ),
-        const SizedBox(width: 8),
-        Text('•', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
-        const SizedBox(width: 8),
-        Text(
-          post.geohash.substring(0, 3) + '...',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+          const SizedBox(width: 20),
+          // Comment button
+          _ActionButton(
+            icon: CupertinoIcons.chat_bubble,
+            iconColor: iconColor,
+            label: post.commentCount > 0 ? post.commentCount.toString() : '',
+            onTap: onComment,
           ),
-        ),
-      ],
+          const SizedBox(width: 20),
+          // Share button
+          _ActionButton(
+            icon: CupertinoIcons.share,
+            iconColor: iconColor,
+            onTap: onShare,
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildActionButtons(ThemeData theme) {
-    return Row(
-      children: [
-        // Like button
-        _ActionButton(
-          icon: post.isLiked ? Icons.favorite : Icons.favorite_border,
-          iconColor: post.isLiked ? Colors.red : null,
-          label: post.likeCount > 0 ? post.likeCount.toString() : '',
-          onTap: onLike,
-        ),
-        const SizedBox(width: 24),
+  /// Format time for display (e.g., "2h", "1d", "3w")
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
 
-        // Comment button
-        _ActionButton(
-          icon: Icons.chat_bubble_outline,
-          label: post.commentCount > 0 ? post.commentCount.toString() : '',
-          onTap: onComment,
-        ),
-        const SizedBox(width: 24),
+    if (difference.inMinutes < 1) {
+      return 'now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d';
+    } else if (difference.inDays < 30) {
+      return '${(difference.inDays / 7).floor()}w';
+    } else {
+      return timeago.format(dateTime, locale: 'en_short');
+    }
+  }
 
-        // Share button
-        _ActionButton(icon: Icons.share_outlined, onTap: onShare),
-      ],
-    );
+  /// Get location name from geohash or default text
+  String _getLocationName() {
+    // You could implement reverse geocoding here
+    // For now, showing a placeholder based on geohash
+    if (post.geohash.isNotEmpty) {
+      return 'Nearby location';
+    }
+    return 'Unknown location';
   }
 }
 
@@ -239,26 +326,24 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: iconColor ?? theme.colorScheme.onSurfaceVariant,
-            ),
+            Icon(icon, size: 16, color: iconColor),
             if (label != null && label!.isNotEmpty) ...[
               const SizedBox(width: 4),
               Text(
                 label!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  color: CupertinoDynamicColor.resolve(
+                    CupertinoColors.secondaryLabel,
+                    context,
+                  ),
                 ),
               ),
             ],

@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../config/routes.dart';
 import '../../providers/auth_provider.dart';
@@ -8,6 +10,39 @@ import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/loading_shimmer.dart';
+
+// ============================================================================
+// Dynamic Colors for Light/Dark Mode Adaptation (consistent with login screen)
+// ============================================================================
+
+/// Card background colors
+const CupertinoDynamicColor _cardBackgroundStart =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFFFFFFF), // Light mode: White
+      darkColor: Color(0xFF3B3B3B), // Dark mode: Dark gray
+    );
+
+const CupertinoDynamicColor _cardBackgroundEnd =
+    CupertinoDynamicColor.withBrightness(
+      color: Color(0xFFF8F8F8), // Light mode: Off-white
+      darkColor: Color(0xFF262525), // Dark mode: Darker gray
+    );
+
+/// Shadow color
+const CupertinoDynamicColor _shadowColor = CupertinoDynamicColor.withBrightness(
+  color: Color(0x1A000000), // Light mode: Subtle shadow
+  darkColor: Color(0x80000000), // Dark mode: Stronger shadow
+);
+
+/// Text colors
+const CupertinoDynamicColor _primaryText = CupertinoDynamicColor.withBrightness(
+  color: Color(0xFF000000), // Light mode: Black
+  darkColor: Color(0xFFFFFFFF), // Dark mode: White
+);
+
+// ============================================================================
+// Feed Screen Widget
+// ============================================================================
 
 /// Main feed screen showing location-based posts
 class FeedScreen extends ConsumerStatefulWidget {
@@ -17,13 +52,16 @@ class FeedScreen extends ConsumerStatefulWidget {
   ConsumerState<FeedScreen> createState() => _FeedScreenState();
 }
 
-class _FeedScreenState extends ConsumerState<FeedScreen> {
+class _FeedScreenState extends ConsumerState<FeedScreen>
+    with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _tabController = TabController(length: 2, vsync: this);
 
     // Load feed after location is available
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -53,7 +91,16 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _tabController.dispose();
     super.dispose();
+  }
+
+  /// Resolve a CupertinoDynamicColor to its current brightness value
+  Color _resolveColor(
+    BuildContext context,
+    CupertinoDynamicColor dynamicColor,
+  ) {
+    return CupertinoDynamicColor.resolve(dynamicColor, context);
   }
 
   @override
@@ -69,69 +116,184 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       }
     });
 
+    // Background color matching the login screen and post cards
+    final backgroundColor = CupertinoDynamicColor.resolve(
+      const CupertinoDynamicColor.withBrightness(
+        color: Color(0xFFFFFFFF), // Light mode: White
+        darkColor: Color(0xFF1C1C1E), // Dark mode: iOS dark card
+      ),
+      context,
+    );
+
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
+      backgroundColor: backgroundColor,
+      body: SafeArea(
+        top: false, // Don't add padding at top, we'll color the status bar area
+        bottom: false, // Allow content to scroll to the bottom of screen
+        child: Column(
           children: [
-            Icon(Icons.location_on, color: theme.colorScheme.primary, size: 24),
-            const SizedBox(width: 8),
-            const Text('Geoloc'),
+            // Status bar colored area - same gradient as top bar
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  stops: const [0.14, 0.67],
+                  colors: [
+                    _resolveColor(context, _cardBackgroundStart),
+                    _resolveColor(context, _cardBackgroundEnd),
+                  ],
+                ),
+              ),
+              height: MediaQuery.of(context).padding.top,
+            ),
+            // Custom top bar matching Figma design
+            _buildTopBar(context),
+            // Tab bar for Nearby/Trending
+            _buildTabBar(context),
+            // Feed content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Nearby tab
+                  _buildBody(feedState, locationState, theme),
+                  // Trending tab (placeholder for now)
+                  _buildBody(feedState, locationState, theme),
+                ],
+              ),
+            ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => context.push(RoutePaths.search),
+      ),
+      floatingActionButton: Container(
+        margin: const EdgeInsets.only(bottom: 0, right: 10),
+        width: 60,
+        height: 60,
+        child: FloatingActionButton(
+          onPressed: () => context.push(RoutePaths.createPost),
+          backgroundColor: CupertinoColors.systemBlue,
+          shape: const CircleBorder(),
+          elevation: 4,
+          child: const Icon(
+            CupertinoIcons.add,
+            color: CupertinoColors.white,
+            size: 28,
           ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () => context.push(RoutePaths.notifications),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) async {
-              if (value == 'profile') {
-                final userId = ref.read(currentUserProvider)?.id;
-                if (userId != null) {
-                  context.push('/profile/$userId');
-                }
-              } else if (value == 'logout') {
-                await ref.read(authStateProvider.notifier).logout();
-                if (mounted) {
-                  context.go(RoutePaths.login);
-                }
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+    );
+  }
+
+  /// Builds the custom top bar with profile, logo, and notification bell
+  Widget _buildTopBar(BuildContext context) {
+    final iconColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          stops: const [0.14, 0.67],
+          colors: [
+            _resolveColor(context, _cardBackgroundStart),
+            _resolveColor(context, _cardBackgroundEnd),
+          ],
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Profile icon (left)
+          GestureDetector(
+            onTap: () {
+              final userId = ref.read(currentUserProvider)?.id;
+              if (userId != null) {
+                context.push('/profile/$userId');
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person_outline),
-                    SizedBox(width: 12),
-                    Text('Profile'),
-                  ],
+            child: Container(
+              width: 35,
+              height: 35,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.systemGrey5,
+                  context,
                 ),
               ),
-              const PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout),
-                    SizedBox(width: 12),
-                    Text('Logout'),
-                  ],
-                ),
+              child: Icon(
+                CupertinoIcons.person_fill,
+                size: 20,
+                color: iconColor,
               ),
-            ],
+            ),
+          ),
+
+          // App logo (center) - using FlutterLogo as placeholder
+          const SizedBox(width: 35, height: 35, child: FlutterLogo(size: 35)),
+
+          // Notification bell (right)
+          GestureDetector(
+            onTap: () => context.push(RoutePaths.notifications),
+            child: SizedBox(
+              width: 35,
+              height: 35,
+              child: Icon(CupertinoIcons.bell_fill, size: 24, color: iconColor),
+            ),
           ),
         ],
       ),
-      body: _buildBody(feedState, locationState, theme),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push(RoutePaths.createPost),
-        child: const Icon(Icons.add),
+    );
+  }
+
+  /// Builds the tab bar for Nearby/Trending
+  Widget _buildTabBar(BuildContext context) {
+    final activeColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemBlue,
+      context,
+    );
+    final inactiveColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.secondaryLabel,
+      context,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _resolveColor(context, _cardBackgroundEnd),
+        border: Border(
+          bottom: BorderSide(
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.separator,
+              context,
+            ),
+            width: 1,
+          ),
+        ),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: activeColor,
+        unselectedLabelColor: inactiveColor,
+        labelStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+        indicatorColor: activeColor,
+        indicatorWeight: 3,
+        tabs: const [
+          Tab(text: 'Nearby'),
+          Tab(text: 'Trending'),
+        ],
       ),
     );
   }
@@ -206,39 +368,67 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.location_off,
+              CupertinoIcons.location_slash_fill,
               size: 80,
-              color: theme.colorScheme.primary.withOpacity(0.5),
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.systemBlue,
+                context,
+              ).withOpacity(0.5),
             ),
             const SizedBox(height: 24),
             Text(
               'Location Access Required',
-              style: theme.textTheme.titleLarge?.copyWith(
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
+                color: _resolveColor(context, _primaryText),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               'Geoloc needs your location to show posts from people near you.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.secondaryLabel,
+                  context,
+                ),
               ),
             ),
             const SizedBox(height: 32),
-            ElevatedButton.icon(
+            CupertinoButton.filled(
               onPressed: () {
                 ref.read(locationStateProvider.notifier).requestPermission();
               },
-              icon: const Icon(Icons.location_on),
-              label: const Text('Enable Location'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(CupertinoIcons.location_fill, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Enable Location',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
-            TextButton(
+            CupertinoButton(
               onPressed: () {
                 ref.read(locationStateProvider.notifier).openAppSettings();
               },
-              child: const Text('Open Settings'),
+              child: Text(
+                'Open Settings',
+                style: GoogleFonts.plusJakartaSans(
+                  color: CupertinoDynamicColor.resolve(
+                    CupertinoColors.systemBlue,
+                    context,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -247,30 +437,61 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   Widget _buildErrorView(String error, ThemeData theme) {
+    final errorColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemRed,
+      context,
+    );
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
+            Icon(
+              CupertinoIcons.exclamationmark_circle_fill,
+              size: 64,
+              color: errorColor,
+            ),
             const SizedBox(height: 16),
-            Text('Something went wrong', style: theme.textTheme.titleLarge),
+            Text(
+              'Something went wrong',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _resolveColor(context, _primaryText),
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
               error,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.secondaryLabel,
+                  context,
+                ),
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
+            CupertinoButton.filled(
               onPressed: () {
                 ref.read(feedStateProvider.notifier).loadFeed();
               },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(CupertinoIcons.refresh, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Try Again',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -286,30 +507,50 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.explore_outlined,
+              CupertinoIcons.compass,
               size: 80,
-              color: theme.colorScheme.primary.withOpacity(0.5),
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.systemBlue,
+                context,
+              ).withOpacity(0.5),
             ),
             const SizedBox(height: 24),
             Text(
               'No posts nearby',
-              style: theme.textTheme.titleLarge?.copyWith(
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
+                color: _resolveColor(context, _primaryText),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               'Be the first to share something in your area!',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.secondaryLabel,
+                  context,
+                ),
               ),
             ),
             const SizedBox(height: 32),
-            ElevatedButton.icon(
+            CupertinoButton.filled(
               onPressed: () => context.push(RoutePaths.createPost),
-              icon: const Icon(Icons.add),
-              label: const Text('Create Post'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(CupertinoIcons.add, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Create Post',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
