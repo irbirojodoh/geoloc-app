@@ -31,6 +31,21 @@ class Post {
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
+    // Handle author: either nested object or flat fields
+    User? author;
+    if (json['author'] != null) {
+      author = User.fromJson(json['author'] as Map<String, dynamic>);
+    } else if (json['username'] != null) {
+      // Backend returns flat structure with username and profile_picture_url
+      author = User(
+        id: json['user_id'] as String,
+        username: json['username'] as String,
+        email: '', // Not provided in feed response
+        profilePictureUrl: json['profile_picture_url'] as String?,
+        createdAt: DateTime.now(),
+      );
+    }
+
     return Post(
       id: json['id'] as String,
       userId: json['user_id'] as String,
@@ -47,9 +62,7 @@ class Post {
       likeCount: json['like_count'] as int? ?? 0,
       commentCount: json['comment_count'] as int? ?? 0,
       isLiked: json['is_liked'] as bool? ?? false,
-      author: json['author'] != null
-          ? User.fromJson(json['author'] as Map<String, dynamic>)
-          : null,
+      author: author,
     );
   }
 

@@ -10,6 +10,7 @@ import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/loading_shimmer.dart';
+import '../../widgets/custom_refresh_indicator.dart';
 
 // ============================================================================
 // Dynamic Colors for Light/Dark Mode Adaptation (consistent with login screen)
@@ -103,6 +104,86 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     return CupertinoDynamicColor.resolve(dynamicColor, context);
   }
 
+  /// Show logout action sheet
+  void _showLogoutSheet(BuildContext context) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (BuildContext context) => CupertinoActionSheet(
+        title: Text(
+          'Account',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.secondaryLabel,
+              context,
+            ),
+          ),
+        ),
+        message: Text(
+          ref.read(currentUserProvider)?.email ?? 'Logged in',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.tertiaryLabel,
+              context,
+            ),
+          ),
+        ),
+        actions: <CupertinoActionSheetAction>[
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              final userId = ref.read(currentUserProvider)?.id;
+              if (userId != null) {
+                context.push('/profile/$userId');
+              }
+            },
+            child: Text(
+              'View Profile',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 17,
+                fontWeight: FontWeight.w400,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.systemBlue,
+                  context,
+                ),
+              ),
+            ),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(authStateProvider.notifier).logout();
+            },
+            child: Text(
+              'Log Out',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Cancel',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.systemBlue,
+                context,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final feedState = ref.watch(feedStateProvider);
@@ -116,11 +197,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
       }
     });
 
-    // Background color matching the login screen and post cards
+    // Background color - light gray for card contrast
     final backgroundColor = CupertinoDynamicColor.resolve(
       const CupertinoDynamicColor.withBrightness(
-        color: Color(0xFFFFFFFF), // Light mode: White
-        darkColor: Color(0xFF1C1C1E), // Dark mode: iOS dark card
+        color: CupertinoColors
+            .systemGrey6, // Light mode: iOS grouped background gray
+        darkColor: CupertinoColors.darkBackgroundGray, // Dark mode: Pure black
       ),
       context,
     );
@@ -158,8 +240,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                 children: [
                   // Nearby tab
                   _buildBody(feedState, locationState, theme),
-                  // Trending tab (placeholder for now)
-                  _buildBody(feedState, locationState, theme),
+                  // Following tab (under construction)
+                  _buildUnderConstructionView(context),
                 ],
               ),
             ),
@@ -217,6 +299,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                 context.push('/profile/$userId');
               }
             },
+            onLongPress: () => _showLogoutSheet(context),
             child: Container(
               width: 35,
               height: 35,
@@ -265,7 +348,16 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: _resolveColor(context, _cardBackgroundEnd),
+        // Same gradient as the top bar
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          stops: const [0.14, 0.67],
+          colors: [
+            _resolveColor(context, _cardBackgroundStart),
+            _resolveColor(context, _cardBackgroundEnd),
+          ],
+        ),
         border: Border(
           bottom: BorderSide(
             color: CupertinoDynamicColor.resolve(
@@ -292,7 +384,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
         indicatorWeight: 3,
         tabs: const [
           Tab(text: 'Nearby'),
-          Tab(text: 'Trending'),
+          Tab(text: 'Following'),
         ],
       ),
     );
@@ -324,38 +416,41 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     }
 
     // Show feed
-    return RefreshIndicator(
+    return CustomRefreshIndicator(
       onRefresh: () async {
         await ref.read(locationStateProvider.notifier).refreshLocation();
         await ref.read(feedStateProvider.notifier).refreshFeed();
       },
-      child: ListView.builder(
+      child: CupertinoScrollbar(
         controller: _scrollController,
-        padding: const EdgeInsets.only(bottom: 80),
-        itemCount: feedState.posts.length + (feedState.hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == feedState.posts.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
+        child: ListView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.only(bottom: 80),
+          itemCount: feedState.posts.length + (feedState.hasMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == feedState.posts.length) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CupertinoActivityIndicator()),
+              );
+            }
 
-          final post = feedState.posts[index];
-          return PostCard(
-            post: post,
-            onTap: () => context.push('/post/${post.id}'),
-            onLike: () {
-              if (post.isLiked) {
-                ref.read(feedStateProvider.notifier).unlikePost(post.id);
-              } else {
-                ref.read(feedStateProvider.notifier).likePost(post.id);
-              }
-            },
-            onComment: () => context.push('/post/${post.id}'),
-            onUserTap: () => context.push('/profile/${post.userId}'),
-          );
-        },
+            final post = feedState.posts[index];
+            return PostCard(
+              post: post,
+              onTap: () => context.push('/post/${post.id}'),
+              onLike: () {
+                if (post.isLiked) {
+                  ref.read(feedStateProvider.notifier).unlikePost(post.id);
+                } else {
+                  ref.read(feedStateProvider.notifier).likePost(post.id);
+                }
+              },
+              onComment: () => context.push('/post/${post.id}'),
+              onUserTap: () => context.push('/profile/${post.userId}'),
+            );
+          },
+        ),
       ),
     );
   }
@@ -550,6 +645,51 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnderConstructionView(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              CupertinoIcons.hammer,
+              size: 80,
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.systemBlue,
+                context,
+              ).withOpacity(0.5),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Still under construction',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.label,
+                  context,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'This feature is coming soon!',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                color: CupertinoDynamicColor.resolve(
+                  CupertinoColors.secondaryLabel,
+                  context,
+                ),
               ),
             ),
           ],

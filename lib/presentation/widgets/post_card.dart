@@ -33,7 +33,8 @@ class PostCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           // Match login screen card background colors
           color: CupertinoDynamicColor.resolve(
@@ -43,15 +44,20 @@ class PostCard extends StatelessWidget {
             ),
             context,
           ),
-          border: Border(
-            bottom: BorderSide(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
               color: CupertinoDynamicColor.resolve(
-                CupertinoColors.separator,
+                const CupertinoDynamicColor.withBrightness(
+                  color: Color(0x0D000000), // Light mode: subtle shadow
+                  darkColor: Color(0x33000000), // Dark mode: stronger shadow
+                ),
                 context,
               ),
-              width: 0.5,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

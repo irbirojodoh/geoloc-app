@@ -75,16 +75,16 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final posts = await _fetchPosts(
+      final result = await _fetchPosts(
         latitude: locationState.latitude!,
         longitude: locationState.longitude!,
       );
 
       state = state.copyWith(
-        posts: posts,
+        posts: result.posts,
         isLoading: false,
-        hasMore: posts.length >= AppConfig.defaultPageSize,
-        cursor: posts.isNotEmpty ? posts.last.id : null,
+        hasMore: result.hasMore,
+        cursor: result.nextCursor,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _getErrorMessage(e));
@@ -102,16 +102,16 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isRefreshing: true, error: null);
 
     try {
-      final posts = await _fetchPosts(
+      final result = await _fetchPosts(
         latitude: locationState.latitude!,
         longitude: locationState.longitude!,
       );
 
       state = state.copyWith(
-        posts: posts,
+        posts: result.posts,
         isRefreshing: false,
-        hasMore: posts.length >= AppConfig.defaultPageSize,
-        cursor: posts.isNotEmpty ? posts.last.id : null,
+        hasMore: result.hasMore,
+        cursor: result.nextCursor,
       );
     } catch (e) {
       state = state.copyWith(isRefreshing: false, error: _getErrorMessage(e));
@@ -120,7 +120,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
 
   /// Load more posts (pagination)
   Future<void> loadMore() async {
-    if (state.isLoading || !state.hasMore) return;
+    if (state.isLoading || !state.hasMore || state.cursor == null) return;
 
     final locationState = _ref.read(locationStateProvider);
 
@@ -131,17 +131,17 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      final posts = await _fetchPosts(
+      final result = await _fetchPosts(
         latitude: locationState.latitude!,
         longitude: locationState.longitude!,
         cursor: state.cursor,
       );
 
       state = state.copyWith(
-        posts: [...state.posts, ...posts],
+        posts: [...state.posts, ...result.posts],
         isLoading: false,
-        hasMore: posts.length >= AppConfig.defaultPageSize,
-        cursor: posts.isNotEmpty ? posts.last.id : state.cursor,
+        hasMore: result.hasMore,
+        cursor: result.nextCursor,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _getErrorMessage(e));
@@ -154,8 +154,9 @@ class FeedNotifier extends StateNotifier<FeedState> {
     await refreshFeed();
   }
 
-  /// Fetch posts from API
-  Future<List<Post>> _fetchPosts({
+  /// Fetch posts from API with cursor-based pagination
+  /// Returns a record containing posts, hasMore flag, and next cursor
+  Future<({List<Post> posts, bool hasMore, String? nextCursor})> _fetchPosts({
     required double latitude,
     required double longitude,
     String? cursor,
@@ -173,10 +174,19 @@ class FeedNotifier extends StateNotifier<FeedState> {
 
     if (response.statusCode == 200) {
       final data = response.data as Map<String, dynamic>;
-      final postsJson = data['posts'] as List<dynamic>? ?? [];
-      return postsJson
+      final postsJson =
+          data['data'] as List<dynamic>? ??
+          data['posts'] as List<dynamic>? ??
+          [];
+      final posts = postsJson
           .map((json) => Post.fromJson(json as Map<String, dynamic>))
           .toList();
+
+      // Read pagination info from response
+      final hasMore = data['has_more'] as bool? ?? false;
+      final nextCursor = data['next_cursor'] as String?;
+
+      return (posts: posts, hasMore: hasMore, nextCursor: nextCursor);
     }
 
     throw Exception('Failed to load feed');
