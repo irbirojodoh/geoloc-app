@@ -306,10 +306,13 @@ class PostCard extends StatelessWidget {
     }
   }
 
-  /// Get location name from geohash or default text
+  /// Get location name from address or fallback
   String _getLocationName() {
-    // You could implement reverse geocoding here
-    // For now, showing a placeholder based on geohash
+    // Use the formatted location from address (e.g., "Pondok Cina, Depok")
+    if (post.formattedLocation.isNotEmpty) {
+      return post.formattedLocation;
+    }
+    // Fallback to placeholder if no address data
     if (post.geohash.isNotEmpty) {
       return 'Nearby location';
     }

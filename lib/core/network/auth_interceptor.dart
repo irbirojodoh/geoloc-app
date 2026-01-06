@@ -117,8 +117,7 @@ class AuthInterceptor extends Interceptor {
   bool _isPublicEndpoint(String path) {
     return path == ApiEndpoints.login ||
         path == ApiEndpoints.register ||
-        path == ApiEndpoints.refreshToken ||
-        path == ApiEndpoints.feed;
+        path == ApiEndpoints.refreshToken;
   }
 
   /// Refresh the access token using the refresh token

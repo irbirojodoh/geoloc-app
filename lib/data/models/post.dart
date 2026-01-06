@@ -1,4 +1,5 @@
 import 'user.dart';
+import 'address.dart';
 
 /// Post model
 class Post {
@@ -9,6 +10,9 @@ class Post {
   final double latitude;
   final double longitude;
   final String geohash;
+  final String? locationName;
+  final Address? address;
+  final double? distanceKm;
   final DateTime createdAt;
   final int likeCount;
   final int commentCount;
@@ -23,12 +27,28 @@ class Post {
     required this.latitude,
     required this.longitude,
     required this.geohash,
+    this.locationName,
+    this.address,
+    this.distanceKm,
     required this.createdAt,
     this.likeCount = 0,
     this.commentCount = 0,
     this.isLiked = false,
     this.author,
   });
+
+  /// Get formatted location string (e.g., "Pondok Cina, Depok")
+  String get formattedLocation {
+    // First try to use address
+    if (address != null && address!.formattedLocation.isNotEmpty) {
+      return address!.formattedLocation;
+    }
+    // Fallback to locationName
+    if (locationName != null && locationName!.isNotEmpty) {
+      return locationName!;
+    }
+    return '';
+  }
 
   factory Post.fromJson(Map<String, dynamic> json) {
     // Handle author: either nested object or flat fields
@@ -46,6 +66,12 @@ class Post {
       );
     }
 
+    // Parse address if present
+    Address? address;
+    if (json['address'] != null) {
+      address = Address.fromJson(json['address'] as Map<String, dynamic>);
+    }
+
     return Post(
       id: json['id'] as String,
       userId: json['user_id'] as String,
@@ -58,6 +84,9 @@ class Post {
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
       geohash: json['geohash'] as String,
+      locationName: json['location_name'] as String?,
+      address: address,
+      distanceKm: (json['distance_km'] as num?)?.toDouble(),
       createdAt: DateTime.parse(json['created_at'] as String),
       likeCount: json['like_count'] as int? ?? 0,
       commentCount: json['comment_count'] as int? ?? 0,
@@ -75,6 +104,9 @@ class Post {
       'latitude': latitude,
       'longitude': longitude,
       'geohash': geohash,
+      'location_name': locationName,
+      'address': address?.toJson(),
+      'distance_km': distanceKm,
       'created_at': createdAt.toIso8601String(),
       'like_count': likeCount,
       'comment_count': commentCount,
@@ -91,6 +123,9 @@ class Post {
     double? latitude,
     double? longitude,
     String? geohash,
+    String? locationName,
+    Address? address,
+    double? distanceKm,
     DateTime? createdAt,
     int? likeCount,
     int? commentCount,
@@ -105,6 +140,9 @@ class Post {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       geohash: geohash ?? this.geohash,
+      locationName: locationName ?? this.locationName,
+      address: address ?? this.address,
+      distanceKm: distanceKm ?? this.distanceKm,
       createdAt: createdAt ?? this.createdAt,
       likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
