@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+import '../../core/cache/image_cache_manager.dart';
 import '../../data/models/post.dart';
 import 'user_avatar.dart';
 
@@ -196,14 +197,18 @@ class PostCard extends StatelessWidget {
   }
 
   Widget _buildMedia(BuildContext context) {
-    if (post.mediaUrls.length == 1) {
+    final imageCount = post.mediaUrls.length;
+
+    if (imageCount == 1) {
+      // Single image - full width
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: CachedNetworkImage(
           imageUrl: post.mediaUrls.first,
           fit: BoxFit.cover,
+          cacheManager: PostImageCacheManager.instance,
           placeholder: (context, url) => Container(
-            height: 150,
+            height: 200,
             color: CupertinoDynamicColor.resolve(
               CupertinoColors.systemGrey5,
               context,
@@ -211,7 +216,7 @@ class PostCard extends StatelessWidget {
             child: const Center(child: CupertinoActivityIndicator()),
           ),
           errorWidget: (context, url, error) => Container(
-            height: 150,
+            height: 200,
             color: CupertinoDynamicColor.resolve(
               CupertinoColors.systemGrey5,
               context,
@@ -222,28 +227,126 @@ class PostCard extends StatelessWidget {
       );
     }
 
-    // Multiple images - horizontal scroll
-    return SizedBox(
-      height: 150,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: post.mediaUrls.length,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: EdgeInsets.only(
-              right: index < post.mediaUrls.length - 1 ? 8 : 0,
+    if (imageCount == 2) {
+      // 2 images - side by side
+      return Row(
+        children: [
+          Expanded(child: _buildGridImage(context, post.mediaUrls[0], 150)),
+          const SizedBox(width: 4),
+          Expanded(child: _buildGridImage(context, post.mediaUrls[1], 150)),
+        ],
+      );
+    }
+
+    if (imageCount == 3) {
+      // 3 images - 1 large on left, 2 stacked on right
+      return Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: _buildGridImage(context, post.mediaUrls[0], 200),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Column(
+              children: [
+                _buildGridImage(context, post.mediaUrls[1], 98),
+                const SizedBox(height: 4),
+                _buildGridImage(context, post.mediaUrls[2], 98),
+              ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: post.mediaUrls[index],
-                fit: BoxFit.cover,
-                width: 150,
+          ),
+        ],
+      );
+    }
+
+    // 4+ images - 2x2 grid with overflow indicator
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: _buildGridImage(context, post.mediaUrls[0], 100)),
+            const SizedBox(width: 4),
+            Expanded(child: _buildGridImage(context, post.mediaUrls[1], 100)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(child: _buildGridImage(context, post.mediaUrls[2], 100)),
+            const SizedBox(width: 4),
+            Expanded(
+              child: imageCount > 4
+                  ? _buildOverflowImage(
+                      context,
+                      post.mediaUrls[3],
+                      100,
+                      imageCount - 4,
+                    )
+                  : _buildGridImage(context, post.mediaUrls[3], 100),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGridImage(BuildContext context, String imageUrl, double height) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        height: height,
+        fit: BoxFit.cover,
+        cacheManager: PostImageCacheManager.instance,
+        placeholder: (context, url) => Container(
+          height: height,
+          color: CupertinoDynamicColor.resolve(
+            CupertinoColors.systemGrey5,
+            context,
+          ),
+          child: const Center(child: CupertinoActivityIndicator()),
+        ),
+        errorWidget: (context, url, error) => Container(
+          height: height,
+          color: CupertinoDynamicColor.resolve(
+            CupertinoColors.systemGrey5,
+            context,
+          ),
+          child: const Center(child: Icon(CupertinoIcons.photo, size: 24)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOverflowImage(
+    BuildContext context,
+    String imageUrl,
+    double height,
+    int moreCount,
+  ) {
+    return Stack(
+      children: [
+        _buildGridImage(context, imageUrl, height),
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              color: Colors.black.withOpacity(0.5),
+              child: Center(
+                child: Text(
+                  '+$moreCount',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        ),
+      ],
     );
   }
 

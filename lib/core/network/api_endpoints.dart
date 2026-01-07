@@ -34,27 +34,29 @@ class ApiEndpoints {
   // ==================== User Endpoints (Protected) ====================
 
   /// PUT - Update current user profile
-  static const String updateProfile = '$_usersBase/me';
+  static const String updateProfile = '$_apiBase/users/me';
 
   /// GET - Get user by ID
-  static String getUser(String userId) => '$_usersBase/$userId';
+  static String getUser(String userId) => '$_apiBase/users/$userId';
 
   /// GET - Get user's posts
-  static String getUserPosts(String userId) => '$_usersBase/$userId/posts';
+  static String getUserPosts(String userId) => '$_apiBase/users/$userId/posts';
 
   // ==================== Follow Endpoints (Protected) ====================
 
   /// POST - Follow user
-  static String followUser(String userId) => '$_usersBase/$userId/follow';
+  static String followUser(String userId) => '$_apiBase/users/$userId/follow';
 
   /// DELETE - Unfollow user
-  static String unfollowUser(String userId) => '$_usersBase/$userId/follow';
+  static String unfollowUser(String userId) => '$_apiBase/users/$userId/follow';
 
   /// GET - Get user's followers
-  static String getFollowers(String userId) => '$_usersBase/$userId/followers';
+  static String getFollowers(String userId) =>
+      '$_apiBase/users/$userId/followers';
 
   /// GET - Get user's following
-  static String getFollowing(String userId) => '$_usersBase/$userId/following';
+  static String getFollowing(String userId) =>
+      '$_apiBase/users/$userId/following';
 
   // ==================== Post Endpoints (Protected) ====================
 

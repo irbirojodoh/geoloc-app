@@ -61,6 +61,8 @@ class AuthInterceptor extends Interceptor {
       } else {
         // Token still valid
         options.headers['Authorization'] = 'Bearer $accessToken';
+        // ignore: avoid_print
+        print('🔑 Bearer Token: $accessToken');
       }
     } else {
       // No expiry info, just use the token

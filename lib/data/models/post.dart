@@ -7,8 +7,8 @@ class Post {
   final String userId;
   final String content;
   final List<String> mediaUrls;
-  final double latitude;
-  final double longitude;
+  final double? latitude;
+  final double? longitude;
   final String geohash;
   final String? locationName;
   final Address? address;
@@ -24,9 +24,9 @@ class Post {
     required this.userId,
     required this.content,
     this.mediaUrls = const [],
-    required this.latitude,
-    required this.longitude,
-    required this.geohash,
+    this.latitude,
+    this.longitude,
+    this.geohash = '',
     this.locationName,
     this.address,
     this.distanceKm,
@@ -81,9 +81,9 @@ class Post {
               ?.map((e) => e as String)
               .toList() ??
           [],
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
-      geohash: json['geohash'] as String,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      geohash: json['geohash'] as String? ?? '',
       locationName: json['location_name'] as String?,
       address: address,
       distanceKm: (json['distance_km'] as num?)?.toDouble(),
