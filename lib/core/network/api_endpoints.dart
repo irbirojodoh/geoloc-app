@@ -33,6 +33,9 @@ class ApiEndpoints {
 
   // ==================== User Endpoints (Protected) ====================
 
+  /// GET - Get current user profile
+  static const String getCurrentUser = '$_apiBase/users/me';
+
   /// PUT - Update current user profile
   static const String updateProfile = '$_apiBase/users/me';
 
@@ -61,22 +64,23 @@ class ApiEndpoints {
   // ==================== Post Endpoints (Protected) ====================
 
   /// POST - Create post
-  static const String createPost = _postsBase;
+  static const String createPost = '$_apiBase/posts';
 
   /// GET - Get single post
-  static String getPost(String postId) => '$_postsBase/$postId';
+  static String getPost(String postId) => '$_apiBase/posts/$postId';
 
   /// POST - Like post
-  static String likePost(String postId) => '$_postsBase/$postId/like';
+  static String likePost(String postId) => '$_apiBase/posts/$postId/like';
 
   /// DELETE - Unlike post
-  static String unlikePost(String postId) => '$_postsBase/$postId/like';
+  static String unlikePost(String postId) => '$_apiBase/posts/$postId/like';
 
   /// POST - Add comment to post
-  static String addComment(String postId) => '$_postsBase/$postId/comments';
+  static String addComment(String postId) => '$_apiBase/posts/$postId/comments';
 
   /// GET - Get post comments
-  static String getComments(String postId) => '$_postsBase/$postId/comments';
+  static String getComments(String postId) =>
+      '$_apiBase/posts/$postId/comments';
 
   // ==================== Comment Endpoints (Protected) ====================
 
@@ -107,6 +111,12 @@ class ApiEndpoints {
   /// GET - Get followed locations
   static const String getFollowedLocations = '$_locationsBase/following';
 
+  // ==================== Geocode Endpoints (Protected) ====================
+
+  /// GET - Get address from coordinates
+  /// Query params: lat, lng
+  static const String getAddress = '$_apiBase/geocode/address';
+
   // ==================== Notification Endpoints (Protected) ====================
 
   /// GET - Get all notifications
@@ -132,10 +142,10 @@ class ApiEndpoints {
   // ==================== Upload Endpoints (Protected) ====================
 
   /// POST - Upload avatar (max 5MB, multipart/form-data)
-  static const String uploadAvatar = '$_uploadBase/avatar';
+  static const String uploadAvatar = '$_apiBase/upload/avatar';
 
   /// POST - Upload post media (max 50MB, multipart/form-data)
-  static const String uploadPostMedia = '$_uploadBase/post';
+  static const String uploadPostMedia = '$_apiBase/upload/post';
 
   // ==================== Device Endpoints (Protected) ====================
 

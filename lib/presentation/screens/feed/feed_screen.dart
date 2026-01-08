@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../config/routes.dart';
+import '../../../core/cache/image_cache_manager.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/loading_shimmer.dart';
-import '../../widgets/custom_refresh_indicator.dart';
 
 // ============================================================================
 // Dynamic Colors for Light/Dark Mode Adaptation (consistent with login screen)
@@ -310,10 +311,36 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                   context,
                 ),
               ),
-              child: Icon(
-                CupertinoIcons.person_fill,
-                size: 20,
-                color: iconColor,
+              child: Builder(
+                builder: (context) {
+                  final currentUser = ref.watch(currentUserProvider);
+                  if (currentUser?.profilePictureUrl != null) {
+                    return ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: currentUser!.profilePictureUrl!,
+                        fit: BoxFit.cover,
+                        width: 35,
+                        height: 35,
+                        cacheManager: AvatarCacheManager.instance,
+                        placeholder: (context, url) => Icon(
+                          CupertinoIcons.person_fill,
+                          size: 20,
+                          color: iconColor,
+                        ),
+                        errorWidget: (context, url, error) => Icon(
+                          CupertinoIcons.person_fill,
+                          size: 20,
+                          color: iconColor,
+                        ),
+                      ),
+                    );
+                  }
+                  return Icon(
+                    CupertinoIcons.person_fill,
+                    size: 20,
+                    color: iconColor,
+                  );
+                },
               ),
             ),
           ),
@@ -416,15 +443,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     }
 
     // Show feed
-    return CustomRefreshIndicator(
+    return RefreshIndicator(
       onRefresh: () async {
         await ref.read(locationStateProvider.notifier).refreshLocation();
         await ref.read(feedStateProvider.notifier).refreshFeed();
       },
+      color: CupertinoColors.systemBlue,
       child: CupertinoScrollbar(
         controller: _scrollController,
         child: ListView.builder(
           controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 80),
           itemCount: feedState.posts.length + (feedState.hasMore ? 1 : 0),
           itemBuilder: (context, index) {
@@ -595,60 +624,77 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
   }
 
   Widget _buildEmptyView(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              CupertinoIcons.compass,
-              size: 80,
-              color: CupertinoDynamicColor.resolve(
-                CupertinoColors.systemBlue,
-                context,
-              ).withOpacity(0.5),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No posts nearby',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: _resolveColor(context, _primaryText),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Be the first to share something in your area!',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                color: CupertinoDynamicColor.resolve(
-                  CupertinoColors.secondaryLabel,
-                  context,
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(locationStateProvider.notifier).refreshLocation();
+        await ref.read(feedStateProvider.notifier).refreshFeed();
+      },
+      color: CupertinoColors.systemBlue,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.compass,
+                        size: 80,
+                        color: CupertinoDynamicColor.resolve(
+                          CupertinoColors.systemBlue,
+                          context,
+                        ).withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'No posts nearby',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: _resolveColor(context, _primaryText),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Be the first to share something in your area!',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          color: CupertinoDynamicColor.resolve(
+                            CupertinoColors.secondaryLabel,
+                            context,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      CupertinoButton.filled(
+                        onPressed: () => context.push(RoutePaths.createPost),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(CupertinoIcons.add, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Create Post',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 32),
-            CupertinoButton.filled(
-              onPressed: () => context.push(RoutePaths.createPost),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(CupertinoIcons.add, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Create Post',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

@@ -81,6 +81,20 @@ class _CustomRefreshIndicatorState extends State<CustomRefreshIndicator>
       onNotification: (notification) {
         if (_isRefreshing) return false;
 
+        // Handle overscroll (pull down at top)
+        if (notification is OverscrollNotification) {
+          if (notification.overscroll < 0) {
+            setState(() {
+              _dragOffset = (_dragOffset - notification.overscroll).clamp(
+                0.0,
+                _maxOffset,
+              );
+            });
+            _triggerHaptic();
+          }
+        }
+
+        // Handle scroll update for bounce effect on iOS
         if (notification is ScrollUpdateNotification) {
           if (notification.metrics.pixels < 0) {
             setState(() {
@@ -90,6 +104,12 @@ class _CustomRefreshIndicatorState extends State<CustomRefreshIndicator>
               );
             });
             _triggerHaptic();
+          } else if (_dragOffset > 0 && !_isRefreshing) {
+            // User is scrolling back down, reduce offset
+            setState(() {
+              _dragOffset = 0.0;
+              _hasTriggeredHaptic = false;
+            });
           }
         }
 

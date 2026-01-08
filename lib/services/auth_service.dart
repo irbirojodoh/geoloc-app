@@ -73,14 +73,19 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
 
-        // Store tokens
+        // Store tokens first
         await _storeTokens(AuthTokens.fromJson(data));
 
-        // Store user
-        final user = User.fromJson(data['user'] as Map<String, dynamic>);
-        await _storeCurrentUser(user);
+        // Fetch full user profile from /api/v1/users/me
+        final user = await fetchCurrentUserFromApi();
+        if (user != null) {
+          return user;
+        }
 
-        return user;
+        // Fallback to login response user if API call fails
+        final loginUser = User.fromJson(data['user'] as Map<String, dynamic>);
+        await _storeCurrentUser(loginUser);
+        return loginUser;
       }
 
       throw const InvalidCredentialsFailure();
@@ -137,6 +142,25 @@ class AuthService {
 
     try {
       return User.fromJson(jsonDecode(userJson) as Map<String, dynamic>);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Fetch current user from API (includes profile_picture_url)
+  Future<User?> fetchCurrentUserFromApi() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.getCurrentUser);
+
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        // Handle nested 'user' field
+        final userJson = data['user'] as Map<String, dynamic>? ?? data;
+        final user = User.fromJson(userJson);
+        await _storeCurrentUser(user);
+        return user;
+      }
+      return null;
     } catch (e) {
       return null;
     }
