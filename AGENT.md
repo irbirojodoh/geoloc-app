@@ -68,9 +68,12 @@ The backend runs on `localhost:8080` with these key endpoints:
 POST /auth/register    - Create account
 POST /auth/login       - Login
 POST /auth/refresh     - Refresh JWT
+GET  /users/me         - Get own profile
+PUT  /users/me         - Update profile
 GET  /feed             - Get nearby posts
 POST /posts            - Create post
 GET  /users/:id        - Get user profile
+GET  /geocode/address  - Get address from lat/lng
 ```
 
 ## Running the App
@@ -95,7 +98,8 @@ flutter analyze
 - ✅ Core infrastructure (API client, auth, routing)
 - ✅ Data models
 - ✅ Auth screens (login, register)
-- ✅ Feed screen with location-based loading
+- ✅ Feed screen (view posts, pull-to-refresh)
+- ✅ Create Post screen (text, media, location with address)
 - ⏳ Profile, search, notifications (placeholders)
 - ⏳ Firebase push notifications (needs GoogleService-Info.plist)
 

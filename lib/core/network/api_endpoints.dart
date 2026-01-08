@@ -5,13 +5,12 @@ class ApiEndpoints {
   // Base paths
   static const String _authBase = '/auth';
   static const String _apiBase = '/api/v1';
-  static const String _usersBase = '/users';
-  static const String _postsBase = '/posts';
+
   static const String _commentsBase = '/comments';
   static const String _locationsBase = '/locations';
   static const String _notificationsBase = '/notifications';
   static const String _searchBase = '/search';
-  static const String _uploadBase = '/upload';
+
   static const String _devicesBase = '/devices';
 
   // ==================== Auth Endpoints (Public) ====================
@@ -64,6 +63,7 @@ class ApiEndpoints {
   // ==================== Post Endpoints (Protected) ====================
 
   /// POST - Create post
+  static const String posts = '$_apiBase/posts';
   static const String createPost = '$_apiBase/posts';
 
   /// GET - Get single post

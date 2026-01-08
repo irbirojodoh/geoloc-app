@@ -83,11 +83,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(CupertinoIcons.camera, size: 20),
+                // const Icon(CupertinoIcons.camera, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Take Photo',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 17),
+                  // style: GoogleFonts.plusJakartaSans(fontSize: 17),
                 ),
               ],
             ),
@@ -100,11 +100,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(CupertinoIcons.photo, size: 20),
+                // const Icon(CupertinoIcons.photo, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Choose from Gallery',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 17),
+                  // style: GoogleFonts.plusJakartaSans(fontSize: 17),
                 ),
               ],
             ),

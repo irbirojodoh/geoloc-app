@@ -211,6 +211,23 @@ Authorization: Bearer <access_token>
 
 ### Profile
 
+#### Get Current User Profile
+
+**Endpoint:** `GET /api/v1/users/me`
+
+**Success Response:** `200 OK`
+```json
+{
+  "user": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "full_name": "John Doe",
+    "profile_picture_url": "http://localhost:8080/uploads/avatars/abc.jpg"
+  }
+}
+```
+
 #### Update Current User Profile
 
 **Endpoint:** `PUT /api/v1/users/me`
@@ -228,6 +245,37 @@ Authorization: Bearer <access_token>
 {
   "message": "Profile updated",
   "user": { ... }
+}
+```
+
+---
+
+### Geocode
+
+#### Get Address from Coordinates
+
+**Endpoint:** `GET /api/v1/geocode/address`
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| lat | float | Yes | Latitude |
+| lng | float | Yes | Longitude |
+
+**Success Response:** `200 OK`
+```json
+{
+  "geohash": "qqggy",
+  "location_name": "Kukusan",
+  "address": {
+    "village": "Kukusan",
+    "city_district": "Beji",
+    "city": "Depok",
+    "state": "West Java",
+    "postcode": "16425",
+    "country": "Indonesia",
+    "country_code": "id"
+  }
 }
 ```
 
