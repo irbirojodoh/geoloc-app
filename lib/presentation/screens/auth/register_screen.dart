@@ -257,7 +257,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             left: 30,
             right: 30,
             top: 31,
-            bottom: 34 + bottomPadding,
+            bottom: 34 + keyboardHeight,
           ),
           child: Form(
             key: _formKey,

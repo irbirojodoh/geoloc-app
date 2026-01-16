@@ -255,7 +255,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             left: 30,
             right: 30,
             top: 31,
-            bottom: 34 + bottomPadding,
+            bottom: 40 + keyboardHeight / 2,
           ),
           child: Form(
             key: _formKey,

@@ -112,7 +112,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
       builder: (BuildContext context) => CupertinoActionSheet(
         title: Text(
           'Account',
-          style: GoogleFonts.plusJakartaSans(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: CupertinoDynamicColor.resolve(
@@ -123,7 +123,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
         ),
         message: Text(
           ref.read(currentUserProvider)?.email ?? 'Logged in',
-          style: GoogleFonts.plusJakartaSans(
+          style: TextStyle(
             fontSize: 13,
             color: CupertinoDynamicColor.resolve(
               CupertinoColors.tertiaryLabel,
@@ -142,7 +142,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
             },
             child: Text(
               'View Profile',
-              style: GoogleFonts.plusJakartaSans(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w400,
                 color: CupertinoDynamicColor.resolve(
@@ -160,10 +160,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
             },
             child: Text(
               'Log Out',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -171,7 +168,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
           onPressed: () => Navigator.pop(context),
           child: Text(
             'Cancel',
-            style: GoogleFonts.plusJakartaSans(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w600,
               color: CupertinoDynamicColor.resolve(

@@ -1,0 +1,330 @@
+# Services
+
+Services handle business logic, API communication, and external integrations.
+
+## Services Overview
+
+| Service | File | Description |
+|---------|------|-------------|
+| AuthService | `auth_service.dart` | Authentication and user management |
+| LocationService | `location_service.dart` | GPS and geocoding |
+| PushNotificationService | `push_notification_service.dart` | Firebase push notifications |
+
+---
+
+## Auth Service
+
+**File**: `lib/services/auth_service.dart`
+
+Handles all authentication-related operations.
+
+### Provider
+
+```dart
+final authServiceProvider = Provider<AuthService>((ref) {
+  return AuthService(
+    apiClient: ref.watch(apiClientProvider),
+    secureStorage: ref.watch(secureStorageProvider),
+  );
+});
+```
+
+### Methods
+
+#### Login
+```dart
+Future<User> login({
+  required String email,
+  required String password,
+}) async {
+  final response = await _apiClient.post('/auth/login', data: {
+    'email': email,
+    'password': password,
+  });
+  
+  // Store tokens
+  await _storeTokens(response.data['access_token'], response.data['refresh_token']);
+  
+  return User.fromJson(response.data['user']);
+}
+```
+
+#### Register
+```dart
+Future<User> register({
+  required String email,
+  required String password,
+  required String username,
+  required String fullName,
+}) async {
+  final response = await _apiClient.post('/auth/register', data: {
+    'email': email,
+    'password': password,
+    'username': username,
+    'full_name': fullName,
+  });
+  
+  await _storeTokens(...);
+  return User.fromJson(response.data['user']);
+}
+```
+
+#### Refresh Token
+```dart
+Future<void> refreshToken() async {
+  final refreshToken = await _secureStorage.read(key: 'refresh_token');
+  
+  final response = await _apiClient.post('/auth/refresh', data: {
+    'refresh_token': refreshToken,
+  });
+  
+  await _storeTokens(response.data['access_token'], response.data['refresh_token']);
+}
+```
+
+#### Logout
+```dart
+Future<void> logout() async {
+  await _secureStorage.delete(key: 'access_token');
+  await _secureStorage.delete(key: 'refresh_token');
+}
+```
+
+#### Get Current User
+```dart
+Future<User> getCurrentUser() async {
+  final response = await _apiClient.get('/users/me');
+  return User.fromJson(response.data);
+}
+```
+
+#### Update Profile
+```dart
+Future<User> updateProfile({
+  String? fullName,
+  String? bio,
+  String? username,
+}) async {
+  final response = await _apiClient.put('/users/me', data: {
+    if (fullName != null) 'full_name': fullName,
+    if (bio != null) 'bio': bio,
+    if (username != null) 'username': username,
+  });
+  return User.fromJson(response.data);
+}
+```
+
+---
+
+## Location Service
+
+**File**: `lib/services/location_service.dart`
+
+Handles GPS location and reverse geocoding.
+
+### Provider
+
+```dart
+final locationServiceProvider = Provider<LocationService>((ref) {
+  return LocationService(apiClient: ref.watch(apiClientProvider));
+});
+```
+
+### Methods
+
+#### Get Current Position
+```dart
+Future<Position> getCurrentPosition() async {
+  // Check permission
+  LocationPermission permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      throw LocationPermissionDenied();
+    }
+  }
+  
+  // Get position
+  return await Geolocator.getCurrentPosition(
+    desiredAccuracy: LocationAccuracy.high,
+  );
+}
+```
+
+#### Get Address from Coordinates
+```dart
+Future<Address> getAddressFromCoordinates(double lat, double lng) async {
+  final response = await _apiClient.get('/geocode/address', queryParameters: {
+    'latitude': lat,
+    'longitude': lng,
+  });
+  
+  return Address.fromJson(response.data);
+}
+```
+
+#### Calculate Distance
+```dart
+double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+  return Geolocator.distanceBetween(lat1, lng1, lat2, lng2) / 1000; // km
+}
+```
+
+---
+
+## Push Notification Service
+
+**File**: `lib/services/push_notification_service.dart`
+
+Handles Firebase Cloud Messaging for push notifications.
+
+> **Note**: Firebase is not yet configured. Add `GoogleService-Info.plist` for iOS and `google-services.json` for Android to enable.
+
+### Provider
+
+```dart
+final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
+  return PushNotificationService();
+});
+```
+
+### Methods
+
+#### Initialize
+```dart
+Future<void> initialize() async {
+  // Request permission
+  final settings = await FirebaseMessaging.instance.requestPermission();
+  
+  // Get FCM token
+  final token = await FirebaseMessaging.instance.getToken();
+  
+  // Register token with backend
+  await _registerToken(token);
+  
+  // Handle foreground messages
+  FirebaseMessaging.onMessage.listen(_handleMessage);
+}
+```
+
+#### Handle Notification Tap
+```dart
+void _handleMessage(RemoteMessage message) {
+  final type = message.data['type'];
+  final targetId = message.data['target_id'];
+  
+  switch (type) {
+    case 'like':
+    case 'comment':
+      // Navigate to post
+      router.push('/post/$targetId');
+      break;
+    case 'follow':
+      // Navigate to profile
+      router.push('/profile/$targetId');
+      break;
+  }
+}
+```
+
+---
+
+## API Client
+
+**File**: `lib/core/network/api_client.dart`
+
+Dio wrapper for HTTP requests with auth interceptor.
+
+### Configuration
+
+```dart
+final dio = Dio(BaseOptions(
+  baseUrl: 'http://localhost:8080',
+  connectTimeout: Duration(seconds: 10),
+  receiveTimeout: Duration(seconds: 10),
+  headers: {
+    'Content-Type': 'application/json',
+  },
+));
+```
+
+### Auth Interceptor
+
+**File**: `lib/core/network/auth_interceptor.dart`
+
+Automatically adds JWT token and handles 401 refresh.
+
+```dart
+class AuthInterceptor extends Interceptor {
+  @override
+  void onRequest(options, handler) async {
+    final token = await _storage.read(key: 'access_token');
+    if (token != null) {
+      options.headers['Authorization'] = 'Bearer $token';
+    }
+    handler.next(options);
+  }
+  
+  @override
+  void onError(error, handler) async {
+    if (error.response?.statusCode == 401) {
+      // Try to refresh token
+      await _refreshToken();
+      // Retry request
+      return handler.resolve(await _retry(error.requestOptions));
+    }
+    handler.next(error);
+  }
+}
+```
+
+---
+
+## API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/register` | Create account |
+| POST | `/auth/login` | Login |
+| POST | `/auth/refresh` | Refresh JWT |
+
+### Users
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/users/me` | Get current user |
+| PUT | `/users/me` | Update profile |
+| GET | `/users/:id` | Get user profile |
+| POST | `/users/:id/follow` | Follow user |
+| DELETE | `/users/:id/follow` | Unfollow user |
+| GET | `/users/:id/followers` | List followers |
+| GET | `/users/:id/following` | List following |
+
+### Posts
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/feed` | Get nearby posts |
+| POST | `/posts` | Create post |
+| GET | `/posts/:id` | Get post detail |
+| DELETE | `/posts/:id` | Delete post |
+| POST | `/posts/:id/like` | Like post |
+| DELETE | `/posts/:id/like` | Unlike post |
+| GET | `/posts/:id/comments` | List comments |
+| POST | `/posts/:id/comments` | Add comment |
+
+### Geocoding
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/geocode/address` | Reverse geocode |
+
+### Notifications
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/notifications` | List notifications |
+| PUT | `/notifications/:id/read` | Mark as read |
+
+### Search
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/search/users` | Search users |
+| GET | `/search/posts` | Search posts |
