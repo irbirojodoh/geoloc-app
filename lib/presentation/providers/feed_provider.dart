@@ -192,40 +192,82 @@ class FeedNotifier extends StateNotifier<FeedState> {
     throw Exception('Failed to load feed');
   }
 
-  /// Like a post
-  Future<void> likePost(String postId) async {
-    // Optimistic update
-    _updatePostLike(postId, true);
+  /// Toggle like state for a post with optimistic UI update
+  ///
+  /// Immediately updates UI, then calls API in background.
+  /// Reverts if API call fails.
+  Future<void> toggleLike(String postId) async {
+    // Find current post to get its state
+    final postIndex = state.posts.indexWhere((p) => p.id == postId);
+    if (postIndex == -1) return;
+
+    final post = state.posts[postIndex];
+    final wasLiked = post.isLiked;
+    final newLikeState = !wasLiked;
+
+    // Optimistic update - immediately show the change
+    _updatePostLikeState(postId, newLikeState);
 
     try {
-      await _apiClient.post(ApiEndpoints.likePost(postId));
+      // Call the toggle-like endpoint with desired state
+      final response = await _apiClient.post(
+        ApiEndpoints.togglePostLike(postId),
+        data: {'like': newLikeState},
+      );
+
+      if (response.statusCode == 200) {
+        // Sync with server state to ensure consistency
+        final data = response.data as Map<String, dynamic>;
+        final serverLiked = data['is_liked'] as bool;
+        final serverCount = data['like_count'] as int;
+
+        // Update with server's authoritative state
+        _syncPostLikeState(postId, serverLiked, serverCount);
+      } else {
+        // Revert on non-200 response
+        _updatePostLikeState(postId, wasLiked);
+      }
     } catch (e) {
       // Revert on failure
-      _updatePostLike(postId, false);
+      _updatePostLikeState(postId, wasLiked);
     }
   }
 
-  /// Unlike a post
-  Future<void> unlikePost(String postId) async {
-    // Optimistic update
-    _updatePostLike(postId, false);
-
-    try {
-      await _apiClient.delete(ApiEndpoints.unlikePost(postId));
-    } catch (e) {
-      // Revert on failure
-      _updatePostLike(postId, true);
-    }
-  }
-
-  /// Update post like state locally
-  void _updatePostLike(String postId, bool isLiked) {
+  /// Update post like state locally (optimistic update)
+  void _updatePostLikeState(String postId, bool isLiked) {
     final updatedPosts = state.posts.map((post) {
       if (post.id == postId) {
+        final currentLiked = post.isLiked;
+        if (currentLiked == isLiked) return post; // No change needed
+
         return post.copyWith(
           isLiked: isLiked,
           likeCount: post.likeCount + (isLiked ? 1 : -1),
         );
+      }
+      return post;
+    }).toList();
+
+    state = state.copyWith(posts: updatedPosts);
+  }
+
+  /// Sync post like state with server response
+  void _syncPostLikeState(String postId, bool isLiked, int likeCount) {
+    final updatedPosts = state.posts.map((post) {
+      if (post.id == postId) {
+        return post.copyWith(isLiked: isLiked, likeCount: likeCount);
+      }
+      return post;
+    }).toList();
+
+    state = state.copyWith(posts: updatedPosts);
+  }
+
+  /// Update a post in the feed (used for syncing state from post detail)
+  void updatePost(Post updatedPost) {
+    final updatedPosts = state.posts.map((post) {
+      if (post.id == updatedPost.id) {
+        return updatedPost;
       }
       return post;
     }).toList();

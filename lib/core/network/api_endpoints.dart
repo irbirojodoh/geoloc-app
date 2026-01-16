@@ -69,11 +69,17 @@ class ApiEndpoints {
   /// GET - Get single post
   static String getPost(String postId) => '$_apiBase/posts/$postId';
 
-  /// POST - Like post
+  /// POST - Like post (legacy)
   static String likePost(String postId) => '$_apiBase/posts/$postId/like';
 
-  /// DELETE - Unlike post
+  /// DELETE - Unlike post (legacy)
   static String unlikePost(String postId) => '$_apiBase/posts/$postId/like';
+
+  /// POST - Toggle post like (idempotent, recommended)
+  /// Request: { "like": true/false }
+  /// Response: { "is_liked": bool, "like_count": int, "changed": bool }
+  static String togglePostLike(String postId) =>
+      '$_apiBase/posts/$postId/toggle-like';
 
   /// POST - Add comment to post
   static String addComment(String postId) => '$_apiBase/posts/$postId/comments';
@@ -88,13 +94,19 @@ class ApiEndpoints {
   static String replyToComment(String commentId) =>
       '$_commentsBase/$commentId/reply';
 
-  /// POST - Like comment
+  /// POST - Like comment (legacy)
   static String likeComment(String commentId) =>
       '$_commentsBase/$commentId/like';
 
-  /// DELETE - Unlike comment
+  /// DELETE - Unlike comment (legacy)
   static String unlikeComment(String commentId) =>
       '$_commentsBase/$commentId/like';
+
+  /// POST - Toggle comment like (idempotent, recommended)
+  /// Request: { "like": true/false }
+  /// Response: { "is_liked": bool, "like_count": int, "changed": bool }
+  static String toggleCommentLike(String commentId) =>
+      '$_apiBase/comments/$commentId/toggle-like';
 
   /// DELETE - Delete own comment
   static String deleteComment(String commentId) => '$_commentsBase/$commentId';

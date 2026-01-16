@@ -135,6 +135,141 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
       return false;
     }
   }
+
+  /// Toggle like state for the current post with optimistic UI update
+  Future<void> togglePostLike() async {
+    if (state.post == null) return;
+
+    final post = state.post!;
+    final wasLiked = post.isLiked;
+    final newLikeState = !wasLiked;
+
+    // Optimistic update
+    state = state.copyWith(
+      post: post.copyWith(
+        isLiked: newLikeState,
+        likeCount: post.likeCount + (newLikeState ? 1 : -1),
+      ),
+    );
+
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.togglePostLike(postId),
+        data: {'like': newLikeState},
+      );
+
+      if (response.statusCode == 200) {
+        // Sync with server state
+        final data = response.data as Map<String, dynamic>;
+        final serverLiked = data['is_liked'] as bool;
+        final serverCount = data['like_count'] as int;
+
+        state = state.copyWith(
+          post: state.post!.copyWith(
+            isLiked: serverLiked,
+            likeCount: serverCount,
+          ),
+        );
+      } else {
+        // Revert on non-200 response
+        state = state.copyWith(
+          post: state.post!.copyWith(
+            isLiked: wasLiked,
+            likeCount: state.post!.likeCount + (wasLiked ? 1 : -1),
+          ),
+        );
+      }
+    } catch (e) {
+      // Revert on failure
+      state = state.copyWith(
+        post: state.post!.copyWith(
+          isLiked: wasLiked,
+          likeCount: state.post!.likeCount + (wasLiked ? 1 : -1),
+        ),
+      );
+    }
+  }
+
+  /// Toggle like state for a comment with optimistic UI update
+  Future<void> toggleCommentLike(String commentId) async {
+    final commentIndex = state.comments.indexWhere((c) => c.id == commentId);
+    if (commentIndex == -1) return;
+
+    final comment = state.comments[commentIndex];
+    final wasLiked = comment.isLiked;
+    final newLikeState = !wasLiked;
+
+    // Optimistic update
+    _updateCommentLikeState(commentId, newLikeState);
+
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.toggleCommentLike(commentId),
+        data: {'like': newLikeState},
+      );
+
+      if (response.statusCode == 200) {
+        // Sync with server state
+        final data = response.data as Map<String, dynamic>;
+        final serverLiked = data['is_liked'] as bool;
+        final serverCount = data['like_count'] as int;
+
+        _syncCommentLikeState(commentId, serverLiked, serverCount);
+      } else {
+        // Revert on non-200 response
+        _updateCommentLikeState(commentId, wasLiked);
+      }
+    } catch (e) {
+      // Revert on failure
+      _updateCommentLikeState(commentId, wasLiked);
+    }
+  }
+
+  /// Update comment like state locally (for optimistic updates)
+  void _updateCommentLikeState(String commentId, bool isLiked) {
+    final updatedComments = _updateCommentsRecursively(
+      state.comments,
+      commentId,
+      (comment) => comment.copyWith(
+        isLiked: isLiked,
+        likeCount: comment.likeCount + (isLiked ? 1 : -1),
+      ),
+    );
+    state = state.copyWith(comments: updatedComments);
+  }
+
+  /// Sync comment like state with server response
+  void _syncCommentLikeState(String commentId, bool isLiked, int likeCount) {
+    final updatedComments = _updateCommentsRecursively(
+      state.comments,
+      commentId,
+      (comment) => comment.copyWith(isLiked: isLiked, likeCount: likeCount),
+    );
+    state = state.copyWith(comments: updatedComments);
+  }
+
+  /// Recursively update a comment in the tree (handles nested replies)
+  List<Comment> _updateCommentsRecursively(
+    List<Comment> comments,
+    String commentId,
+    Comment Function(Comment) updater,
+  ) {
+    return comments.map((comment) {
+      if (comment.id == commentId) {
+        return updater(comment);
+      }
+      if (comment.replies.isNotEmpty) {
+        return comment.copyWith(
+          replies: _updateCommentsRecursively(
+            comment.replies,
+            commentId,
+            updater,
+          ),
+        );
+      }
+      return comment;
+    }).toList();
+  }
 }
 
 /// Provider for specific post detail

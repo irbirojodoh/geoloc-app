@@ -119,6 +119,61 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           post: postDetailState.post!,
                           // Disable onTap to avoid recursion
                           onTap: null,
+                          onLike: () => ref
+                              .read(postDetailProvider(widget.postId).notifier)
+                              .togglePostLike(),
+                          onUserTap: () => context.push(
+                            '/profile/${postDetailState.post!.userId}',
+                          ),
+                        ),
+                      ),
+
+                      // Stats row (likes and comments count)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                          child: Row(
+                            children: [
+                              Icon(
+                                CupertinoIcons.heart_fill,
+                                size: 16,
+                                color: CupertinoColors.systemRed,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${postDetailState.post!.likeCount} likes',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: CupertinoDynamicColor.resolve(
+                                    CupertinoColors.label,
+                                    context,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Icon(
+                                CupertinoIcons.chat_bubble,
+                                size: 16,
+                                color: CupertinoDynamicColor.resolve(
+                                  CupertinoColors.secondaryLabel,
+                                  context,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${postDetailState.post!.commentCount} comments',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: CupertinoDynamicColor.resolve(
+                                    CupertinoColors.label,
+                                    context,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
 
@@ -158,7 +213,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             index,
                           ) {
                             final comment = postDetailState.comments[index];
-                            return _CommentItem(comment: comment);
+                            return _CommentItem(
+                              comment: comment,
+                              postId: widget.postId,
+                            );
                           }, childCount: postDetailState.comments.length),
                         ),
 
@@ -331,13 +389,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   }
 }
 
-class _CommentItem extends StatelessWidget {
+class _CommentItem extends ConsumerWidget {
   final Comment comment;
+  final String postId;
 
-  const _CommentItem({required this.comment});
+  const _CommentItem({required this.comment, required this.postId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -376,6 +435,38 @@ class _CommentItem extends StatelessWidget {
                 Text(
                   comment.content,
                   style: GoogleFonts.plusJakartaSans(fontSize: 14, height: 1.3),
+                ),
+                // Like button row
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: () => ref
+                      .read(postDetailProvider(postId).notifier)
+                      .toggleCommentLike(comment.id),
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        comment.isLiked
+                            ? CupertinoIcons.heart_fill
+                            : CupertinoIcons.heart,
+                        size: 14,
+                        color: comment.isLiked
+                            ? CupertinoColors.systemRed
+                            : CupertinoColors.secondaryLabel,
+                      ),
+                      if (comment.likeCount > 0) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          '${comment.likeCount}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            color: CupertinoColors.secondaryLabel,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ],
             ),

@@ -465,13 +465,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
             return PostCard(
               post: post,
               onTap: () => context.push('/post/${post.id}'),
-              onLike: () {
-                if (post.isLiked) {
-                  ref.read(feedStateProvider.notifier).unlikePost(post.id);
-                } else {
-                  ref.read(feedStateProvider.notifier).likePost(post.id);
-                }
-              },
+              onLike: () =>
+                  ref.read(feedStateProvider.notifier).toggleLike(post.id),
               onComment: () => context.push('/post/${post.id}'),
               onUserTap: () => context.push('/profile/${post.userId}'),
             );
