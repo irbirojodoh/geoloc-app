@@ -17,13 +17,12 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Set system UI overlay style
+  // Set system UI overlay style — warm-neutral old-money aesthetic
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor:
-      Colors.transparent, // Makes the status bar background transparent
-        statusBarIconBrightness: Brightness.light, // For Android: sets icons to light/white color
-        statusBarBrightness: Brightness.dark, // For iOS: sets icons to dark color
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark, // For Android: dark icons on warm cream bg
+      statusBarBrightness: Brightness.light, // For iOS: light status bar content
     ),
   );
 

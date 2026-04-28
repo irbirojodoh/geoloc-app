@@ -1,121 +1,109 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Circular user avatar with cached network image and fallback
+import '../../core/cache/image_cache_manager.dart';
+import '../../core/theme/app_colors.dart';
+
+/// User avatar — old-money luxury aesthetic
 class UserAvatar extends StatelessWidget {
   final String? imageUrl;
   final String name;
   final double size;
-  final VoidCallback? onTap;
   final bool showBorder;
-  final Color? borderColor;
+  final VoidCallback? onTap;
 
   const UserAvatar({
     super.key,
     this.imageUrl,
     required this.name,
     this.size = 40,
-    this.onTap,
     this.showBorder = false,
-    this.borderColor,
+    this.onTap,
   });
+
+  /// Deterministic fallback palette derived from the central [AppColors] tokens.
+  /// Re-exporting hexes here would risk drift; reference the tokens instead.
+  static const _fallbackColors = <Color>[
+    AppColors.goldDeep,
+    AppColors.textMutedLight,
+    AppColors.info,
+    AppColors.textMutedDark,
+    AppColors.warning,
+    AppColors.success,
+  ];
+
+  Color _backgroundColor() {
+    final index = name.isEmpty
+        ? 0
+        : name.codeUnitAt(0) % _fallbackColors.length;
+    return _fallbackColors[index];
+  }
+
+  String _initials() {
+    if (name.isEmpty) return '?';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return name[0].toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final gold = AppColors.gold(context);
 
-    Widget avatar;
-
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      avatar = CachedNetworkImage(
-        imageUrl: imageUrl!,
-        imageBuilder: (context, imageProvider) => Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
-          ),
-        ),
-        placeholder: (context, url) => _buildPlaceholder(theme),
-        errorWidget: (context, url, error) => _buildFallback(theme),
-      );
-    } else {
-      avatar = _buildFallback(theme);
-    }
-
-    Widget result = Container(
+    final avatar = Container(
       width: size,
       height: size,
-      decoration: showBorder
-          ? BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: borderColor ?? theme.colorScheme.primary,
-                width: 2,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: showBorder ? Border.all(color: gold, width: 1.5) : null,
+      ),
+      child: imageUrl != null
+          ? ClipOval(
+              child: CachedNetworkImage(
+                imageUrl: imageUrl!,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                cacheManager: AvatarCacheManager.instance,
+                // Decode at the rendered logical pixel size to keep memory low.
+                memCacheWidth:
+                    (size * MediaQuery.devicePixelRatioOf(context)).round(),
+                memCacheHeight:
+                    (size * MediaQuery.devicePixelRatioOf(context)).round(),
+                placeholder: (context, url) => _buildFallback(context),
+                errorWidget: (context, url, error) => _buildFallback(context),
               ),
             )
-          : null,
-      child: ClipOval(child: avatar),
+          : _buildFallback(context),
     );
 
     if (onTap != null) {
-      result = GestureDetector(onTap: onTap, child: result);
+      return GestureDetector(onTap: onTap, child: avatar);
     }
-
-    return result;
+    return avatar;
   }
 
-  Widget _buildPlaceholder(ThemeData theme) {
+  Widget _buildFallback(BuildContext context) {
     return Container(
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Center(
-        child: SizedBox(
-          width: size * 0.4,
-          height: size * 0.4,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: theme.colorScheme.primary,
-          ),
-        ),
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: _backgroundColor(),
+        shape: BoxShape.circle,
       ),
-    );
-  }
-
-  Widget _buildFallback(ThemeData theme) {
-    // Generate a consistent color based on the name
-    final colors = [
-      Colors.blue,
-      Colors.purple,
-      Colors.teal,
-      Colors.orange,
-      Colors.pink,
-      Colors.indigo,
-      Colors.cyan,
-      Colors.amber,
-    ];
-    final colorIndex = name.isNotEmpty ? name.codeUnitAt(0) % colors.length : 0;
-
-    return Container(
-      color: colors[colorIndex].withOpacity(0.2),
       child: Center(
         child: Text(
-          _getInitials(),
-          style: TextStyle(
-            fontSize: size * 0.4,
-            fontWeight: FontWeight.bold,
-            color: colors[colorIndex],
+          _initials(),
+          style: GoogleFonts.ptSerif(
+            fontSize: size * 0.38,
+            fontWeight: FontWeight.w700,
+            color: AppColors.bgLight,
           ),
         ),
       ),
     );
-  }
-
-  String _getInitials() {
-    if (name.isEmpty) return '?';
-
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return name[0].toUpperCase();
   }
 }

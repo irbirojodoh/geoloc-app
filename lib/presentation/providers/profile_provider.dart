@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
@@ -12,6 +13,7 @@ class ProfileState {
   final bool isLoading;
   final bool isLoadingPosts;
   final bool isRefreshing;
+  final bool isFollowLoading;
   final String? error;
   final bool hasMorePosts;
   final String? postsCursor;
@@ -22,6 +24,7 @@ class ProfileState {
     this.isLoading = false,
     this.isLoadingPosts = false,
     this.isRefreshing = false,
+    this.isFollowLoading = false,
     this.error,
     this.hasMorePosts = true,
     this.postsCursor,
@@ -33,6 +36,7 @@ class ProfileState {
     bool? isLoading,
     bool? isLoadingPosts,
     bool? isRefreshing,
+    bool? isFollowLoading,
     String? error,
     bool? hasMorePosts,
     String? postsCursor,
@@ -43,6 +47,7 @@ class ProfileState {
       isLoading: isLoading ?? this.isLoading,
       isLoadingPosts: isLoadingPosts ?? this.isLoadingPosts,
       isRefreshing: isRefreshing ?? this.isRefreshing,
+      isFollowLoading: isFollowLoading ?? this.isFollowLoading,
       error: error,
       hasMorePosts: hasMorePosts ?? this.hasMorePosts,
       postsCursor: postsCursor ?? this.postsCursor,
@@ -142,9 +147,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         }
       }
     } catch (e) {
-      // Posts loading failed, keep any existing data
-      // ignore: avoid_print
-      print('❌ Posts loading failed: $e');
+      if (kDebugMode) debugPrint('Posts loading failed: $e');
       state = state.copyWith(isLoadingPosts: false);
     }
   }
@@ -188,31 +191,36 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
   /// Follow or unfollow user
   Future<void> toggleFollow() async {
-    if (state.user == null) return;
+    if (state.user == null || state.isFollowLoading) return;
 
     final isCurrentlyFollowing = state.user!.isFollowing ?? false;
+
+    // Optimistic update
+    state = state.copyWith(
+      isFollowLoading: true,
+      user: state.user!.copyWith(
+        isFollowing: !isCurrentlyFollowing,
+        followersCount: state.user!.followersCount + (isCurrentlyFollowing ? -1 : 1),
+      ),
+    );
 
     try {
       if (isCurrentlyFollowing) {
         await _apiClient.delete(ApiEndpoints.unfollowUser(userId));
-        state = state.copyWith(
-          user: state.user!.copyWith(
-            isFollowing: false,
-            followersCount: state.user!.followersCount - 1,
-          ),
-        );
       } else {
         await _apiClient.post(ApiEndpoints.followUser(userId));
-        state = state.copyWith(
-          user: state.user!.copyWith(
-            isFollowing: true,
-            followersCount: state.user!.followersCount + 1,
-          ),
-        );
       }
+      state = state.copyWith(isFollowLoading: false);
     } catch (e) {
       // Revert on failure
-      state = state.copyWith(error: _getErrorMessage(e));
+      state = state.copyWith(
+        isFollowLoading: false,
+        user: state.user!.copyWith(
+          isFollowing: isCurrentlyFollowing,
+          followersCount: state.user!.followersCount + (isCurrentlyFollowing ? 1 : -1),
+        ),
+        error: _getErrorMessage(e),
+      );
     }
   }
 

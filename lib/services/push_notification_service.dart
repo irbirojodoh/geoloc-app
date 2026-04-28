@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_client.dart';
@@ -18,10 +19,13 @@ class PushNotificationService {
   PushNotificationService(this._apiClient);
 
   /// Initialize push notifications
-  /// TODO: Implement after Firebase is configured
+  /// TODO(geoloc): Implement after Firebase is configured (see docs).
   Future<void> initialize() async {
-    // Firebase not configured yet
-    print('Push notifications not configured. Add GoogleService-Info.plist to enable.');
+    if (kDebugMode) {
+      debugPrint(
+        'Push notifications not configured. Add GoogleService-Info.plist to enable.',
+      );
+    }
   }
 
   /// Request notification permission
@@ -44,7 +48,7 @@ class PushNotificationService {
         data: {'token': token, 'platform': 'ios'},
       );
     } catch (e) {
-      print('Failed to register FCM token: $e');
+      if (kDebugMode) debugPrint('Failed to register FCM token: $e');
     }
   }
 
@@ -53,7 +57,7 @@ class PushNotificationService {
     try {
       await _apiClient.delete(ApiEndpoints.unregisterDevice);
     } catch (e) {
-      print('Failed to unregister FCM token: $e');
+      if (kDebugMode) debugPrint('Failed to unregister FCM token: $e');
     }
   }
 

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../data/models/post.dart';
@@ -96,8 +98,7 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
         state = state.copyWith(comments: commentsList);
       }
     } catch (e) {
-      // Siltently fail for comments or show error if needed
-      print('Error loading comments: $e');
+      if (kDebugMode) debugPrint('Error loading comments: $e');
     }
   }
 

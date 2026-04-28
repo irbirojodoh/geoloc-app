@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,19 +26,35 @@ class RoutePaths {
   static const String postDetail = '/post/:id';
   static const String profile = '/profile/:id';
   static const String editProfile = '/profile/edit';
+  static const String onboarding = '/onboarding';
   static const String search = '/search';
   static const String notifications = '/notifications';
 }
 
 /// Router configuration
+///
+/// Subscribes once to [authStateProvider] via [ref.listen] and feeds a
+/// [ValueNotifier] into GoRouter's [GoRouter.refreshListenable]. The router
+/// is **not** rebuilt on every auth state change — only the redirect logic
+/// re-runs when the `isAuthenticated` flag flips. This avoids tearing down
+/// the navigator stack on benign state updates (e.g. user profile refresh).
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final authListenable = ValueNotifier<bool>(
+    ref.read(authStateProvider).isAuthenticated,
+  );
+  ref.listen<AuthState>(authStateProvider, (previous, next) {
+    if (previous?.isAuthenticated != next.isAuthenticated) {
+      authListenable.value = next.isAuthenticated;
+    }
+  });
+  ref.onDispose(authListenable.dispose);
 
   return GoRouter(
     initialLocation: RoutePaths.splash,
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: kDebugMode,
+    refreshListenable: authListenable,
     redirect: (context, state) {
-      final isLoggedIn = authState.isAuthenticated;
+      final isLoggedIn = authListenable.value;
       final isAuthRoute =
           state.matchedLocation == RoutePaths.login ||
           state.matchedLocation == RoutePaths.register;
@@ -115,16 +132,21 @@ final routerProvider = Provider<GoRouter>((ref) {
           return PostDetailScreen(postId: postId);
         },
       ),
+      // Edit profile must come BEFORE /profile/:id to avoid "edit" being parsed as userId
+      GoRoute(
+        path: RoutePaths.editProfile,
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.onboarding,
+        builder: (context, state) => const EditProfileScreen(), // Use edit profile for onboarding
+      ),
       GoRoute(
         path: RoutePaths.profile,
         builder: (context, state) {
           final userId = state.pathParameters['id']!;
           return ProfileScreen(userId: userId);
         },
-      ),
-      GoRoute(
-        path: RoutePaths.editProfile,
-        builder: (context, state) => const EditProfileScreen(),
       ),
       GoRoute(
         path: RoutePaths.search,

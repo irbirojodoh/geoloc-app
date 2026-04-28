@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/app_config.dart';
@@ -127,30 +128,36 @@ class ApiClient {
   }
 }
 
-/// Logging interceptor for debugging
+/// Logging interceptor for debugging — only logs in debug builds.
 class _LoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    print('🌐 REQUEST[${options.method}] => PATH: ${options.path}');
+    if (kDebugMode) {
+      debugPrint('🌐 REQUEST[${options.method}] => PATH: ${options.path}');
+    }
     handler.next(options);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    print(
-      '✅ RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}',
-    );
+    if (kDebugMode) {
+      debugPrint(
+        '✅ RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}',
+      );
+    }
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    print(
-      '❌ ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}',
-    );
-    print('   MESSAGE: ${err.message}');
-    if (err.response?.data != null) {
-      print('   RESPONSE BODY: ${err.response?.data}');
+    if (kDebugMode) {
+      debugPrint(
+        '❌ ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}',
+      );
+      debugPrint('   MESSAGE: ${err.message}');
+      if (err.response?.data != null) {
+        debugPrint('   RESPONSE BODY: ${err.response?.data}');
+      }
     }
     handler.next(err);
   }

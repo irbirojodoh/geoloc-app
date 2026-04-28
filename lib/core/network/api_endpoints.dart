@@ -24,6 +24,12 @@ class ApiEndpoints {
   /// POST - Refresh access token
   static const String refreshToken = '$_authBase/refresh';
 
+  /// POST - Exchange Google ID token for JWT
+  static const String googleToken = '$_authBase/google/token';
+
+  /// POST - Exchange Apple ID token for JWT
+  static const String appleToken = '$_authBase/apple/token';
+
   // ==================== Feed Endpoints (Public) ====================
 
   /// GET - Get nearby posts

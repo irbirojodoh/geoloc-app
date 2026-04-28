@@ -1,30 +1,16 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+import '../../../core/theme/app_colors.dart';
 import '../../../data/models/comment.dart';
 import '../../providers/post_detail_provider.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/user_avatar.dart';
 
-// ============================================================================
-// Dynamic Colors for Light/Dark Mode Adaptation (matching CreatePostScreen)
-// ============================================================================
-
-const _cardBackgroundStart = CupertinoDynamicColor.withBrightness(
-  color: Color(0xFFF0F4F8),
-  darkColor: Color(0xFF2C2C2E),
-);
-
-const _cardBackgroundEnd = CupertinoDynamicColor.withBrightness(
-  color: Color(0xFFFFFFFF),
-  darkColor: Color(0xFF1C1C1E),
-);
-
-/// Post detail screen with comments
+/// Post detail screen — old-money luxury aesthetic
 class PostDetailScreen extends ConsumerStatefulWidget {
   final String postId;
 
@@ -45,13 +31,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     super.dispose();
   }
 
-  Color _resolveColor(
-    BuildContext context,
-    CupertinoDynamicColor dynamicColor,
-  ) {
-    return CupertinoDynamicColor.resolve(dynamicColor, context);
-  }
-
   void _submitComment() async {
     final success = await ref
         .read(postDetailProvider(widget.postId).notifier)
@@ -68,28 +47,20 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final postDetailState = ref.watch(postDetailProvider(widget.postId));
-
-    final backgroundColor = CupertinoDynamicColor.resolve(
-      const CupertinoDynamicColor.withBrightness(
-        color: CupertinoColors.systemGrey6,
-        darkColor: CupertinoColors.darkBackgroundGray,
-      ),
-      context,
-    );
+    final cs = Theme.of(context).colorScheme;
+    final gold = AppColors.gold(context);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
       resizeToAvoidBottomInset: false,
       body: SafeArea(
         top: false,
         bottom: false,
         child: Column(
           children: [
-            // Custom header matching CreatePostScreen
             _buildHeader(context),
-            // Main content
             Expanded(
               child: RefreshIndicator(
+                color: gold,
                 onRefresh: () async {
                   await ref
                       .read(postDetailProvider(widget.postId).notifier)
@@ -104,20 +75,30 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   slivers: [
                     if (postDetailState.isLoading &&
                         postDetailState.post == null)
-                      const SliverFillRemaining(
-                        child: Center(child: CupertinoActivityIndicator()),
+                      SliverFillRemaining(
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: gold,
+                          ),
+                        ),
                       )
                     else if (postDetailState.error != null &&
                         postDetailState.post == null)
                       SliverFillRemaining(
-                        child: Center(child: Text(postDetailState.error!)),
+                        child: Center(
+                          child: Text(
+                            postDetailState.error!,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: cs.onSurface,
+                            ),
+                          ),
+                        ),
                       )
                     else if (postDetailState.post != null) ...[
-                      // Post content using PostCard
                       SliverToBoxAdapter(
                         child: PostCard(
                           post: postDetailState.post!,
-                          // Disable onTap to avoid recursion
                           onTap: null,
                           onLike: () => ref
                               .read(postDetailProvider(widget.postId).notifier)
@@ -128,48 +109,55 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         ),
                       ),
 
-                      // Stats row (likes and comments count)
+                      // Stats row
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                           child: Row(
                             children: [
-                              Icon(
-                                CupertinoIcons.heart_fill,
-                                size: 16,
-                                color: CupertinoColors.systemRed,
+                              const Icon(
+                                Icons.favorite,
+                                size: 14,
+                                color: AppColors.error,
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '${postDetailState.post!.likeCount} likes',
+                                '${postDetailState.post!.likeCount}',
+                                style: GoogleFonts.firaCode(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: cs.onSurface,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'likes',
                                 style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: CupertinoDynamicColor.resolve(
-                                    CupertinoColors.label,
-                                    context,
-                                  ),
+                                  fontSize: 13,
+                                  color: AppColors.textMuted(context),
                                 ),
                               ),
                               const SizedBox(width: 16),
                               Icon(
-                                CupertinoIcons.chat_bubble,
-                                size: 16,
-                                color: CupertinoDynamicColor.resolve(
-                                  CupertinoColors.secondaryLabel,
-                                  context,
+                                Icons.chat_bubble_outline,
+                                size: 14,
+                                color: AppColors.textMuted(context),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${postDetailState.post!.commentCount}',
+                                style: GoogleFonts.firaCode(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: cs.onSurface,
                                 ),
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '${postDetailState.post!.commentCount} comments',
+                                'comments',
                                 style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: CupertinoDynamicColor.resolve(
-                                    CupertinoColors.label,
-                                    context,
-                                  ),
+                                  fontSize: 13,
+                                  color: AppColors.textMuted(context),
                                 ),
                               ),
                             ],
@@ -180,13 +168,26 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       // Comments header
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
                           child: Text(
-                            'Comments',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                            'COMMENTS',
+                            style: GoogleFonts.ptSerif(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.8,
+                              color: gold,
                             ),
+                          ),
+                        ),
+                      ),
+
+                      // Divider
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Container(
+                            height: 0.5,
+                            color: cs.outline,
                           ),
                         ),
                       ),
@@ -200,7 +201,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               child: Text(
                                 'No comments yet',
                                 style: GoogleFonts.plusJakartaSans(
-                                  color: CupertinoColors.secondaryLabel,
+                                  color: AppColors.textMuted(context),
                                 ),
                               ),
                             ),
@@ -208,19 +209,19 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         )
                       else
                         SliverList(
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            final comment = postDetailState.comments[index];
-                            return _CommentItem(
-                              comment: comment,
-                              postId: widget.postId,
-                            );
-                          }, childCount: postDetailState.comments.length),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final comment =
+                                  postDetailState.comments[index];
+                              return _CommentItem(
+                                comment: comment,
+                                postId: widget.postId,
+                              );
+                            },
+                            childCount: postDetailState.comments.length,
+                          ),
                         ),
 
-                      // Bottom padding for scroll
                       const SliverToBoxAdapter(child: SizedBox(height: 20)),
                     ],
                   ],
@@ -228,7 +229,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               ),
             ),
 
-            // Comment input area
+            // Comment input
             if (postDetailState.post != null)
               _buildCommentInput(context, postDetailState),
           ],
@@ -238,63 +239,49 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final iconColor = CupertinoDynamicColor.resolve(
-      CupertinoColors.label,
-      context,
-    );
+    final cs = Theme.of(context).colorScheme;
 
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          stops: const [0.14, 0.67],
-          colors: [
-            _resolveColor(context, _cardBackgroundStart),
-            _resolveColor(context, _cardBackgroundEnd),
-          ],
-        ),
-      ),
+      color: cs.surface,
       child: Column(
         children: [
           SizedBox(height: MediaQuery.of(context).padding.top),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: cs.outline, width: 0.5),
+              ),
+            ),
             child: Row(
               children: [
-                // Back button
                 GestureDetector(
                   onTap: () => context.pop(),
                   child: Container(
-                    width: 35,
-                    height: 35,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: CupertinoDynamicColor.resolve(
-                        CupertinoColors.systemGrey5,
-                        context,
-                      ),
+                      borderRadius: BorderRadius.circular(2),
+                      border: Border.all(color: cs.outline, width: 1),
                     ),
                     child: Icon(
-                      CupertinoIcons.chevron_back,
+                      Icons.arrow_back,
                       size: 18,
-                      color: iconColor,
+                      color: cs.onSurface,
                     ),
                   ),
                 ),
                 const Spacer(),
-                // Title
                 Text(
                   'Post',
-                  style: GoogleFonts.plusJakartaSans(
+                  style: GoogleFonts.ptSerif(
                     fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: iconColor,
+                    fontStyle: FontStyle.italic,
+                    color: cs.onSurface,
                   ),
                 ),
                 const Spacer(),
-                // Placeholder to balance the row
-                const SizedBox(width: 35),
+                const SizedBox(width: 34),
               ],
             ),
           ),
@@ -304,33 +291,17 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   }
 
   Widget _buildCommentInput(BuildContext context, PostDetailState state) {
-    final inputBg = CupertinoDynamicColor.resolve(
-      const CupertinoDynamicColor.withBrightness(
-        color: Color(0xFFFFFFFF),
-        darkColor: Color(0xFF1C1C1E),
-      ),
-      context,
-    );
+    final cs = Theme.of(context).colorScheme;
+    final gold = AppColors.gold(context);
 
-    // Get the keyboard height (viewInsets) and safe area padding
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final safePadding = MediaQuery.of(context).padding.bottom;
-    // When keyboard is up, add viewInsets to push content above keyboard
-    // When keyboard is down, add safe area padding for home indicator
     final bottomPadding = bottomInset > 0 ? bottomInset : safePadding;
 
     return Container(
       decoration: BoxDecoration(
-        color: inputBg,
-        border: Border(
-          top: BorderSide(
-            color: CupertinoDynamicColor.resolve(
-              CupertinoColors.separator,
-              context,
-            ),
-            width: 0.5,
-          ),
-        ),
+        color: cs.surface,
+        border: Border(top: BorderSide(color: cs.outline, width: 0.5)),
       ),
       padding: EdgeInsets.only(
         left: 16,
@@ -341,45 +312,53 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       child: Row(
         children: [
           Expanded(
-            child: CupertinoTextField(
+            child: TextField(
               controller: _commentController,
-              placeholder: 'Add a comment...',
-              placeholderStyle: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                color: CupertinoColors.systemGrey,
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-              decoration: BoxDecoration(
-                color: CupertinoDynamicColor.resolve(
-                  CupertinoColors.systemGrey6,
-                  context,
-                ),
-                borderRadius: BorderRadius.circular(24),
-              ),
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
-                color: CupertinoDynamicColor.resolve(
-                  CupertinoColors.label,
-                  context,
-                ),
+                color: cs.onSurface,
               ),
-              cursorColor: CupertinoColors.systemBlue,
+              cursorColor: gold,
               minLines: 1,
               maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Add a comment...',
+                hintStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                  color: AppColors.textMuted(context),
+                ),
+                filled: false,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 4,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 8),
           if (state.isSubmittingComment)
-            const CupertinoActivityIndicator()
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: gold,
+              ),
+            )
           else
-            CupertinoButton(
-              padding: EdgeInsets.zero,
+            TextButton(
               onPressed: _submitComment,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: Text(
                 'Post',
                 style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.bold,
-                  color: CupertinoColors.systemBlue,
+                  fontWeight: FontWeight.w600,
+                  color: gold,
                 ),
               ),
             ),
@@ -397,15 +376,17 @@ class _CommentItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           UserAvatar(
             imageUrl: comment.author?.profilePictureUrl,
             name: comment.author?.username ?? 'U',
-            size: 36,
+            size: 34,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -419,24 +400,28 @@ class _CommentItem extends ConsumerWidget {
                       style: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
+                        color: cs.onSurface,
                       ),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       timeago.format(comment.createdAt, locale: 'en_short'),
-                      style: GoogleFonts.plusJakartaSans(
-                        color: CupertinoColors.secondaryLabel,
-                        fontSize: 12,
+                      style: GoogleFonts.firaCode(
+                        color: AppColors.textMuted(context),
+                        fontSize: 11,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   comment.content,
-                  style: GoogleFonts.plusJakartaSans(fontSize: 14, height: 1.3),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    height: 1.4,
+                    color: cs.onSurface,
+                  ),
                 ),
-                // Like button row
                 const SizedBox(height: 6),
                 GestureDetector(
                   onTap: () => ref
@@ -448,20 +433,20 @@ class _CommentItem extends ConsumerWidget {
                     children: [
                       Icon(
                         comment.isLiked
-                            ? CupertinoIcons.heart_fill
-                            : CupertinoIcons.heart,
+                            ? Icons.favorite
+                            : Icons.favorite_outline,
                         size: 14,
                         color: comment.isLiked
-                            ? CupertinoColors.systemRed
-                            : CupertinoColors.secondaryLabel,
+                            ? AppColors.error
+                            : AppColors.textMuted(context),
                       ),
                       if (comment.likeCount > 0) ...[
                         const SizedBox(width: 4),
                         Text(
                           '${comment.likeCount}',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            color: CupertinoColors.secondaryLabel,
+                          style: GoogleFonts.firaCode(
+                            fontSize: 11,
+                            color: AppColors.textMuted(context),
                           ),
                         ),
                       ],

@@ -3,8 +3,21 @@ class AppConfig {
   AppConfig._();
 
   /// API Configuration
-  static const String apiBaseUrl = 'http://localhost:8080';
+  ///
+  /// Override at build time:
+  /// ```
+  /// flutter run --dart-define=API_BASE_URL=https://api.geoloc.app
+  /// ```
+  /// Default is `http://localhost:8080` for local backend development.
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8080',
+  );
   static const String apiVersion = 'v1';
+
+  /// Whether the configured base URL uses HTTPS. Use to gate ATS exceptions
+  /// or reject insecure connections in production builds.
+  static bool get isSecureBaseUrl => apiBaseUrl.startsWith('https://');
 
   /// API Timeouts
   static const Duration connectTimeout = Duration(seconds: 30);

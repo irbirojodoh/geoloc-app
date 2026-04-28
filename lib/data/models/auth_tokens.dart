@@ -28,7 +28,9 @@ class AuthTokens {
     // Handle different response formats from backend
     final accessTokenExpiry = json['access_token_expiry'] != null
         ? DateTime.parse(json['access_token_expiry'] as String)
-        : DateTime.now().add(const Duration(minutes: 15));
+        : json['expires_in'] != null
+            ? DateTime.now().add(Duration(seconds: json['expires_in'] as int))
+            : DateTime.now().add(const Duration(minutes: 15));
 
     final refreshTokenExpiry = json['refresh_token_expiry'] != null
         ? DateTime.parse(json['refresh_token_expiry'] as String)

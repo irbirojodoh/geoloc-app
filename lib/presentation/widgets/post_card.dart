@@ -1,16 +1,14 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/cache/image_cache_manager.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/models/post.dart';
 import 'user_avatar.dart';
 
-// ============================================================================
-
-/// Post card widget for displaying a post in the feed (Figma design)
+/// Post card — old-money luxury aesthetic
 class PostCard extends StatelessWidget {
   final Post post;
   final VoidCallback? onTap;
@@ -31,42 +29,23 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          // Match login screen card background colors
-          color: CupertinoDynamicColor.resolve(
-            const CupertinoDynamicColor.withBrightness(
-              color: Color(0xFFFFFFFF), // Light mode: White
-              darkColor: Color(0xFF1C1C1E), // Dark mode: iOS dark card
-            ),
-            context,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: CupertinoDynamicColor.resolve(
-                const CupertinoDynamicColor.withBrightness(
-                  color: Color(0x0D000000), // Light mode: subtle shadow
-                  darkColor: Color(0x33000000), // Dark mode: stronger shadow
-                ),
-                context,
-              ),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(2),
+          border: Border.all(color: cs.outline, width: 1),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left column: Profile avatar and time
             _buildProfileColumn(context),
-            const SizedBox(width: 10),
-            // Right column: Username, location, and content
+            const SizedBox(width: 12),
             Expanded(child: _buildContentColumn(context)),
           ],
         ),
@@ -79,23 +58,18 @@ class PostCard extends StatelessWidget {
       onTap: onUserTap,
       child: Column(
         children: [
-          // Profile avatar
           UserAvatar(
             imageUrl: post.author?.profilePictureUrl,
             name: post.author?.username ?? 'U',
-            size: 40,
+            size: 38,
           ),
           const SizedBox(height: 6),
-          // Time ago
           Text(
             _formatTime(post.createdAt),
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11,
-              fontWeight: FontWeight.w300,
-              color: CupertinoDynamicColor.resolve(
-                CupertinoColors.secondaryLabel,
-                context,
-              ),
+            style: GoogleFonts.firaCode(
+              fontSize: 10,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textMuted(context),
             ),
           ),
         ],
@@ -104,131 +78,111 @@ class PostCard extends StatelessWidget {
   }
 
   Widget _buildContentColumn(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final locationName = _getLocationName();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Username and location row
-        _buildUsernameLocationRow(context),
-        const SizedBox(height: 1),
+        // Username and location
+        Row(
+          children: [
+            GestureDetector(
+              onTap: onUserTap,
+              child: Text(
+                post.author?.username ?? 'Username',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: cs.onSurface,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                '·',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 14,
+                  color: AppColors.textMuted(context),
+                ),
+              ),
+            ),
+            Flexible(
+              child: Text(
+                locationName,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w300,
+                  color: AppColors.textMuted(context),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+
         // Post content
-        _buildPostContent(context),
-        // Media (if any)
+        Text(
+          post.content,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            height: 1.5,
+            color: cs.onSurface,
+          ),
+        ),
+
+        // Media
         if (post.mediaUrls.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _buildMedia(context),
         ],
-        // Action buttons (optional - commented out to match Figma exactly)
-        const SizedBox(height: 8),
+
+        // Actions
+        const SizedBox(height: 10),
         _buildActionButtons(context),
       ],
     );
   }
 
-  Widget _buildUsernameLocationRow(BuildContext context) {
-    final locationName = _getLocationName();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 7),
-      child: Row(
-        children: [
-          // Username
-          GestureDetector(
-            onTap: onUserTap,
-            child: Text(
-              post.author?.username ?? 'Username',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: CupertinoDynamicColor.resolve(
-                  CupertinoColors.label,
-                  context,
-                ),
-              ),
-            ),
-          ),
-          // Separator
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              '·',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: CupertinoDynamicColor.resolve(
-                  CupertinoColors.secondaryLabel,
-                  context,
-                ),
-              ),
-            ),
-          ),
-          // Location
-          Flexible(
-            child: Text(
-              locationName,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: CupertinoDynamicColor.resolve(
-                  CupertinoColors.secondaryLabel,
-                  context,
-                ),
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPostContent(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 7, top: 4),
-      child: Text(
-        post.content,
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          height: 1.4,
-          color: CupertinoDynamicColor.resolve(CupertinoColors.label, context),
-        ),
-      ),
-    );
-  }
-
   Widget _buildMedia(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final imageCount = post.mediaUrls.length;
 
     if (imageCount == 1) {
-      // Single image - full width
+      // For full-width single images we cap the decoded width to the screen
+      // width to avoid decoding 4K source files into memory while scrolling.
+      final dpr = MediaQuery.devicePixelRatioOf(context);
+      final maxLogicalWidth = MediaQuery.sizeOf(context).width;
       return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(2),
         child: CachedNetworkImage(
           imageUrl: post.mediaUrls.first,
           fit: BoxFit.cover,
           cacheManager: PostImageCacheManager.instance,
+          memCacheWidth: (maxLogicalWidth * dpr).round(),
           placeholder: (context, url) => Container(
             height: 200,
-            color: CupertinoDynamicColor.resolve(
-              CupertinoColors.systemGrey5,
-              context,
+            color: cs.surface,
+            child: Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 1,
+                color: AppColors.gold(context),
+              ),
             ),
-            child: const Center(child: CupertinoActivityIndicator()),
           ),
           errorWidget: (context, url, error) => Container(
             height: 200,
-            color: CupertinoDynamicColor.resolve(
-              CupertinoColors.systemGrey5,
-              context,
-            ),
-            child: const Center(child: Icon(CupertinoIcons.photo, size: 32)),
+            color: cs.surface,
+            child: Icon(Icons.image_outlined, size: 32, color: cs.outline),
           ),
         ),
       );
     }
 
     if (imageCount == 2) {
-      // 2 images - side by side
       return Row(
         children: [
           Expanded(child: _buildGridImage(context, post.mediaUrls[0], 150)),
@@ -239,7 +193,6 @@ class PostCard extends StatelessWidget {
     }
 
     if (imageCount == 3) {
-      // 3 images - 1 large on left, 2 stacked on right
       return Row(
         children: [
           Expanded(
@@ -260,7 +213,6 @@ class PostCard extends StatelessWidget {
       );
     }
 
-    // 4+ images - 2x2 grid with overflow indicator
     return Column(
       children: [
         Row(
@@ -292,28 +244,31 @@ class PostCard extends StatelessWidget {
   }
 
   Widget _buildGridImage(BuildContext context, String imageUrl, double height) {
+    final cs = Theme.of(context).colorScheme;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(2),
       child: CachedNetworkImage(
         imageUrl: imageUrl,
         height: height,
         fit: BoxFit.cover,
         cacheManager: PostImageCacheManager.instance,
+        // Decode at the cell's logical pixel height; width follows aspect.
+        memCacheHeight: (height * dpr).round(),
         placeholder: (context, url) => Container(
           height: height,
-          color: CupertinoDynamicColor.resolve(
-            CupertinoColors.systemGrey5,
-            context,
+          color: cs.surface,
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 1,
+              color: AppColors.gold(context),
+            ),
           ),
-          child: const Center(child: CupertinoActivityIndicator()),
         ),
         errorWidget: (context, url, error) => Container(
           height: height,
-          color: CupertinoDynamicColor.resolve(
-            CupertinoColors.systemGrey5,
-            context,
-          ),
-          child: const Center(child: Icon(CupertinoIcons.photo, size: 24)),
+          color: cs.surface,
+          child: Icon(Icons.image_outlined, size: 24, color: cs.outline),
         ),
       ),
     );
@@ -330,15 +285,15 @@ class PostCard extends StatelessWidget {
         _buildGridImage(context, imageUrl, height),
         Positioned.fill(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(2),
             child: Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               child: Center(
                 child: Text(
                   '+$moreCount',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                  style: GoogleFonts.firaCode(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
                     color: Colors.white,
                   ),
                 ),
@@ -351,74 +306,48 @@ class PostCard extends StatelessWidget {
   }
 
   Widget _buildActionButtons(BuildContext context) {
-    final iconColor = CupertinoDynamicColor.resolve(
-      CupertinoColors.secondaryLabel,
-      context,
-    );
+    final muted = AppColors.textMuted(context);
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 02),
-      child: Row(
-        children: [
-          // Like button
-          _ActionButton(
-            icon: post.isLiked
-                ? CupertinoIcons.heart_fill
-                : CupertinoIcons.heart,
-            iconColor: post.isLiked ? CupertinoColors.systemRed : iconColor,
-            label: post.likeCount > 0 ? post.likeCount.toString() : '',
-            onTap: onLike,
-          ),
-          const SizedBox(width: 20),
-          // Comment button
-          _ActionButton(
-            icon: CupertinoIcons.chat_bubble,
-            iconColor: iconColor,
-            label: post.commentCount > 0 ? post.commentCount.toString() : '',
-            onTap: onComment,
-          ),
-          const SizedBox(width: 20),
-          // Share button
-          _ActionButton(
-            icon: CupertinoIcons.share,
-            iconColor: iconColor,
-            onTap: onShare,
-          ),
-        ],
-      ),
+    return Row(
+      children: [
+        _ActionButton(
+          icon: post.isLiked ? Icons.favorite : Icons.favorite_outline,
+          iconColor: post.isLiked ? AppColors.error : muted,
+          label: post.likeCount > 0 ? post.likeCount.toString() : '',
+          onTap: onLike,
+        ),
+        const SizedBox(width: 20),
+        _ActionButton(
+          icon: Icons.chat_bubble_outline,
+          iconColor: muted,
+          label: post.commentCount > 0 ? post.commentCount.toString() : '',
+          onTap: onComment,
+        ),
+        const SizedBox(width: 20),
+        _ActionButton(
+          icon: Icons.share_outlined,
+          iconColor: muted,
+          onTap: onShare,
+        ),
+      ],
     );
   }
 
-  /// Format time for display (e.g., "2h", "1d", "3w")
   String _formatTime(DateTime dateTime) {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
-    if (difference.inMinutes < 1) {
-      return 'now';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours}h';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d';
-    } else if (difference.inDays < 30) {
-      return '${(difference.inDays / 7).floor()}w';
-    } else {
-      return timeago.format(dateTime, locale: 'en_short');
-    }
+    if (difference.inMinutes < 1) return 'now';
+    if (difference.inHours < 1) return '${difference.inMinutes}m';
+    if (difference.inDays < 1) return '${difference.inHours}h';
+    if (difference.inDays < 7) return '${difference.inDays}d';
+    if (difference.inDays < 30) return '${(difference.inDays / 7).floor()}w';
+    return timeago.format(dateTime, locale: 'en_short');
   }
 
-  /// Get location name from address or fallback
   String _getLocationName() {
-    // Use the formatted location from address (e.g., "Pondok Cina, Depok")
-    if (post.formattedLocation.isNotEmpty) {
-      return post.formattedLocation;
-    }
-    // Fallback to placeholder if no address data
-    if (post.geohash.isNotEmpty) {
-      return 'Nearby location';
-    }
+    if (post.formattedLocation.isNotEmpty) return post.formattedLocation;
+    if (post.geohash.isNotEmpty) return 'Nearby location';
     return 'Unknown location';
   }
 }
@@ -450,12 +379,9 @@ class _ActionButton extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 label!,
-                style: GoogleFonts.plusJakartaSans(
+                style: GoogleFonts.firaCode(
                   fontSize: 11,
-                  color: CupertinoDynamicColor.resolve(
-                    CupertinoColors.secondaryLabel,
-                    context,
-                  ),
+                  color: AppColors.textMuted(context),
                 ),
               ),
             ],

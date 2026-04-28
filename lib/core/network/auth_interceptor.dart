@@ -1,24 +1,28 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../config/app_config.dart';
+import '../../services/secure_storage.dart';
+import '../../presentation/providers/auth_provider.dart';
 import 'api_endpoints.dart';
 
 /// Interceptor for handling JWT authentication
 ///
 /// - Attaches access token to all requests (except auth endpoints)
 /// - Automatically refreshes expired access tokens
-/// - Handles logout on refresh failure
+/// - Handles logout on refresh failure (notifies [authStateProvider])
 class AuthInterceptor extends Interceptor {
   final Dio _dio;
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final Ref _ref;
 
   bool _isRefreshing = false;
   final List<RequestOptions> _pendingRequests = [];
 
-  // ignore: avoid-unused-parameters
-  AuthInterceptor(Ref ref, this._dio);
+  AuthInterceptor(this._ref, this._dio);
+
+  /// Storage handle (uses platform-hardened options).
+  static const _storage = secureStorage;
 
   @override
   void onRequest(
@@ -61,8 +65,6 @@ class AuthInterceptor extends Interceptor {
       } else {
         // Token still valid
         options.headers['Authorization'] = 'Bearer $accessToken';
-        // ignore: avoid_print
-        print('🔑 Bearer Token: $accessToken');
       }
     } else {
       // No expiry info, just use the token
@@ -119,7 +121,9 @@ class AuthInterceptor extends Interceptor {
   bool _isPublicEndpoint(String path) {
     return path == ApiEndpoints.login ||
         path == ApiEndpoints.register ||
-        path == ApiEndpoints.refreshToken;
+        path == ApiEndpoints.refreshToken ||
+        path == ApiEndpoints.googleToken ||
+        path == ApiEndpoints.appleToken;
   }
 
   /// Refresh the access token using the refresh token
@@ -148,18 +152,19 @@ class AuthInterceptor extends Interceptor {
       );
 
       if (response.statusCode == 200) {
-        final data = response.data;
+        final data = response.data as Map<String, dynamic>;
 
         // Store new tokens
         await _storage.write(
           key: AppConfig.accessTokenKey,
-          value: data['access_token'],
+          value: data['access_token'] as String?,
         );
 
-        if (data['refresh_token'] != null) {
+        final newRefresh = data['refresh_token'] as String?;
+        if (newRefresh != null) {
           await _storage.write(
             key: AppConfig.refreshTokenKey,
-            value: data['refresh_token'],
+            value: newRefresh,
           );
         }
 
@@ -192,19 +197,29 @@ class AuthInterceptor extends Interceptor {
   }
 
   /// Clear pending requests on error
-  void _clearPendingRequests(DioException error) {
+  void _clearPendingRequests(DioException _) {
     _pendingRequests.clear();
   }
 
-  /// Handle logout - clear tokens and redirect
+  /// Handle logout — notify the auth state notifier, which will:
+  ///   1) clear secure-storage tokens via [AuthService.logout]
+  ///   2) flip [authStateProvider] to unauthenticated
+  ///   3) trigger the GoRouter redirect into the login screen.
+  ///
+  /// We deliberately use [Ref.read] here (not watch): the interceptor lives
+  /// for the lifetime of the app and must not subscribe to auth changes.
   Future<void> _handleLogout() async {
-    await _storage.delete(key: AppConfig.accessTokenKey);
-    await _storage.delete(key: AppConfig.refreshTokenKey);
-    await _storage.delete(key: AppConfig.accessTokenExpiryKey);
-    await _storage.delete(key: AppConfig.refreshTokenExpiryKey);
-    await _storage.delete(key: AppConfig.currentUserKey);
-
-    // TODO: Navigate to login screen
-    // This would typically be done through a state change in auth provider
+    try {
+      await _ref.read(authStateProvider.notifier).logout();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Logout via auth notifier failed: $e');
+      // Best-effort fallback: clear tokens directly so the app at least
+      // can't keep using a dead session.
+      await _storage.delete(key: AppConfig.accessTokenKey);
+      await _storage.delete(key: AppConfig.refreshTokenKey);
+      await _storage.delete(key: AppConfig.accessTokenExpiryKey);
+      await _storage.delete(key: AppConfig.refreshTokenExpiryKey);
+      await _storage.delete(key: AppConfig.currentUserKey);
+    }
   }
 }

@@ -4,7 +4,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
-import 'auth_provider.dart';
 import 'location_provider.dart';
 
 /// Create post state
@@ -197,21 +196,10 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
         }
       }
 
-      // Get current user
-      final currentUser = _ref.read(currentUserProvider);
-      if (currentUser == null) {
-        state = state.copyWith(
-          isSubmitting: false,
-          error: 'User not logged in',
-        );
-        return false;
-      }
-
       // Create post
       final response = await _apiClient.post(
         ApiEndpoints.createPost,
         data: {
-          'user_id': currentUser.id,
           'content': state.content.trim(),
           'latitude': locationState.latitude,
           'longitude': locationState.longitude,

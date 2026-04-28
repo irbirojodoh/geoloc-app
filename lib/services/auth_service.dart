@@ -8,8 +8,10 @@ import '../config/app_config.dart';
 import '../core/errors/failures.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
+import '../data/models/auth_response.dart';
 import '../data/models/auth_tokens.dart';
 import '../data/models/user.dart';
+import 'secure_storage.dart';
 
 /// Provider for AuthService
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -19,7 +21,7 @@ final authServiceProvider = Provider<AuthService>((ref) {
 /// Authentication service handling login, register, token management
 class AuthService {
   final ApiClient _apiClient;
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage = secureStorage;
 
   AuthService(this._apiClient);
 
@@ -94,6 +96,61 @@ class AuthService {
     }
   }
 
+  /// Sign in with a Google ID token obtained from the native SDK.
+  /// POSTs to /auth/google/token and returns the full auth response.
+  Future<AuthResponse> signInWithGoogleToken(String idToken) async {
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.googleToken,
+        data: {'id_token': idToken},
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final authResponse = AuthResponse.fromJson(data);
+        await _storeTokens(authResponse.tokens);
+        await _storeCurrentUser(authResponse.user);
+        return authResponse;
+      }
+
+      throw const AuthFailure(message: 'Google sign-in failed');
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  /// Sign in with an Apple ID token obtained from the native SDK.
+  /// POSTs to /auth/apple/token with the ID token and optionally the
+  /// user's full name (Apple only provides the name on the very first sign-in).
+  Future<AuthResponse> signInWithAppleToken(
+    String idToken, {
+    String? fullName,
+  }) async {
+    try {
+      final payload = <String, dynamic>{'id_token': idToken};
+      if (fullName != null && fullName.isNotEmpty) {
+        payload['full_name'] = fullName;
+      }
+
+      final response = await _apiClient.post(
+        ApiEndpoints.appleToken,
+        data: payload,
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final authResponse = AuthResponse.fromJson(data);
+        await _storeTokens(authResponse.tokens);
+        await _storeCurrentUser(authResponse.user);
+        return authResponse;
+      }
+
+      throw const AuthFailure(message: 'Apple sign-in failed');
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
   /// Refresh the access token
   Future<AuthTokens> refreshToken() async {
     try {
@@ -163,6 +220,28 @@ class AuthService {
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Update current user profile
+  Future<User> updateProfile(Map<String, dynamic> data) async {
+    try {
+      final response = await _apiClient.put(
+        ApiEndpoints.updateProfile,
+        data: data,
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data as Map<String, dynamic>;
+        final userJson = responseData['user'] as Map<String, dynamic>? ?? responseData;
+        final user = User.fromJson(userJson);
+        await _storeCurrentUser(user);
+        return user;
+      }
+
+      throw const ServerFailure(message: 'Failed to update profile');
+    } on DioException catch (e) {
+      throw _handleDioError(e);
     }
   }
 

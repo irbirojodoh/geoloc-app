@@ -3,39 +3,13 @@ import 'package:geolocator/geolocator.dart';
 
 import '../core/errors/failures.dart';
 
-/// Provider for LocationService
+/// Provider for [LocationService].
+///
+/// Note: the `LocationState` data class lives in
+/// `presentation/providers/location_provider.dart`. Do not redefine it here.
 final locationServiceProvider = Provider<LocationService>((ref) {
   return LocationService();
 });
-
-/// Location state
-class LocationState {
-  final Position? position;
-  final bool isLoading;
-  final bool hasPermission;
-  final String? error;
-
-  const LocationState({
-    this.position,
-    this.isLoading = false,
-    this.hasPermission = false,
-    this.error,
-  });
-
-  LocationState copyWith({
-    Position? position,
-    bool? isLoading,
-    bool? hasPermission,
-    String? error,
-  }) {
-    return LocationState(
-      position: position ?? this.position,
-      isLoading: isLoading ?? this.isLoading,
-      hasPermission: hasPermission ?? this.hasPermission,
-      error: error,
-    );
-  }
-}
 
 /// Location service for handling geolocation
 class LocationService {

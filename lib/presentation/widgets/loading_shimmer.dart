@@ -1,193 +1,152 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 
-/// Shimmer loading skeleton for Feed
+
+import '../../core/theme/app_colors.dart';
+
+/// Loading shimmer — warm neutral tones for old-money aesthetic
+class LoadingShimmer extends StatefulWidget {
+  final double width;
+  final double height;
+  final double borderRadius;
+
+  const LoadingShimmer({
+    super.key,
+    this.width = double.infinity,
+    this.height = 16,
+    this.borderRadius = 2,
+  });
+
+  @override
+  State<LoadingShimmer> createState() => _LoadingShimmerState();
+}
+
+class _LoadingShimmerState extends State<LoadingShimmer>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1400),
+      vsync: this,
+    )..repeat();
+    _animation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = isDark
+        ? AppColors.surfaceDark
+        : AppColors.surfaceLight;
+    final highlightColor = isDark
+        ? AppColors.borderDark
+        : AppColors.borderLight.withValues(alpha: 0.5);
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          width: widget.width,
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              stops: [
+                (_animation.value - 0.3).clamp(0.0, 1.0),
+                _animation.value.clamp(0.0, 1.0),
+                (_animation.value + 0.3).clamp(0.0, 1.0),
+              ],
+              colors: [baseColor, highlightColor, baseColor],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Post card shimmer placeholder
+class PostCardShimmer extends StatelessWidget {
+  const PostCardShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: cs.outline, width: 1),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar shimmer
+          LoadingShimmer(
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Username
+                LoadingShimmer(width: 120, height: 14),
+                SizedBox(height: 8),
+                // 3 content lines
+                LoadingShimmer(height: 12),
+                SizedBox(height: 6),
+                LoadingShimmer(height: 12),
+                SizedBox(height: 6),
+                LoadingShimmer(width: 180, height: 12),
+                SizedBox(height: 12),
+                // Actions
+                Row(
+                  children: [
+                    LoadingShimmer(width: 40, height: 14),
+                    SizedBox(width: 20),
+                    LoadingShimmer(width: 40, height: 14),
+                    SizedBox(width: 20),
+                    LoadingShimmer(width: 40, height: 14),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Feed page shimmer
 class FeedShimmer extends StatelessWidget {
   const FeedShimmer({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(top: 8),
       itemCount: 5,
       itemBuilder: (context, index) => const PostCardShimmer(),
-    );
-  }
-}
-
-/// Shimmer loading skeleton for a single post card
-class PostCardShimmer extends StatelessWidget {
-  const PostCardShimmer({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Shimmer.fromColors(
-        baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-        highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Author row
-              Row(
-                children: [
-                  // Avatar
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 120,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          width: 80,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Content lines
-              Container(
-                width: double.infinity,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity * 0.8,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: 200,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Media placeholder (random)
-              if (DateTime.now().millisecond % 2 == 0)
-                Container(
-                  width: double.infinity,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-
-              if (DateTime.now().millisecond % 2 == 0)
-                const SizedBox(height: 16),
-
-              // Action buttons
-              Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Container(
-                    width: 60,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Container(
-                    width: 40,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Generic shimmer container
-class ShimmerContainer extends StatelessWidget {
-  final double width;
-  final double height;
-  final BorderRadius? borderRadius;
-
-  const ShimmerContainer({
-    super.key,
-    required this.width,
-    required this.height,
-    this.borderRadius,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Shimmer.fromColors(
-      baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-      highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: borderRadius ?? BorderRadius.circular(4),
-        ),
-      ),
     );
   }
 }
