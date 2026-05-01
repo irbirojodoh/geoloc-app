@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/theme_extensions.dart';
 
 /// Standardized "Location Access Required" prompt used wherever a screen
 /// can't proceed without location permission.
@@ -23,7 +23,6 @@ class LocationPermissionPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final gold = AppColors.gold(context);
 
     return Center(
@@ -41,18 +40,13 @@ class LocationPermissionPrompt extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.ptSerif(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
-              ),
+              style: context.emptyTitle,
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
+              style: context.bodyMedium?.copyWith(
                 color: AppColors.textMuted(context),
               ),
             ),
@@ -62,12 +56,7 @@ class LocationPermissionPrompt extends StatelessWidget {
               icon: Icon(Icons.location_on_outlined, size: 18, color: gold),
               label: Text(
                 'ENABLE LOCATION',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 1.2,
-                  color: gold,
-                ),
+                style: context.actionLabel,
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -75,10 +64,7 @@ class LocationPermissionPrompt extends StatelessWidget {
               onPressed: onOpenSettings,
               child: Text(
                 'Open Settings',
-                style: GoogleFonts.plusJakartaSans(
-                  color: gold,
-                  fontSize: 13,
-                ),
+                style: context.bodySmall?.copyWith(color: gold),
               ),
             ),
           ],

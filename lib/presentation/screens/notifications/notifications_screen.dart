@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/theme_extensions.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/theme/app_colors.dart';
@@ -41,11 +41,7 @@ class NotificationsScreen extends ConsumerWidget {
                           .markAllAsRead(),
                       child: Text(
                         'Read all',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          color: gold,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: context.link,
                       ),
                     ),
                   )
@@ -171,20 +167,12 @@ class NotificationsScreen extends ConsumerWidget {
                             children: [
                               TextSpan(
                                 text: notification.actor?.username ?? 'Someone',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: notifCs.onSurface,
-                                ),
+                                style: context.username,
                               ),
                               TextSpan(
                                 text:
                                     ' ${_getNotificationText(notification.type)}',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontWeight: FontWeight.w400,
-                                  fontSize: 14,
-                                  color: notifCs.onSurface,
-                                ),
+                                style: context.bodyMedium,
                               ),
                             ],
                           ),
@@ -193,10 +181,7 @@ class NotificationsScreen extends ConsumerWidget {
                         Text(
                           timeago.format(notification.createdAt,
                               locale: 'en_short'),
-                          style: GoogleFonts.firaCode(
-                            fontSize: 11,
-                            color: AppColors.textMuted(context),
-                          ),
+                          style: context.monoCaption,
                         ),
                       ],
                     ),

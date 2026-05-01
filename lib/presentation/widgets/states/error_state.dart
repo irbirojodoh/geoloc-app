@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/theme_extensions.dart';
 
 /// Shared error-state layout: red icon + serif "Something went wrong"
 /// headline + muted message + outlined retry CTA.
@@ -22,7 +22,6 @@ class ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final gold = AppColors.gold(context);
 
     return Center(
@@ -36,18 +35,13 @@ class ErrorState extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.ptSerif(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
-              ),
+              style: context.emptyTitle,
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
+              style: context.bodyMedium.copyWith(
                 color: AppColors.textMuted(context),
               ),
             ),
@@ -58,12 +52,7 @@ class ErrorState extends StatelessWidget {
                 icon: Icon(Icons.refresh, size: 18, color: gold),
                 label: Text(
                   retryLabel,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 1.2,
-                    color: gold,
-                  ),
+                  style: context.actionLabel,
                 ),
               ),
             ],

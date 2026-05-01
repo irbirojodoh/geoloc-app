@@ -123,7 +123,9 @@ class AuthInterceptor extends Interceptor {
         path == ApiEndpoints.register ||
         path == ApiEndpoints.refreshToken ||
         path == ApiEndpoints.googleToken ||
-        path == ApiEndpoints.appleToken;
+        path == ApiEndpoints.appleToken ||
+        path == ApiEndpoints.forgotPassword ||
+        path == ApiEndpoints.resetPassword;
   }
 
   /// Refresh the access token using the refresh token

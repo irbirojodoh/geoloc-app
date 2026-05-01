@@ -1,15 +1,57 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'config/deep_links.dart';
 import 'config/routes.dart';
 import 'config/theme.dart';
 
-/// Root app widget
-class GeolocApp extends ConsumerWidget {
+/// Root app widget — wires [routerProvider] + password-reset deep links.
+class GeolocApp extends ConsumerStatefulWidget {
   const GeolocApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GeolocApp> createState() => _GeolocAppState();
+}
+
+class _GeolocAppState extends ConsumerState<GeolocApp> {
+  late final AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _appLinks = AppLinks();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _attachDeepLinks());
+  }
+
+  Future<void> _attachDeepLinks() async {
+    final router = ref.read(routerProvider);
+
+    try {
+      final initial = await _appLinks.getInitialLink();
+      if (initial != null) {
+        navigateFromPasswordResetDeepLink(initial, router);
+      }
+    } catch (_) {}
+
+    try {
+      _linkSub = _appLinks.uriLinkStream.listen((uri) {
+        navigateFromPasswordResetDeepLink(uri, router);
+      });
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _linkSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
@@ -23,6 +65,19 @@ class GeolocApp extends ConsumerWidget {
 
       // Router configuration
       routerConfig: router,
+
+      // Clamp text scaling to prevent layout breakage on large accessibility fonts
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        final clampedScale = mediaQuery.textScaler.clamp(
+          minScaleFactor: 1.0,
+          maxScaleFactor: 1.3,
+        );
+        return MediaQuery(
+          data: mediaQuery.copyWith(textScaler: clampedScale),
+          child: child!,
+        );
+      },
     );
   }
 }

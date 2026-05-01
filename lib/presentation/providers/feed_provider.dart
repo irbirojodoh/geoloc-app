@@ -287,6 +287,13 @@ class FeedNotifier extends StateNotifier<FeedState> {
     );
   }
 
+  /// Remove every post authored by [userId] (after block/mute)
+  void removePostsByAuthor(String userId) {
+    state = state.copyWith(
+      posts: state.posts.where((p) => p.userId != userId).toList(),
+    );
+  }
+
   /// Get error message from exception
   String _getErrorMessage(dynamic e) {
     if (e is DioException) {

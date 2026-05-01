@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../config/routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/theme_extensions.dart';
 import '../../providers/auth_provider.dart';
 
 /// Login screen — old-money luxury aesthetic
@@ -158,20 +159,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           // Title
                           Text(
                             'Welcome to Geoloc.',
-                            style: GoogleFonts.ptSerif(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                              color: cs.onSurface,
-                            ),
+                            style: context.pageTitle,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Enter your credentials',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w300,
-                              color: AppColors.textMuted(context),
-                            ),
+                            style: context.bodySmallLight,
                           ),
                           const SizedBox(height: 28),
 
@@ -198,10 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   Expanded(
                                     child: Text(
                                       authState.error!,
-                                      style: GoogleFonts.plusJakartaSans(
-                                        color: AppColors.error,
-                                        fontSize: 13,
-                                      ),
+                                      style: context.errorText,
                                     ),
                                   ),
                                 ],
@@ -214,10 +204,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: cs.onSurface,
-                              fontSize: 15,
-                            ),
+                            autofillHints: const [AutofillHints.email],
+                            style: context.body,
                             decoration: InputDecoration(
                               labelText: 'Email Address',
                               hintText: 'Enter your email',
@@ -242,10 +230,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _handleLogin(),
-                            style: GoogleFonts.plusJakartaSans(
-                              color: cs.onSurface,
-                              fontSize: 15,
-                            ),
+                            autofillHints: const [AutofillHints.password],
+                            style: context.body,
                             decoration: InputDecoration(
                               labelText: 'Password',
                               hintText: 'Enter your password',
@@ -283,20 +269,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                context.push(RoutePaths.forgotPassword);
+                              },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
+                                minimumSize: const Size(AppTapTarget.materialMinimum, AppTapTarget.materialMinimum),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: Text(
                                 'Forgot Password?',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: AppColors.textMuted(context),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                ),
+                                style: context.caption,
                               ),
                             ),
                           ),
@@ -325,15 +308,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                           color: gold,
                                         ),
                                       )
-                                    : Text(
-                                        'SIGN IN',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                          letterSpacing: 1.5,
-                                          color: gold,
-                                        ),
-                                      ),
+                                    : Text('SIGN IN', style: context.buttonCaps),
                               ),
                             ),
                           ),
@@ -361,11 +336,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   'OR SIGN IN USING',
-                                  style: GoogleFonts.ptSerif(
-                                    color: AppColors.textMuted(context),
-                                    fontSize: 10,
-                                    letterSpacing: 1.5,
-                                  ),
+                                  style: context.dividerOrnament,
                                 ),
                               ),
                               Expanded(
@@ -422,24 +393,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             children: [
                               Text(
                                 "Don't have an account? ",
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: AppColors.textMuted(context),
-                                  fontSize: 13,
-                                ),
+                                style: context.bodySmallLight,
                               ),
                               GestureDetector(
                                 onTap: () {
                                   HapticFeedback.mediumImpact();
                                   context.push(RoutePaths.register);
                                 },
-                                child: Text(
-                                  'Sign Up',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: gold,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                                child: Text('Sign Up', style: context.link),
                               ),
                             ],
                           ),
@@ -488,11 +449,7 @@ class _SocialButton extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               label,
-              style: GoogleFonts.plusJakartaSans(
-                color: cs.onSurface,
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-              ),
+              style: context.bodySmall,
             ),
           ],
         ),

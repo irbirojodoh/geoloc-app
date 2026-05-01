@@ -54,6 +54,7 @@ dependencies:
 
   # Navigation
   go_router: ^13.1.0
+  app_links: ^6.3.4
 
   # Fonts
   google_fonts: ^6.2.1

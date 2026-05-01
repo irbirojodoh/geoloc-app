@@ -1,9 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/cache/image_cache_manager.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_extensions.dart';
 
 /// User avatar — old-money luxury aesthetic
 class UserAvatar extends StatelessWidget {
@@ -97,7 +97,7 @@ class UserAvatar extends StatelessWidget {
       child: Center(
         child: Text(
           _initials(),
-          style: GoogleFonts.ptSerif(
+          style: context.textTheme.headlineMedium?.copyWith(
             fontSize: size * 0.38,
             fontWeight: FontWeight.w700,
             color: AppColors.bgLight,

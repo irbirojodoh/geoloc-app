@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/theme_extensions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../providers/auth_provider.dart';
@@ -70,12 +70,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           children: [
             Text(
               'ADD MEDIA',
-              style: GoogleFonts.ptSerif(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.8,
-                color: gold,
-              ),
+              style: context.sectionLabel,
             ),
             const SizedBox(height: 16),
             Container(
@@ -99,10 +94,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               icon: Icon(Icons.camera_alt_outlined, size: 20, color: gold),
               label: Text(
                 'Take Photo',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  color: cs.onSurface,
-                ),
+                style: context.body,
               ),
             ),
             TextButton.icon(
@@ -113,10 +105,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               icon: Icon(Icons.photo_library_outlined, size: 20, color: gold),
               label: Text(
                 'Choose from Gallery',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  color: cs.onSurface,
-                ),
+                style: context.body,
               ),
             ),
             const SizedBox(height: 8),
@@ -124,11 +113,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text(
                 'Cancel',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted(context),
-                ),
+                style: context.body,
               ),
             ),
           ],
@@ -213,11 +198,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 const Spacer(),
                 Text(
                   'Create Post',
-                  style: GoogleFonts.ptSerif(
-                    fontSize: 17,
-                    fontStyle: FontStyle.italic,
-                    color: cs.onSurface,
-                  ),
+                  style: context.appBarTitle,
                 ),
                 const Spacer(),
                 GestureDetector(
@@ -244,14 +225,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                           )
                         : Text(
                             'POST',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 1.2,
-                              color: state.canSubmit
-                                  ? cs.onPrimary
-                                  : AppColors.textMuted(context),
-                            ),
+                            style: context.caption,
                           ),
                   ),
                 ),
@@ -327,18 +301,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               cursorColor: AppColors.gold(context),
               maxLines: null,
               minLines: 5,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 15,
-                color: cs.onSurface,
-              ),
+              style: context.body,
               decoration: InputDecoration(
                 filled: false,
                 hintText: "What's happening in your area?",
-                hintStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w300,
-                  color: AppColors.textMuted(context),
-                ),
+                hintStyle: context.body,
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -466,10 +433,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'Getting location...',
-                  style: GoogleFonts.firaCode(
-                    fontSize: 12,
-                    color: AppColors.textMuted(context),
-                  ),
+                  style: context.monoSmall,
                 ),
               ],
             )
@@ -478,20 +442,14 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             Expanded(
               child: Text(
                 createPostState.locationName!,
-                style: GoogleFonts.firaCode(
-                  fontSize: 12,
-                  color: AppColors.textMuted(context),
-                ),
+                style: context.monoSmall,
                 overflow: TextOverflow.ellipsis,
               ),
             )
           else if (locationState.hasLocation)
             Text(
               'Location available',
-              style: GoogleFonts.firaCode(
-                fontSize: 12,
-                color: AppColors.textMuted(context),
-              ),
+              style: context.monoSmall,
             )
           else
             GestureDetector(
@@ -500,10 +458,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               },
               child: Text(
                 'Enable location',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  color: gold,
-                ),
+                style: context.sheetItem?.copyWith(color: AppColors.gold(context)),
               ),
             ),
         ],
@@ -570,11 +525,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
         title: Text(
           'Error',
-          style: GoogleFonts.ptSerif(color: cs.onSurface),
+          style: context.textTheme.headlineSmall,
         ),
         content: Text(
           message,
-          style: GoogleFonts.plusJakartaSans(color: cs.onSurface),
+          style: context.bodyMedium,
         ),
         actions: [
           TextButton(

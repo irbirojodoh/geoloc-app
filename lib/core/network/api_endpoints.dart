@@ -6,7 +6,6 @@ class ApiEndpoints {
   static const String _authBase = '/auth';
   static const String _apiBase = '/api/v1';
 
-  static const String _commentsBase = '/comments';
   static const String _locationsBase = '/locations';
   static const String _notificationsBase = '/notifications';
   static const String _searchBase = '/search';
@@ -30,6 +29,12 @@ class ApiEndpoints {
   /// POST - Exchange Apple ID token for JWT
   static const String appleToken = '$_authBase/apple/token';
 
+  /// POST - Request password reset email (always 200 - no bearer)
+  static const String forgotPassword = '$_authBase/forgot-password';
+
+  /// POST - Complete reset with emailed token (no bearer)
+  static const String resetPassword = '$_authBase/reset-password';
+
   // ==================== Feed Endpoints (Public) ====================
 
   /// GET - Get nearby posts
@@ -43,6 +48,18 @@ class ApiEndpoints {
 
   /// PUT - Update current user profile
   static const String updateProfile = '$_apiBase/users/me';
+
+  /// DELETE - Permanently delete current account (body: password)
+  static const String deleteCurrentUser = '$_apiBase/users/me';
+
+  /// GET - Users blocked by current user
+  static const String getBlockedUsers = '$_apiBase/users/me/blocked';
+
+  /// GET - Users muted by current user
+  static const String getMutedUsers = '$_apiBase/users/me/muted';
+
+  /// POST - Submit content report (body: target_type, target_id, reason, description?)
+  static const String reports = '$_apiBase/reports';
 
   /// GET - Get user by ID
   static String getUser(String userId) => '$_apiBase/users/$userId';
@@ -66,6 +83,18 @@ class ApiEndpoints {
   static String getFollowing(String userId) =>
       '$_apiBase/users/$userId/following';
 
+  /// POST - Block another user (no body)
+  static String blockUser(String userId) => '$_apiBase/users/$userId/block';
+
+  /// DELETE - Unblock user
+  static String unblockUser(String userId) => '$_apiBase/users/$userId/block';
+
+  /// POST - Mute another user (no body)
+  static String muteUser(String userId) => '$_apiBase/users/$userId/mute';
+
+  /// DELETE - Unmute user
+  static String unmuteUser(String userId) => '$_apiBase/users/$userId/mute';
+
   // ==================== Post Endpoints (Protected) ====================
 
   /// POST - Create post
@@ -75,13 +104,10 @@ class ApiEndpoints {
   /// GET - Get single post
   static String getPost(String postId) => '$_apiBase/posts/$postId';
 
-  /// POST - Like post (legacy)
-  static String likePost(String postId) => '$_apiBase/posts/$postId/like';
+  /// DELETE - Delete own post by id
+  static String deletePost(String postId) => '$_apiBase/posts/$postId';
 
-  /// DELETE - Unlike post (legacy)
-  static String unlikePost(String postId) => '$_apiBase/posts/$postId/like';
-
-  /// POST - Toggle post like (idempotent, recommended)
+  /// POST - Toggle post like (idempotent)
   /// Request: { "like": true/false }
   /// Response: { "is_liked": bool, "like_count": int, "changed": bool }
   static String togglePostLike(String postId) =>
@@ -98,24 +124,26 @@ class ApiEndpoints {
 
   /// POST - Reply to comment (max depth: 3)
   static String replyToComment(String commentId) =>
-      '$_commentsBase/$commentId/reply';
+      '$_apiBase/comments/$commentId/reply';
 
-  /// POST - Like comment (legacy)
-  static String likeComment(String commentId) =>
-      '$_commentsBase/$commentId/like';
+  /// GET - Paginated replies for a comment thread
+  /// Query: limit, cursor
+  static String getCommentReplies(String commentId) =>
+      '$_apiBase/comments/$commentId/replies';
 
-  /// DELETE - Unlike comment (legacy)
-  static String unlikeComment(String commentId) =>
-      '$_commentsBase/$commentId/like';
+  /// PUT - Edit own comment (body: content)
+  static String updateComment(String commentId) =>
+      '$_apiBase/comments/$commentId';
 
-  /// POST - Toggle comment like (idempotent, recommended)
+  /// POST - Toggle comment like (idempotent)
   /// Request: { "like": true/false }
   /// Response: { "is_liked": bool, "like_count": int, "changed": bool }
   static String toggleCommentLike(String commentId) =>
       '$_apiBase/comments/$commentId/toggle-like';
 
   /// DELETE - Delete own comment
-  static String deleteComment(String commentId) => '$_commentsBase/$commentId';
+  static String deleteComment(String commentId) =>
+      '$_apiBase/comments/$commentId';
 
   // ==================== Location Endpoints (Protected) ====================
 

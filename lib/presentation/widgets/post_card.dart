@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/cache/image_cache_manager.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../data/models/post.dart';
 import 'user_avatar.dart';
 
@@ -17,6 +18,9 @@ class PostCard extends StatelessWidget {
   final VoidCallback? onShare;
   final VoidCallback? onUserTap;
 
+  /// Placed at the end of the header row (e.g. overflow menu)
+  final Widget? headerTrailing;
+
   const PostCard({
     super.key,
     required this.post,
@@ -25,30 +29,38 @@ class PostCard extends StatelessWidget {
     this.onComment,
     this.onShare,
     this.onUserTap,
+    this.headerTrailing,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(2),
-          border: Border.all(color: cs.outline, width: 1),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return Semantics(
+      button: true,
+      label: 'Post by ${post.author?.username ?? 'unknown'}',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          padding: AppSpacing.cardPadding,
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: AppRadii.sharpAll,
+            border: Border.all(color: cs.outline, width: 1),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             _buildProfileColumn(context),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(child: _buildContentColumn(context)),
           ],
         ),
+      ),
       ),
     );
   }
@@ -66,11 +78,7 @@ class PostCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             _formatTime(post.createdAt),
-            style: GoogleFonts.firaCode(
-              fontSize: 10,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textMuted(context),
-            ),
+            style: context.monoTimestamp,
           ),
         ],
       ),
@@ -84,41 +92,43 @@ class PostCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Username and location
+        // Username and location (+ optional trailing menu)
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              onTap: onUserTap,
-              child: Text(
-                post.author?.username ?? 'Username',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: cs.onSurface,
-                ),
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: GestureDetector(
+                      onTap: onUserTap,
+                      child: Text(
+                        post.author?.username ?? 'Username',
+                        style: context.username,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      '·',
+                      style: context.bodyMedium?.copyWith(
+                        color: AppColors.textMuted(context),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      locationName,
+                      style: context.caption,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                '·',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  color: AppColors.textMuted(context),
-                ),
-              ),
-            ),
-            Flexible(
-              child: Text(
-                locationName,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w300,
-                  color: AppColors.textMuted(context),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+            if (headerTrailing != null) headerTrailing!,
           ],
         ),
         const SizedBox(height: 6),
@@ -126,12 +136,7 @@ class PostCard extends StatelessWidget {
         // Post content
         Text(
           post.content,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            height: 1.5,
-            color: cs.onSurface,
-          ),
+          style: context.postContent,
         ),
 
         // Media
@@ -291,11 +296,7 @@ class PostCard extends StatelessWidget {
               child: Center(
                 child: Text(
                   '+$moreCount',
-                  style: GoogleFonts.firaCode(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
+                  style: context.monoOverlay,
                 ),
               ),
             ),
@@ -365,27 +366,44 @@ class _ActionButton extends StatelessWidget {
     this.onTap,
   });
 
+  String get _semanticLabel {
+    if (icon == Icons.favorite || icon == Icons.favorite_outline) {
+      return 'Like${label != null && label!.isNotEmpty ? ", $label likes" : ""}';
+    }
+    if (icon == Icons.chat_bubble_outline) {
+      return 'Comment${label != null && label!.isNotEmpty ? ", $label comments" : ""}';
+    }
+    if (icon == Icons.share_outlined) return 'Share';
+    return 'Action';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: iconColor),
-            if (label != null && label!.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              Text(
-                label!,
-                style: GoogleFonts.firaCode(
-                  fontSize: 11,
-                  color: AppColors.textMuted(context),
-                ),
-              ),
-            ],
-          ],
+    return Semantics(
+      button: true,
+      label: _semanticLabel,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          constraints: const BoxConstraints(
+            minWidth: AppTapTarget.materialMinimum,
+            minHeight: AppTapTarget.materialMinimum,
+          ),
+          alignment: Alignment.center,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: iconColor),
+                if (label != null && label!.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Text(label!, style: context.monoCaption),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

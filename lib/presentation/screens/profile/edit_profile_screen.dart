@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../config/routes.dart';
+import '../../../core/theme/theme_extensions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/cache/image_cache_manager.dart';
@@ -81,11 +82,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
         title: Text(
           'Discard Changes?',
-          style: GoogleFonts.ptSerif(color: cs.onSurface),
+          style: context.textTheme.headlineSmall,
         ),
         content: Text(
           'You have unsaved changes. Are you sure you want to discard them?',
-          style: GoogleFonts.plusJakartaSans(color: cs.onSurface),
+          style: context.bodyMedium,
         ),
         actions: [
           TextButton(
@@ -133,12 +134,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           children: [
             Text(
               isProfileImage ? 'PROFILE PHOTO' : 'COVER PHOTO',
-              style: GoogleFonts.ptSerif(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.8,
-                color: gold,
-              ),
+              style: context.sectionLabel,
             ),
             const SizedBox(height: 16),
             Container(
@@ -170,10 +166,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               icon: Icon(Icons.camera_alt_outlined, size: 20, color: gold),
               label: Text(
                 'Take Photo',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  color: cs.onSurface,
-                ),
+                style: context.body,
               ),
             ),
             TextButton.icon(
@@ -193,10 +186,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   Icon(Icons.photo_library_outlined, size: 20, color: gold),
               label: Text(
                 'Choose from Library',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  color: cs.onSurface,
-                ),
+                style: context.body,
               ),
             ),
             const SizedBox(height: 8),
@@ -204,11 +194,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text(
                 'Cancel',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted(context),
-                ),
+                style: context.body,
               ),
             ),
           ],
@@ -273,11 +259,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
         title: Text(
           'Error',
-          style: GoogleFonts.ptSerif(color: cs.onSurface),
+          style: context.textTheme.headlineSmall,
         ),
         content: Text(
           error,
-          style: GoogleFonts.plusJakartaSans(color: cs.onSurface),
+          style: context.bodyMedium,
         ),
         actions: [
           TextButton(
@@ -330,11 +316,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   child: Center(
                     child: Text(
                       'Edit Profile',
-                      style: GoogleFonts.ptSerif(
-                        fontSize: 17,
-                        fontStyle: FontStyle.italic,
-                        color: cs.onSurface,
-                      ),
+                      style: context.appBarTitle,
                     ),
                   ),
                 ),
@@ -353,13 +335,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         )
                       : Text(
                           'Save',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: state.hasChanges
-                                ? gold
-                                : AppColors.textMuted(context),
-                          ),
+                          style: context.link,
                         ),
                 ),
                 const SizedBox(width: 8),
@@ -504,10 +480,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _fullNameController,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 15,
-              color: cs.onSurface,
-            ),
+            style: context.body,
             decoration: const InputDecoration(
               hintText: 'Enter your full name',
             ),
@@ -524,17 +497,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _usernameController,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 15,
-              color: cs.onSurface,
-            ),
+            style: context.body,
             decoration: InputDecoration(
               hintText: 'Enter your username',
               prefixText: '@',
-              prefixStyle: GoogleFonts.firaCode(
-                fontSize: 15,
-                color: AppColors.textMuted(context),
-              ),
+              prefixStyle: context.monoCaption,
             ),
             onChanged:
                 ref.read(editProfileProvider.notifier).updateUsername,
@@ -551,15 +518,22 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             controller: _bioController,
             maxLines: 4,
             maxLength: 150,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 15,
-              color: cs.onSurface,
-            ),
+            style: context.body,
             decoration: const InputDecoration(
               hintText: 'Write a short bio...',
               counterText: '',
             ),
             onChanged: ref.read(editProfileProvider.notifier).updateBio,
+          ),
+          const SizedBox(height: 32),
+          Center(
+            child: TextButton(
+              onPressed: () => context.push(RoutePaths.settings),
+              child: Text(
+                'Account & privacy settings',
+                style: context.link,
+              ),
+            ),
           ),
         ],
       ),
@@ -569,12 +543,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget _buildFieldLabel(String label, Color color) {
     return Text(
       label,
-      style: GoogleFonts.ptSerif(
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.8,
-        color: color,
-      ),
+      style: context.textTheme.headlineSmall,
     );
   }
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../config/routes.dart';
 import '../../../core/cache/image_cache_manager.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/theme_extensions.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
@@ -16,6 +16,7 @@ import '../../widgets/hairline_divider.dart';
 import '../../widgets/icon_square_button.dart';
 import '../../widgets/loading_shimmer.dart';
 import '../../widgets/post_card.dart';
+import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/states/empty_state.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/location_permission_prompt.dart';
@@ -38,7 +39,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 1, vsync: this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeFeed();
@@ -89,22 +90,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'ACCOUNT',
-              style: GoogleFonts.ptSerif(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.8,
-                color: gold,
-              ),
-            ),
+            Text('ACCOUNT', style: context.sectionLabel),
             const SizedBox(height: AppSpacing.sm),
             Text(
               ref.read(currentUserProvider)?.email ?? 'Logged in',
-              style: GoogleFonts.firaCode(
-                fontSize: 12,
-                color: AppColors.textMuted(context),
-              ),
+              style: context.monoSmall,
             ),
             const SizedBox(height: AppSpacing.xl),
             const HairlineDivider(),
@@ -119,7 +109,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
               },
               child: Text(
                 'View Profile',
-                style: GoogleFonts.plusJakartaSans(fontSize: 15, color: gold),
+                style: context.sheetItem?.copyWith(color: gold),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                context.push(RoutePaths.settings);
+              },
+              child: Text(
+                'Settings',
+                style: context.sheetItem?.copyWith(color: gold),
               ),
             ),
             TextButton(
@@ -127,14 +127,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                 Navigator.pop(context);
                 ref.read(authStateProvider.notifier).logout();
               },
-              child: Text(
-                'Log Out',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.error,
-                ),
-              ),
+              child: Text('Log Out', style: context.sheetItemDestructive),
             ),
           ],
         ),
@@ -182,7 +175,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
               controller: _tabController,
               tabs: const [
                 Tab(text: 'Nearby'),
-                Tab(text: 'Following'),
               ],
             ),
           ),
@@ -191,28 +183,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
               controller: _tabController,
               children: [
                 _buildBody(feedState, locationState, theme),
-                const EmptyState(
-                  icon: Icons.construction_outlined,
-                  title: 'Still under construction',
-                  message: 'This feature is coming soon!',
-                ),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(right: AppSpacing.sm),
-        child: FloatingActionButton(
-          onPressed: () => context.push(RoutePaths.createPost),
-          backgroundColor: gold,
-          shape: const RoundedRectangleBorder(borderRadius: AppRadii.sharpAll),
-          elevation: 0,
-          tooltip: 'Create post',
-          child: Icon(Icons.add, color: cs.onPrimary, size: AppIconSize.lg),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
   }
 
@@ -328,7 +303,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
         child: ListView.builder(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 80),
+          padding: EdgeInsets.only(
+            bottom: 80 + MediaQuery.paddingOf(context).bottom,
+          ),
           itemCount: feedState.posts.length + (feedState.hasMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index == feedState.posts.length) {
@@ -346,6 +323,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
             final post = feedState.posts[index];
             return PostCard(
               post: post,
+              headerTrailing:
+                  PostOverflowMenuButton(post: post),
               onTap: () => context.push('/post/${post.id}'),
               onLike: () =>
                   ref.read(feedStateProvider.notifier).toggleLike(post.id),

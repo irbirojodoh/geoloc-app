@@ -151,6 +151,54 @@ class AuthService {
     }
   }
 
+  /// POST /auth/forgot-password — public; server always responds 200
+  Future<void> forgotPassword(String email) async {
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.forgotPassword,
+        data: {'email': email.trim()},
+      );
+      if (response.statusCode != 200) {
+        throw const AuthFailure(message: 'Could not process request');
+      }
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  /// POST /auth/reset-password — public (body: token, new_password)
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiEndpoints.resetPassword,
+        data: {'token': token.trim(), 'new_password': newPassword},
+      );
+      if (response.statusCode != 200) {
+        throw const AuthFailure(message: 'Could not reset password');
+      }
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  /// DELETE /api/v1/users/me — permanently delete account (bearer required)
+  Future<void> deleteCurrentUser({required String password}) async {
+    try {
+      final response = await _apiClient.delete(
+        ApiEndpoints.deleteCurrentUser,
+        data: {'password': password},
+      );
+      if (response.statusCode != 200) {
+        throw const ServerFailure(message: 'Account deletion failed');
+      }
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
   /// Refresh the access token
   Future<AuthTokens> refreshToken() async {
     try {
@@ -317,7 +365,9 @@ class AuthService {
     if (e.response != null) {
       final statusCode = e.response!.statusCode;
       final data = e.response!.data;
-      final message = data is Map ? data['error'] as String? : null;
+      final message = data is Map
+          ? (data['message'] as String? ?? data['error'] as String?)
+          : null;
 
       switch (statusCode) {
         case 400:

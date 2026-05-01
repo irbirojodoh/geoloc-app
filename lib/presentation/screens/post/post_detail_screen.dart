@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/theme_extensions.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/comment.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/post_detail_provider.dart';
+import '../../widgets/comment_overflow_menu_button.dart';
 import '../../widgets/post_card.dart';
+import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/user_avatar.dart';
 
 /// Post detail screen — old-money luxury aesthetic
@@ -23,25 +27,146 @@ class PostDetailScreen extends ConsumerStatefulWidget {
 class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _commentFocus = FocusNode();
+
+  String? _replyingToCommentId;
+  String _replyingToLabel = '';
+  Comment? _editingComment;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_maybePaginateComments);
+  }
+
+  void _maybePaginateComments() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (!pos.hasViewportDimension) return;
+    const threshold = 360.0;
+    if (pos.pixels >= pos.maxScrollExtent - threshold) {
+      ref.read(postDetailProvider(widget.postId).notifier).loadMoreComments();
+    }
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_maybePaginateComments);
     _commentController.dispose();
     _scrollController.dispose();
+    _commentFocus.dispose();
     super.dispose();
   }
 
-  void _submitComment() async {
-    final success = await ref
-        .read(postDetailProvider(widget.postId).notifier)
-        .submitComment(_commentController.text);
-
-    if (success) {
+  void _cancelModes() {
+    setState(() {
+      _replyingToCommentId = null;
+      _replyingToLabel = '';
+      _editingComment = null;
       _commentController.clear();
-      if (mounted) {
+    });
+  }
+
+  void _beginReply(Comment c) {
+    setState(() {
+      _replyingToCommentId = c.id;
+      _replyingToLabel = c.effectiveUsername;
+      _editingComment = null;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _commentFocus.requestFocus();
+    });
+  }
+
+  void _beginEdit(Comment c) {
+    setState(() {
+      _editingComment = c;
+      _replyingToCommentId = null;
+      _replyingToLabel = '';
+      _commentController.text = c.content;
+      _commentController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _commentController.text.length),
+      );
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _commentFocus.requestFocus();
+    });
+  }
+
+  Future<void> _submitCommentInput() async {
+    final raw = _commentController.text.trim();
+    if (raw.isEmpty) return;
+
+    final notifier = ref.read(postDetailProvider(widget.postId).notifier);
+    bool ok;
+
+    final editing = _editingComment;
+    if (editing != null) {
+      ok = await notifier.editComment(editing.id, raw);
+      if (ok && mounted) _cancelModes();
+      return;
+    }
+
+    final rid = _replyingToCommentId;
+    if (rid != null) {
+      ok = await notifier.submitReply(rid, raw);
+      if (ok && mounted) {
+        _commentController.clear();
+        setState(() {
+          _replyingToCommentId = null;
+          _replyingToLabel = '';
+        });
         FocusScope.of(context).unfocus();
       }
+      return;
     }
+
+    ok = await notifier.submitComment(raw);
+    if (ok && mounted) {
+      _commentController.clear();
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  Future<void> _showEditSheet(Comment c) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(2)),
+      ),
+      builder: (ctx) {
+        final cs = Theme.of(ctx).colorScheme;
+        final gold = AppColors.gold(ctx);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Comment',
+                  style: context.textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: Icon(Icons.edit_outlined, color: gold, size: 22),
+                  title: Text(
+                    'Edit',
+                    style: context.bodyMedium,
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _beginEdit(c);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -49,6 +174,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     final postDetailState = ref.watch(postDetailProvider(widget.postId));
     final cs = Theme.of(context).colorScheme;
     final gold = AppColors.gold(context);
+    final me = ref.watch(currentUserProvider);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -89,9 +215,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         child: Center(
                           child: Text(
                             postDetailState.error!,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: cs.onSurface,
-                            ),
+                            style: context.bodyMedium,
                           ),
                         ),
                       )
@@ -99,6 +223,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       SliverToBoxAdapter(
                         child: PostCard(
                           post: postDetailState.post!,
+                          headerTrailing: PostOverflowMenuButton(
+                            post: postDetailState.post!,
+                            viewingPostDetailId: widget.postId,
+                          ),
                           onTap: null,
                           onLike: () => ref
                               .read(postDetailProvider(widget.postId).notifier)
@@ -108,8 +236,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           ),
                         ),
                       ),
-
-                      // Stats row
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -123,19 +249,12 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               const SizedBox(width: 4),
                               Text(
                                 '${postDetailState.post!.likeCount}',
-                                style: GoogleFonts.firaCode(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: cs.onSurface,
-                                ),
+                                style: context.monoData,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 'likes',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 13,
-                                  color: AppColors.textMuted(context),
-                                ),
+                                style: context.bodySmallLight,
                               ),
                               const SizedBox(width: 16),
                               Icon(
@@ -146,42 +265,26 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               const SizedBox(width: 4),
                               Text(
                                 '${postDetailState.post!.commentCount}',
-                                style: GoogleFonts.firaCode(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: cs.onSurface,
-                                ),
+                                style: context.monoData,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 'comments',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 13,
-                                  color: AppColors.textMuted(context),
-                                ),
+                                style: context.bodySmallLight,
                               ),
                             ],
                           ),
                         ),
                       ),
-
-                      // Comments header
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
                           child: Text(
                             'COMMENTS',
-                            style: GoogleFonts.ptSerif(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.8,
-                              color: gold,
-                            ),
+                            style: context.sectionLabel,
                           ),
                         ),
                       ),
-
-                      // Divider
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -191,8 +294,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           ),
                         ),
                       ),
-
-                      // Comments list
                       if (postDetailState.comments.isEmpty)
                         SliverToBoxAdapter(
                           child: Padding(
@@ -200,9 +301,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             child: Center(
                               child: Text(
                                 'No comments yet',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: AppColors.textMuted(context),
-                                ),
+                                style: context.bodyMedium?.copyWith(color: AppColors.textMuted(context)),
                               ),
                             ),
                           ),
@@ -211,25 +310,49 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              final comment =
-                                  postDetailState.comments[index];
-                              return _CommentItem(
+                              final comment = postDetailState.comments[index];
+                              return _CommentThread(
                                 comment: comment,
                                 postId: widget.postId,
+                                depth: 0,
+                                onReplyTap: _beginReply,
+                                onOwnLongPress:
+                                    me != null &&
+                                            comment.userId == me.id &&
+                                            !comment.isSoftDeleted
+                                        ? _showEditSheet
+                                        : null,
                               );
                             },
                             childCount: postDetailState.comments.length,
                           ),
                         ),
-
-                      const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                      if (postDetailState.comments.isNotEmpty &&
+                          postDetailState.isLoadingMoreComments)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 20,
+                              horizontal: 16,
+                            ),
+                            child: Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: gold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 24)),
                     ],
                   ],
                 ),
               ),
             ),
-
-            // Comment input
             if (postDetailState.post != null)
               _buildCommentInput(context, postDetailState),
           ],
@@ -274,11 +397,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 const Spacer(),
                 Text(
                   'Post',
-                  style: GoogleFonts.ptSerif(
-                    fontSize: 17,
-                    fontStyle: FontStyle.italic,
-                    color: cs.onSurface,
-                  ),
+                  style: context.appBarTitle,
                 ),
                 const Spacer(),
                 const SizedBox(width: 34),
@@ -298,6 +417,54 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     final safePadding = MediaQuery.of(context).padding.bottom;
     final bottomPadding = bottomInset > 0 ? bottomInset : safePadding;
 
+    final modeBanner = () {
+      if (_editingComment != null) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Editing comment',
+                  style: context.sheetItem?.copyWith(color: AppColors.gold(context)),
+                ),
+              ),
+              TextButton(
+                onPressed: _cancelModes,
+                child: Text(
+                  'Cancel',
+                  style: context.caption,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      if (_replyingToCommentId != null) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Reply to @$_replyingToLabel',
+                  style: context.sheetItem?.copyWith(color: AppColors.gold(context)),
+                ),
+              ),
+              TextButton(
+                onPressed: _cancelModes,
+                child: Text(
+                  'Cancel',
+                  style: context.caption,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      return const SizedBox.shrink();
+    }();
+
     return Container(
       decoration: BoxDecoration(
         color: cs.surface,
@@ -309,155 +476,288 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         top: 8,
         bottom: 8 + bottomPadding,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: TextField(
-              controller: _commentController,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
-                color: cs.onSurface,
-              ),
-              cursorColor: gold,
-              minLines: 1,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Add a comment...',
-                hintStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w300,
-                  color: AppColors.textMuted(context),
+          modeBanner,
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  focusNode: _commentFocus,
+                  controller: _commentController,
+                  style: context.bodyMedium,
+                  cursorColor: gold,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText:
+                        _editingComment != null
+                        ? 'Update your comment…'
+                        : 'Add a comment…',
+                    hintStyle: context.bodyMedium?.copyWith(color: AppColors.textMuted(context)),
+                    filled: false,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 4,
+                    ),
+                  ),
                 ),
-                filled: false,
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 4,
-                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              if (state.isSubmittingComment)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: gold,
+                  ),
+                )
+              else
+                TextButton(
+                  onPressed: _submitCommentInput,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    _editingComment != null ? 'Save' : 'Post',
+                    style: context.link,
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(width: 8),
-          if (state.isSubmittingComment)
-            SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.5,
-                color: gold,
-              ),
-            )
-          else
-            TextButton(
-              onPressed: _submitComment,
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'Post',
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w600,
-                  color: gold,
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 }
 
-class _CommentItem extends ConsumerWidget {
+class _CommentThread extends ConsumerWidget {
   final Comment comment;
   final String postId;
+  final int depth;
+  final ValueChanged<Comment> onReplyTap;
+  /// Long-press on own rows — opens edit sheet flow.
+  final void Function(Comment)? onOwnLongPress;
 
-  const _CommentItem({required this.comment, required this.postId});
+  const _CommentThread({
+    required this.comment,
+    required this.postId,
+    required this.depth,
+    required this.onReplyTap,
+    this.onOwnLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loadingReplies =
+        ref
+            .watch(postDetailProvider(postId))
+            .loadingMoreRepliesIds
+            .contains(comment.id);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _CommentRow(
+          comment: comment,
+          postId: postId,
+          depth: depth,
+          onReplyTap: onReplyTap,
+          onOwnLongPress: onOwnLongPress,
+        ),
+        ...comment.replies.map(
+          (r) => _CommentThread(
+            comment: r,
+            postId: postId,
+            depth: depth + 1,
+            onReplyTap: onReplyTap,
+            onOwnLongPress: onOwnLongPress,
+          ),
+        ),
+        if (comment.hasMoreReplies)
+          Padding(
+            padding: EdgeInsets.only(left: 16 + (depth + 1) * 14, bottom: 4),
+            child: TextButton(
+              onPressed:
+                  loadingReplies
+                      ? null
+                      : () => ref
+                          .read(postDetailProvider(postId).notifier)
+                          .loadMoreReplies(comment.id),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: loadingReplies
+                  ? SizedBox(
+                      height: 14,
+                      width: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1,
+                        color: AppColors.gold(context),
+                      ),
+                    )
+                  : Text(
+                      'View more replies…',
+                      style: context.link,
+                    ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _CommentRow extends ConsumerWidget {
+  final Comment comment;
+  final String postId;
+  final int depth;
+  final ValueChanged<Comment> onReplyTap;
+  final void Function(Comment)? onOwnLongPress;
+
+  const _CommentRow({
+    required this.comment,
+    required this.postId,
+    required this.depth,
+    required this.onReplyTap,
+    this.onOwnLongPress,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    Widget body = GestureDetector(
+      onLongPress:
+          onOwnLongPress == null || comment.isSoftDeleted
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  onOwnLongPress!(comment);
+                },
+      behavior: HitTestBehavior.opaque,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           UserAvatar(
-            imageUrl: comment.author?.profilePictureUrl,
-            name: comment.author?.username ?? 'U',
-            size: 34,
+            imageUrl: comment.effectiveProfilePictureUrl,
+            name: comment.effectiveUsername,
+            size: 32,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      comment.author?.username ?? 'User',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: cs.onSurface,
+                    Flexible(
+                      child: Text(
+                        comment.effectiveUsername,
+                        style: context.bodySmallLight,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       timeago.format(comment.createdAt, locale: 'en_short'),
-                      style: GoogleFonts.firaCode(
-                        color: AppColors.textMuted(context),
-                        fontSize: 11,
+                      style: context.monoCaption,
+                    ),
+                    if (comment.updatedAt != null) ...[
+                      Text(
+                        ' · ',
+                        style: context.monoCaption,
+                      ),
+                      Text(
+                        '(edited)',
+                        style: context.monoCaption,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  comment.isSoftDeleted
+                      ? 'This comment was deleted'
+                      : comment.content,
+                  style: context.postContent,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed:
+                          comment.canReply
+                              ? () => onReplyTap(comment)
+                              : null,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        'Reply',
+                        style: context.bodyMedium,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    InkWell(
+                      onTap:
+                          comment.isSoftDeleted
+                              ? null
+                              : () => ref
+                                  .read(postDetailProvider(postId).notifier)
+                                  .toggleCommentLike(comment.id),
+                      borderRadius: BorderRadius.circular(2),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              comment.isLiked
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              size: 14,
+                              color: comment.isLiked
+                                  ? AppColors.error
+                                  : AppColors.textMuted(context),
+                            ),
+                            if (comment.likeCount > 0) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                '${comment.likeCount}',
+                                style: context.monoCaption,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  comment.content,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    height: 1.4,
-                    color: cs.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                GestureDetector(
-                  onTap: () => ref
-                      .read(postDetailProvider(postId).notifier)
-                      .toggleCommentLike(comment.id),
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        comment.isLiked
-                            ? Icons.favorite
-                            : Icons.favorite_outline,
-                        size: 14,
-                        color: comment.isLiked
-                            ? AppColors.error
-                            : AppColors.textMuted(context),
-                      ),
-                      if (comment.likeCount > 0) ...[
-                        const SizedBox(width: 4),
-                        Text(
-                          '${comment.likeCount}',
-                          style: GoogleFonts.firaCode(
-                            fontSize: 11,
-                            color: AppColors.textMuted(context),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
+          CommentOverflowMenuButton(
+            comment: comment,
+            postId: postId,
+          ),
         ],
       ),
+    );
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12 + depth * 14.0, 8, 8, 2),
+      child: body,
     );
   }
 }

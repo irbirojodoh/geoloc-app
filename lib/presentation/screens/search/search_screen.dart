@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/theme_extensions.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../providers/search_provider.dart';
 import '../../widgets/post_card.dart';
+import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/user_avatar.dart';
 
 /// Search screen — old-money luxury aesthetic
@@ -93,17 +94,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               onChanged: _onSearchChanged,
               onSubmitted: _onSearchSubmit,
               cursorColor: gold,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 15,
-                color: cs.onSurface,
-              ),
+              style: context.body,
               decoration: InputDecoration(
                 hintText: 'Search users or posts...',
-                hintStyle: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w300,
-                  color: AppColors.textMuted(context),
-                ),
+                hintStyle: context.body,
                 prefixIcon: Icon(
                   Icons.search,
                   size: 20,
@@ -122,10 +116,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             onTap: () => context.pop(),
             child: Text(
               'Cancel',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 15,
-                color: gold,
-              ),
+              style: context.sheetItem?.copyWith(color: gold),
             ),
           ),
         ],
@@ -186,23 +177,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           children: [
             Text(
               label,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: isActive ? cs.onPrimary : cs.onSurface,
-              ),
+              style: context.bodySmall,
             ),
             if (count > 0) ...[
               const SizedBox(width: 6),
               Text(
                 count.toString(),
-                style: GoogleFonts.firaCode(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: isActive
-                      ? cs.onPrimary.withValues(alpha: 0.7)
-                      : AppColors.textMuted(context),
-                ),
+                style: context.monoCaption,
               ),
             ],
           ],
@@ -259,22 +240,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       children: [
         Text(
           title,
-          style: GoogleFonts.ptSerif(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.8,
-            color: gold,
-          ),
+          style: context.sectionLabel,
         ),
         if (onClear != null)
           GestureDetector(
             onTap: onClear,
             child: Text(
               'Clear',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                color: gold,
-              ),
+              style: context.link,
             ),
           ),
       ],
@@ -305,10 +278,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ),
         title: Text(
           search,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 15,
-            color: cs.onSurface,
-          ),
+          style: context.body,
         ),
         trailing: Icon(
           Icons.north_west,
@@ -378,19 +348,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       ),
       title: Text(
         username,
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: cs.onSurface,
-        ),
+        style: context.body,
       ),
       subtitle: fullName != null
           ? Text(
               fullName,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                color: AppColors.textMuted(context),
-              ),
+              style: context.bodySmallLight,
             )
           : null,
       onTap: () {
@@ -408,6 +371,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         final post = state.postResults[index];
         return PostCard(
           post: post,
+          headerTrailing: PostOverflowMenuButton(post: post),
           onTap: () => context.push('/post/${post.id}'),
           onUserTap: () => context.push('/profile/${post.userId}'),
         );
@@ -432,19 +396,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             const SizedBox(height: 16),
             Text(
               'No results found',
-              style: GoogleFonts.ptSerif(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
-              ),
+              style: context.textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
               'Try searching for something else',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
-                color: AppColors.textMuted(context),
-              ),
+              style: context.bodyMedium?.copyWith(color: AppColors.textMuted(context)),
               textAlign: TextAlign.center,
             ),
           ],
@@ -470,19 +427,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             const SizedBox(height: 16),
             Text(
               'Find people nearby',
-              style: GoogleFonts.ptSerif(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
-              ),
+              style: context.textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
               'Search for users or posts in your area',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
-                color: AppColors.textMuted(context),
-              ),
+              style: context.bodyMedium?.copyWith(color: AppColors.textMuted(context)),
               textAlign: TextAlign.center,
             ),
           ],

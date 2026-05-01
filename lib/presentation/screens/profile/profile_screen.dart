@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/theme_extensions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../widgets/post_card.dart';
+import '../../widgets/post_overflow_menu_button.dart';
+import '../../widgets/profile_overflow_menu_button.dart';
 import '../../widgets/custom_refresh_indicator.dart';
 import '../../../core/cache/image_cache_manager.dart';
 import '../../../core/theme/app_colors.dart';
@@ -82,7 +84,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return Center(
         child: Text(
           'User not found',
-          style: GoogleFonts.plusJakartaSans(color: cs.onSurface),
+          style: context.bodyMedium,
         ),
       );
     }
@@ -108,6 +110,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ...profileState.posts.map(
                 (post) => PostCard(
                   post: post,
+                  headerTrailing: PostOverflowMenuButton(post: post),
                   onTap: () => context.push('/post/${post.id}'),
                   onLike: () {},
                   onComment: () => context.push('/post/${post.id}'),
@@ -204,28 +207,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   if (user.fullName != null && user.fullName!.isNotEmpty)
                     Text(
                       user.fullName!,
-                      style: GoogleFonts.ptSerif(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: cs.onSurface,
-                      ),
+                      style: context.emptyTitle,
                     ),
                   Text(
                     '@${user.username}',
-                    style: GoogleFonts.firaCode(
-                      fontSize: 14,
-                      color: AppColors.textMuted(context),
-                    ),
+                    style: context.monoCaption,
                   ),
                   if (user.bio != null && user.bio!.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(
                       user.bio!,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        color: cs.onSurface,
-                        height: 1.5,
-                      ),
+                      style: context.postContent,
                     ),
                   ],
                   if (user.createdAt != null) ...[
@@ -240,10 +232,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         const SizedBox(width: 6),
                         Text(
                           'Joined ${_formatJoinDate(user.createdAt!)}',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            color: AppColors.textMuted(context),
-                          ),
+                          style: context.bodySmallLight,
                         ),
                       ],
                     ),
@@ -327,11 +316,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     child: Text(
                       'Edit profile',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: gold,
-                      ),
+                      style: context.link,
                     ),
                   ),
                 )
@@ -372,13 +357,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             (profileState.user?.isFollowing ?? false)
                                 ? 'Following'
                                 : 'Follow',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: (profileState.user?.isFollowing ?? false)
-                                  ? gold
-                                  : cs.onPrimary,
-                            ),
+                            style: context.link,
                           ),
                   ),
                 ),
@@ -404,6 +383,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
         ),
+        if (!isOwnProfile)
+          Positioned(
+            right: 16,
+            top: statusBarHeight + 8,
+            child: ProfileOverflowMenuButton(profileUserId: widget.userId),
+          ),
       ],
     );
   }
@@ -423,19 +408,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       children: [
         Text(
           value,
-          style: GoogleFonts.firaCode(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: cs.onSurface,
-          ),
+          style: context.monoCaption,
         ),
         const SizedBox(width: 4),
         Text(
           label,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            color: AppColors.textMuted(context),
-          ),
+          style: context.bodySmallLight,
         ),
       ],
     );
@@ -450,20 +428,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           Text(
             'POSTS',
-            style: GoogleFonts.ptSerif(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.8,
-              color: gold,
-            ),
+            style: context.sectionLabel,
           ),
           const SizedBox(width: 8),
           Text(
             '($postCount)',
-            style: GoogleFonts.firaCode(
-              fontSize: 12,
-              color: AppColors.textMuted(context),
-            ),
+            style: context.monoSmall,
           ),
         ],
       ),
@@ -484,11 +454,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 16),
           Text(
             'No posts yet',
-            style: GoogleFonts.ptSerif(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textMuted(context),
-            ),
+            style: context.textTheme.headlineSmall,
           ),
         ],
       ),
@@ -510,10 +476,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Text(
               error,
               textAlign: TextAlign.center,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                color: cs.onSurface,
-              ),
+              style: context.bodyMedium,
             ),
             const SizedBox(height: 24),
             OutlinedButton(
@@ -524,12 +487,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               },
               child: Text(
                 'RETRY',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 1.2,
-                  color: gold,
-                ),
+                style: context.actionLabel,
               ),
             ),
           ],

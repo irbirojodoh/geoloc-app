@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../core/theme/theme_extensions.dart';
 
 import '../../../config/routes.dart';
 import '../../../core/theme/app_colors.dart';
@@ -139,20 +139,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                   children: [
                                     Text(
                                       'Create Account',
-                                      style: GoogleFonts.ptSerif(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w700,
-                                        color: cs.onSurface,
-                                      ),
+                                      style: context.sectionTitle,
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       'Sign up to get started',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w300,
-                                        color: AppColors.textMuted(context),
-                                      ),
+                                      style: context.bodySmallLight,
                                     ),
                                   ],
                                 ),
@@ -184,10 +176,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                   Expanded(
                                     child: Text(
                                       authState.error!,
-                                      style: GoogleFonts.plusJakartaSans(
-                                        color: AppColors.error,
-                                        fontSize: 13,
-                                      ),
+                                      style: context.errorText,
                                     ),
                                   ),
                                 ],
@@ -200,10 +189,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             controller: _fullNameController,
                             textInputAction: TextInputAction.next,
                             textCapitalization: TextCapitalization.words,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: cs.onSurface,
-                              fontSize: 14,
-                            ),
+                            style: context.bodyMedium,
                             decoration: InputDecoration(
                               labelText: 'Full Name',
                               hintText: 'Enter your full name',
@@ -226,10 +212,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           TextFormField(
                             controller: _usernameController,
                             textInputAction: TextInputAction.next,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: cs.onSurface,
-                              fontSize: 14,
-                            ),
+                            style: context.bodyMedium,
                             decoration: InputDecoration(
                               labelText: 'Username',
                               hintText: 'Choose a username',
@@ -259,10 +242,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: cs.onSurface,
-                              fontSize: 14,
-                            ),
+                            style: context.bodyMedium,
                             decoration: InputDecoration(
                               labelText: 'Email',
                               hintText: 'Enter your email',
@@ -291,10 +271,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.next,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: cs.onSurface,
-                              fontSize: 14,
-                            ),
+                            style: context.bodyMedium,
                             decoration: InputDecoration(
                               labelText: 'Password',
                               hintText: 'Create a password',
@@ -334,10 +311,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             obscureText: _obscureConfirmPassword,
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _handleRegister(),
-                            style: GoogleFonts.plusJakartaSans(
-                              color: cs.onSurface,
-                              fontSize: 14,
-                            ),
+                            style: context.bodyMedium,
                             decoration: InputDecoration(
                               labelText: 'Confirm Password',
                               hintText: 'Re-enter your password',
@@ -398,12 +372,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                       )
                                     : Text(
                                         'CREATE ACCOUNT',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                          letterSpacing: 1.5,
-                                          color: gold,
-                                        ),
+                                        style: context.buttonCaps,
                                       ),
                               ),
                             ),
@@ -432,11 +401,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   'OR REGISTER USING',
-                                  style: GoogleFonts.ptSerif(
-                                    color: AppColors.textMuted(context),
-                                    fontSize: 10,
-                                    letterSpacing: 1.5,
-                                  ),
+                                  style: context.dividerOrnament,
                                 ),
                               ),
                               Expanded(
@@ -491,11 +456,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           Center(
                             child: Text(
                               'By registering, you agree to our Terms & Privacy Policy',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: AppColors.textMuted(context),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w300,
-                              ),
+                              style: context.bodyMedium,
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -507,10 +468,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             children: [
                               Text(
                                 'Already have an account? ',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: AppColors.textMuted(context),
-                                  fontSize: 13,
-                                ),
+                                style: context.bodySmallLight,
                               ),
                               GestureDetector(
                                 onTap: () {
@@ -519,11 +477,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 },
                                 child: Text(
                                   'Sign In',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: gold,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: context.link,
                                 ),
                               ),
                             ],
@@ -573,11 +527,7 @@ class _SocialButton extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               label,
-              style: GoogleFonts.plusJakartaSans(
-                color: cs.onSurface,
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-              ),
+              style: context.bodySmall,
             ),
           ],
         ),

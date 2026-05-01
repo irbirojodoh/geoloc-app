@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../../../core/errors/failures.dart';
 import '../../../data/models/user.dart';
 import '../../../services/auth_service.dart';
 
@@ -297,5 +298,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Clear the isNewUser flag (call after onboarding is complete)
   void clearNewUserFlag() {
     state = state.copyWith(isNewUser: false);
+  }
+
+  /// Permanently deletes the authenticated account ([password]) then logs out.
+  /// Returns **null** on success, or user-facing **error message** otherwise.
+  Future<String?> deleteAccountWithPassword(String password) async {
+    try {
+      await _authService.deleteCurrentUser(password: password);
+      await _authService.logout();
+      state = AuthState.unauthenticated();
+      return null;
+    } on Failure catch (f) {
+      return f.message;
+    } catch (e) {
+      return e.toString();
+    }
   }
 }
