@@ -1,8 +1,21 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
+
+/// Background message handler for FCM
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // If you're going to use other Firebase services in the background, such as Firestore,
+  // make sure you call `initializeApp` before using other Firebase services.
+  await Firebase.initializeApp();
+  debugPrint("Handling a background message: ${message.messageId}");
+}
 
 /// Provider for PushNotificationService
 final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
@@ -10,42 +23,84 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) 
 });
 
 /// Push notification service for Firebase Cloud Messaging
-/// 
-/// NOTE: Firebase is not configured yet. Add GoogleService-Info.plist to ios/Runner/
-/// and uncomment firebase_core and firebase_messaging in pubspec.yaml to enable.
 class PushNotificationService {
   final ApiClient _apiClient;
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   PushNotificationService(this._apiClient);
 
   /// Initialize push notifications
-  /// TODO(geoloc): Implement after Firebase is configured (see docs).
   Future<void> initialize() async {
-    if (kDebugMode) {
-      debugPrint(
-        'Push notifications not configured. Add GoogleService-Info.plist to enable.',
-      );
+    // Request permission on app start
+    await requestPermission();
+
+    // Register background handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // Handle initial message (app launched from terminated state via notification)
+    RemoteMessage? initialMessage = await _messaging.getInitialMessage();
+    if (initialMessage != null) {
+      _handleMessage(initialMessage);
     }
+
+    // Handle message when app is in background but not terminated
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
+
+    // Handle message when app is in foreground
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (kDebugMode) {
+        debugPrint('Got a message whilst in the foreground!');
+        debugPrint('Message data: ${message.data}');
+      }
+      if (message.notification != null && kDebugMode) {
+        debugPrint('Message also contained a notification: ${message.notification}');
+      }
+    });
+  }
+
+  void _handleMessage(RemoteMessage message) {
+    if (kDebugMode) {
+      debugPrint('Navigating to specific screen based on message: ${message.data}');
+    }
+    // TODO: implement navigation logic based on notification type
   }
 
   /// Request notification permission
   Future<bool> requestPermission() async {
-    // Firebase not configured yet
-    return false;
+    NotificationSettings settings = await _messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    if (kDebugMode) {
+      debugPrint('User granted permission: ${settings.authorizationStatus}');
+    }
+    return settings.authorizationStatus == AuthorizationStatus.authorized ||
+           settings.authorizationStatus == AuthorizationStatus.provisional;
   }
 
   /// Get FCM device token
   Future<String?> getToken() async {
-    // Firebase not configured yet
-    return null;
+    try {
+      return await _messaging.getToken();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Failed to get FCM token: $e');
+      return null;
+    }
   }
 
   /// Register device token with backend
   Future<void> registerToken(String token) async {
     try {
+      final platform = Platform.isIOS ? 'ios' : 'android';
       await _apiClient.post(
         ApiEndpoints.registerDevice,
-        data: {'token': token, 'platform': 'ios'},
+        data: {'token': token, 'platform': platform},
       );
     } catch (e) {
       if (kDebugMode) debugPrint('Failed to register FCM token: $e');
@@ -55,7 +110,13 @@ class PushNotificationService {
   /// Unregister device token
   Future<void> unregisterToken() async {
     try {
-      await _apiClient.delete(ApiEndpoints.unregisterDevice);
+      final token = await getToken();
+      if (token != null) {
+        await _apiClient.delete(
+          ApiEndpoints.unregisterDevice,
+          data: {'token': token},
+        );
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('Failed to unregister FCM token: $e');
     }

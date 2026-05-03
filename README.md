@@ -12,7 +12,7 @@ A hyper-local social media app built with Flutter. Share and discover content fr
 - 📝 **Create Posts** - Share text and media tied to your location
 - 💬 **Comments** - Engage with 3-level nested replies
 - 👥 **User Profiles** - Follow users and view their posts
-- 🔔 **Notifications** - Get notified about likes, comments, and follows
+- 🔔 **Real-Time Notifications** - Event-driven SSE (Server-Sent Events) and Firebase Cloud Messaging (FCM) integration for live, background, and foreground push notifications.
 - 📌 **Location Following** - Subscribe to geographic areas for updates
 
 ## Tech Stack

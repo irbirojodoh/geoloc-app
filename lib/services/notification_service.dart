@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_client.dart';
@@ -87,5 +91,35 @@ class NotificationService {
       // Fallback: count unread from first page
     }
     return 0;
+  }
+
+  /// Connect to SSE stream
+  Stream<AppNotification> getNotificationStream() async* {
+    final response = await _apiClient.dio.get<ResponseBody>(
+      ApiEndpoints.getNotificationStream,
+      options: Options(
+        responseType: ResponseType.stream,
+        headers: {'Accept': 'text/event-stream'},
+      ),
+    );
+
+    final stream = response.data?.stream;
+    if (stream == null) return;
+
+    yield* stream
+        .cast<List<int>>()
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .where((line) => line.startsWith('data:'))
+        .map((line) => line.substring(5).trim())
+        .where((data) => data.isNotEmpty)
+        .map((data) {
+      try {
+        final Map<String, dynamic> json = jsonDecode(data) as Map<String, dynamic>;
+        return AppNotification.fromJson(json);
+      } catch (_) {
+        return null;
+      }
+    }).where((notification) => notification != null).cast<AppNotification>();
   }
 }

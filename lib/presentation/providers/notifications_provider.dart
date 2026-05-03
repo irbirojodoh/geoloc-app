@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/notification.dart';
@@ -54,6 +55,24 @@ final notificationsProvider =
 /// Unread count provider (for badge)
 final unreadCountProvider = Provider<int>((ref) {
   return ref.watch(notificationsProvider).unreadCount;
+});
+
+/// Stream provider for real-time SSE notifications with exponential backoff
+final notificationStreamProvider = StreamProvider<AppNotification>((ref) async* {
+  final service = ref.watch(notificationServiceProvider);
+  int retryCount = 0;
+  
+  while (true) {
+    try {
+      yield* service.getNotificationStream();
+      // Stream completed normally (e.g. server closed connection), retry shortly
+      await Future.delayed(const Duration(seconds: 2));
+    } catch (e) {
+      retryCount++;
+      final backoffSeconds = (2 << (retryCount < 6 ? retryCount : 6)); // max 128s
+      await Future.delayed(Duration(seconds: backoffSeconds));
+    }
+  }
 });
 
 /// Notifications state notifier
@@ -202,6 +221,17 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     } catch (e) {
       state = state.copyWith(error: 'Failed to mark all as read: $e');
     }
+  }
+
+  /// Add a real-time notification to the state
+  void addNotification(AppNotification notification) {
+    final updatedNotifications = [notification, ...state.notifications];
+    final newUnreadCount = updatedNotifications.where((n) => !n.isRead).length;
+
+    state = state.copyWith(
+      notifications: updatedNotifications,
+      unreadCount: newUnreadCount,
+    );
   }
 
   /// Get grouped notifications by date

@@ -12,18 +12,32 @@ import '../data/models/auth_response.dart';
 import '../data/models/auth_tokens.dart';
 import '../data/models/user.dart';
 import 'secure_storage.dart';
+import 'push_notification_service.dart';
 
 /// Provider for AuthService
 final authServiceProvider = Provider<AuthService>((ref) {
-  return AuthService(ref.watch(apiClientProvider));
+  return AuthService(
+    ref.watch(apiClientProvider),
+    ref.watch(pushNotificationServiceProvider),
+  );
 });
 
 /// Authentication service handling login, register, token management
 class AuthService {
   final ApiClient _apiClient;
+  final PushNotificationService _pushService;
   final FlutterSecureStorage _storage = secureStorage;
 
-  AuthService(this._apiClient);
+  AuthService(this._apiClient, this._pushService);
+
+  Future<void> _syncFcmToken() async {
+    try {
+      final token = await _pushService.getToken();
+      if (token != null) {
+        await _pushService.registerToken(token);
+      }
+    } catch (_) {}
+  }
 
   /// Register a new user
   Future<User> register({
@@ -54,6 +68,7 @@ class AuthService {
         // Store user
         final user = User.fromJson(data['user'] as Map<String, dynamic>);
         await _storeCurrentUser(user);
+        await _syncFcmToken();
 
         return user;
       }
@@ -81,12 +96,14 @@ class AuthService {
         // Fetch full user profile from /api/v1/users/me
         final user = await fetchCurrentUserFromApi();
         if (user != null) {
+          await _syncFcmToken();
           return user;
         }
 
         // Fallback to login response user if API call fails
         final loginUser = User.fromJson(data['user'] as Map<String, dynamic>);
         await _storeCurrentUser(loginUser);
+        await _syncFcmToken();
         return loginUser;
       }
 
@@ -110,6 +127,7 @@ class AuthService {
         final authResponse = AuthResponse.fromJson(data);
         await _storeTokens(authResponse.tokens);
         await _storeCurrentUser(authResponse.user);
+        await _syncFcmToken();
         return authResponse;
       }
 
@@ -142,6 +160,7 @@ class AuthService {
         final authResponse = AuthResponse.fromJson(data);
         await _storeTokens(authResponse.tokens);
         await _storeCurrentUser(authResponse.user);
+        await _syncFcmToken();
         return authResponse;
       }
 
@@ -233,6 +252,10 @@ class AuthService {
 
   /// Logout - clear all stored data
   Future<void> logout() async {
+    try {
+      await _pushService.unregisterToken();
+    } catch (_) {}
+    
     await _storage.delete(key: AppConfig.accessTokenKey);
     await _storage.delete(key: AppConfig.refreshTokenKey);
     await _storage.delete(key: AppConfig.accessTokenExpiryKey);
@@ -263,6 +286,7 @@ class AuthService {
         final userJson = data['user'] as Map<String, dynamic>? ?? data;
         final user = User.fromJson(userJson);
         await _storeCurrentUser(user);
+        await _syncFcmToken();
         return user;
       }
       return null;

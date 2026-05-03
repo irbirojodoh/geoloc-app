@@ -93,16 +93,38 @@ class NotificationsScreen extends ConsumerWidget {
     return RefreshIndicator(
       color: gold,
       onRefresh: () async {
-        await ref.read(notificationsProvider.notifier).loadNotifications();
+        await ref.read(notificationsProvider.notifier).refreshNotifications();
       },
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: notifications.length,
-        separatorBuilder: (context, index) => Padding(
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (ScrollNotification scrollInfo) {
+          if (!state.isLoading &&
+              state.hasMore &&
+              scrollInfo.metrics.pixels ==
+                  scrollInfo.metrics.maxScrollExtent) {
+            ref.read(notificationsProvider.notifier).loadMore();
+          }
+          return false;
+        },
+        child: ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: notifications.length + (state.hasMore ? 1 : 0),
+          separatorBuilder: (context, index) => Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Container(height: 0.5, color: notifCs.outline),
         ),
         itemBuilder: (context, index) {
+          if (index == notifications.length) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: gold,
+                ),
+              ),
+            );
+          }
+
           final notification = notifications[index];
 
           return GestureDetector(
@@ -191,6 +213,7 @@ class NotificationsScreen extends ConsumerWidget {
             ),
           );
         },
+      ),
       ),
     );
   }

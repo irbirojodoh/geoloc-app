@@ -10,7 +10,7 @@ class ApiEndpoints {
   static const String _notificationsBase = '/notifications';
   static const String _searchBase = '/search';
 
-  static const String _devicesBase = '/devices';
+  static const String _devicesBase = '$_apiBase/devices';
 
   // ==================== Auth Endpoints (Public) ====================
 
@@ -174,6 +174,9 @@ class ApiEndpoints {
 
   /// PUT - Mark all notifications as read
   static const String markAllNotificationsRead = '$_notificationsBase/read-all';
+
+  /// GET - SSE Notification Stream
+  static const String getNotificationStream = '$_notificationsBase/stream';
 
   // ==================== Search Endpoints (Protected) ====================
 
