@@ -146,7 +146,7 @@ Improve user experience when things go wrong.
 Some screens have it, others don't.
 
 **Requirements:**
-- [ ] Add to Notifications screen
+- [x] Add to Notifications screen
 - [ ] Add to Search results
 - [ ] Consistent refresh indicator style
 
@@ -203,17 +203,17 @@ Backend supports subscribing to geographic areas.
 
 ---
 
-### 15. Push Notifications Setup
-Firebase is configured in Podfile but commented out in pubspec.
+### 15. ✅ Push Notifications Setup (COMPLETE)
+Firebase is configured in Podfile and now fully implemented.
 
 **Requirements:**
-- [ ] Enable firebase_core and firebase_messaging in pubspec.yaml
-- [ ] Add GoogleService-Info.plist to iOS
-- [ ] Add google-services.json to Android
-- [ ] Register device tokens on login
-- [ ] Handle foreground notifications
-- [ ] Handle background notifications
-- [ ] Deep-link from notification tap
+- [x] Enable firebase_core and firebase_messaging in pubspec.yaml
+- [x] Add GoogleService-Info.plist to iOS
+- [x] Add google-services.json to Android
+- [x] Register device tokens on login
+- [x] Handle foreground notifications (via SSE)
+- [x] Handle background notifications (via FCM)
+- [x] Deep-link from notification tap
 
 ---
 

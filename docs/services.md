@@ -8,6 +8,7 @@ Services handle business logic, API communication, and external integrations.
 |---------|------|-------------|
 | AuthService | `auth_service.dart` | Authentication and user management |
 | LocationService | `location_service.dart` | GPS and geocoding |
+| NotificationService | `notification_service.dart` | Fetching notification history and SSE stream |
 | PushNotificationService | `push_notification_service.dart` | Firebase push notifications |
 
 ---
@@ -176,9 +177,9 @@ double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
 
 **File**: `lib/services/push_notification_service.dart`
 
-Handles Firebase Cloud Messaging for push notifications.
+Handles Firebase Cloud Messaging for background push notifications and token syncing.
 
-> **Note**: Firebase is not yet configured. Add `GoogleService-Info.plist` for iOS and `google-services.json` for Android to enable.
+> **Note**: iOS uses `GoogleService-Info.plist` (configured). Android requires `google-services.json` to complete setup on that platform.
 
 ### Provider
 
@@ -224,6 +225,56 @@ void _handleMessage(RemoteMessage message) {
       router.push('/profile/$targetId');
       break;
   }
+}
+```
+
+---
+
+## Notification Service
+
+**File**: `lib/services/notification_service.dart`
+
+Handles notification history, marking as read, and real-time SSE streams.
+
+### Provider
+
+```dart
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService(ref.watch(apiClientProvider));
+});
+```
+
+### Methods
+
+#### Get Notification Stream (SSE)
+```dart
+Stream<AppNotification> getNotificationStream() async* {
+  final response = await _apiClient.dio.get<ResponseBody>(
+    ApiEndpoints.notificationStream,
+    options: Options(
+      responseType: ResponseType.stream,
+      headers: {'Accept': 'text/event-stream'},
+    ),
+  );
+
+  final stream = response.data?.stream;
+  if (stream == null) return;
+
+  yield* stream
+      .cast<List<int>>()
+      .transform(utf8.decoder)
+      .transform(const LineSplitter())
+      .where((line) => line.startsWith('data:'))
+      .map((line) => line.substring(5).trim())
+      .where((data) => data.isNotEmpty)
+      .map((data) {
+    try {
+      final json = jsonDecode(data) as Map<String, dynamic>;
+      return AppNotification.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }).where((n) => n != null).cast<AppNotification>();
 }
 ```
 
@@ -322,6 +373,10 @@ class AuthInterceptor extends Interceptor {
 |--------|----------|-------------|
 | GET | `/notifications` | List notifications |
 | PUT | `/notifications/:id/read` | Mark as read |
+| POST | `/notifications/read-all` | Mark all as read |
+| GET | `/notifications/stream` | SSE stream |
+| POST | `/devices` | Register FCM token |
+| DELETE | `/devices/:token` | Unregister FCM token |
 
 ### Search
 | Method | Endpoint | Description |

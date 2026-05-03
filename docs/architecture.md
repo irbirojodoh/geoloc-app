@@ -133,6 +133,10 @@ final response = await _apiClient.get('/feed', queryParameters: {
 });
 ```
 
+### Real-Time Notifications (SSE & FCM)
+- **Foreground (SSE):** `NotificationService` maintains a persistent HTTP connection to the backend `/notifications/stream` using Dio. Events are parsed and propagated to Riverpod (`notificationStreamProvider`).
+- **Background (FCM):** `PushNotificationService` uses Firebase Cloud Messaging to wake the app or display native banners when the app is backgrounded or terminated. Token synchronization happens automatically on login.
+
 ## Configuration
 
 | Setting | Location | Value |

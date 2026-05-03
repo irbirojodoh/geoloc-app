@@ -199,6 +199,43 @@ final profileProvider = StateNotifierProvider.family<ProfileNotifier, ProfileSta
 
 ---
 
+### Notifications Provider
+**File**: `lib/presentation/providers/notifications_provider.dart`
+
+Manages notification history, unread counts, and real-time SSE stream.
+
+```dart
+// State class
+class NotificationsState {
+  final List<AppNotification> notifications;
+  final int unreadCount;
+  final bool isLoading;
+  // ...
+}
+
+// History Provider
+final notificationsProvider = StateNotifierProvider<NotificationsNotifier, NotificationsState>(...);
+
+// Real-Time Stream Provider
+final notificationStreamProvider = StreamProvider<AppNotification>((ref) async* {
+  // Uses exponential backoff for SSE
+  // ...
+});
+
+// Badge Count Provider
+final unreadCountProvider = Provider<int>((ref) => ...);
+```
+
+**Actions**:
+- `loadNotifications()` - Fetch notification history
+- `refreshNotifications()` - Pull-to-refresh
+- `loadMore()` - Pagination
+- `markAsRead(id)` - Mark single notification as read
+- `markAllAsRead()` - Mark all as read
+- `addNotification(notification)` - Insert real-time SSE notification into state
+
+---
+
 ## Usage Patterns
 
 ### Reading State
