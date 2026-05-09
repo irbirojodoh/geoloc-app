@@ -10,7 +10,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/create_post_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../../core/cache/image_cache_manager.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../data/models/user.dart';
 
 /// Create post screen — old-money luxury aesthetic
@@ -50,7 +49,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   void _showMediaPicker() {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
 
     showModalBottomSheet<void>(
       context: context,
@@ -78,9 +76,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.transparent,
+                    cs.surface.withValues(alpha: 0),
                     cs.outline,
-                    Colors.transparent,
+                    cs.surface.withValues(alpha: 0),
                   ],
                 ),
               ),
@@ -91,7 +89,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 Navigator.pop(context);
                 ref.read(createPostProvider.notifier).pickImageFromCamera();
               },
-              icon: Icon(Icons.camera_alt_outlined, size: 20, color: gold),
+              icon: Icon(Icons.camera_alt_outlined, size: 20, color: cs.primary),
               label: Text(
                 'Take Photo',
                 style: context.body,
@@ -102,7 +100,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 Navigator.pop(context);
                 ref.read(createPostProvider.notifier).pickImageFromGallery();
               },
-              icon: Icon(Icons.photo_library_outlined, size: 20, color: gold),
+              icon: Icon(
+                Icons.photo_library_outlined,
+                size: 20,
+                color: cs.primary,
+              ),
               label: Text(
                 'Choose from Gallery',
                 style: context.body,
@@ -163,7 +165,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Widget _buildHeader(BuildContext context, CreatePostState state) {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
 
     return Container(
       color: cs.surface,
@@ -210,7 +211,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: state.canSubmit
-                          ? gold
+                          ? cs.primary
                           : cs.outline.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
@@ -272,13 +273,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                           placeholder: (context, url) => Center(
                             child: CircularProgressIndicator(
                               strokeWidth: 1,
-                              color: AppColors.gold(context),
+                              color: cs.primary,
                             ),
                           ),
                           errorWidget: (context, url, error) => Icon(
                             Icons.person_outlined,
                             size: 24,
-                            color: AppColors.textMuted(context),
+                            color: cs.onSurfaceVariant,
                           ),
                         );
                       },
@@ -287,7 +288,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 : Icon(
                     Icons.person_outlined,
                     size: 24,
-                    color: AppColors.textMuted(context),
+                    color: cs.onSurfaceVariant,
                   ),
           ),
           const SizedBox(width: 12),
@@ -298,7 +299,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               onChanged: (value) {
                 ref.read(createPostProvider.notifier).setContent(value);
               },
-              cursorColor: AppColors.gold(context),
+              cursorColor: cs.primary,
               maxLines: null,
               minLines: 5,
               style: context.body,
@@ -319,6 +320,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   Widget _buildMediaPreview(BuildContext context, List<File> mediaFiles) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -365,13 +367,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                             width: 24,
                             height: 24,
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.6),
+                              color: colorScheme.scrim.withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(2),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.close,
                               size: 14,
-                              color: Colors.white,
+                              color: colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -392,7 +394,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     BuildContext context,
     LocationState locationState,
   ) {
-    final gold = AppColors.gold(context);
+    final colorScheme = Theme.of(context).colorScheme;
     final createPostState = ref.watch(createPostProvider);
 
     ref.listen<LocationState>(locationStateProvider, (prev, next) {
@@ -417,7 +419,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Icon(Icons.location_on_outlined, size: 16, color: gold),
+          Icon(Icons.location_on_outlined, size: 16, color: colorScheme.primary),
           const SizedBox(width: 6),
           if (locationState.isLoading || createPostState.isLoadingAddress)
             Row(
@@ -427,7 +429,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   height: 12,
                   child: CircularProgressIndicator(
                     strokeWidth: 1,
-                    color: gold,
+                    color: colorScheme.primary,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -458,7 +460,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               },
               child: Text(
                 'Enable location',
-                style: context.sheetItem?.copyWith(color: AppColors.gold(context)),
+                style: context.sheetItem.copyWith(color: colorScheme.primary),
               ),
             ),
         ],
@@ -468,7 +470,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Widget _buildBottomToolbar(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
 
     return Container(
       padding: EdgeInsets.only(
@@ -492,7 +493,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 borderRadius: BorderRadius.circular(2),
                 border: Border.all(color: cs.outline, width: 1),
               ),
-              child: Icon(Icons.photo_outlined, size: 20, color: gold),
+              child: Icon(Icons.photo_outlined, size: 20, color: cs.primary),
             ),
           ),
           const SizedBox(width: 12),
@@ -507,7 +508,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 borderRadius: BorderRadius.circular(2),
                 border: Border.all(color: cs.outline, width: 1),
               ),
-              child: Icon(Icons.camera_alt_outlined, size: 20, color: gold),
+              child: Icon(Icons.camera_alt_outlined, size: 20, color: cs.primary),
             ),
           ),
           const Spacer(),
@@ -536,7 +537,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'OK',
-              style: TextStyle(color: AppColors.gold(context)),
+              style: TextStyle(color: cs.primary),
             ),
           ),
         ],

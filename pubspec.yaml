@@ -43,6 +43,7 @@ dependencies:
 
   # UI
   flutter_svg: ^2.0.9
+  cupertino_native_plus: ^0.0.9
   # NOTE: project ships its own LoadingShimmer widget; the `shimmer` package
   # is intentionally *not* a dependency.
   # NOTE: pagination + pull-to-refresh use built-in Flutter widgets;
@@ -59,6 +60,7 @@ dependencies:
   # Fonts
   google_fonts: ^6.2.1
   flutter_cache_manager: ^3.4.1
+  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:

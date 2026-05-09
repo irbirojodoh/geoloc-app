@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/theme_extensions.dart';
-
-/// Shared error-state layout: red icon + serif "Something went wrong"
-/// headline + muted message + outlined retry CTA.
+/// Shared Material 3 error state layout.
 class ErrorState extends StatelessWidget {
   const ErrorState({
     super.key,
@@ -22,38 +17,37 @@ class ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = AppColors.gold(context);
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.huge),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-            const SizedBox(height: AppSpacing.lg),
+            Icon(Icons.error_outline, size: 96, color: colorScheme.onSurfaceVariant),
+            const SizedBox(height: 24),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: context.emptyTitle,
+              style: textTheme.titleMedium?.copyWith(
+                color: colorScheme.onSurface,
+              ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: context.bodyMedium.copyWith(
-                color: AppColors.textMuted(context),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             if (onRetry != null) ...[
-              const SizedBox(height: AppSpacing.xxl),
-              OutlinedButton.icon(
+              const SizedBox(height: 24),
+              FilledButton.tonal(
                 onPressed: onRetry,
-                icon: Icon(Icons.refresh, size: 18, color: gold),
-                label: Text(
-                  retryLabel,
-                  style: context.actionLabel,
-                ),
+                child: Text(retryLabel),
               ),
             ],
           ],

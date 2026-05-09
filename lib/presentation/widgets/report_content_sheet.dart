@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/theme_extensions.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../services/moderation_service.dart';
 
 const _reportReasons = <({String apiValue, String label})>[
@@ -32,7 +31,6 @@ Future<bool> showReportContentSheet({
     ),
     builder: (ctx) {
       final cs = Theme.of(ctx).colorScheme;
-      final gold = AppColors.gold(ctx);
       final bottom = MediaQuery.of(ctx).viewInsets.bottom +
           MediaQuery.paddingOf(ctx).bottom;
 
@@ -115,8 +113,8 @@ Future<bool> showReportContentSheet({
                       }
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: gold,
-                      side: BorderSide(color: gold),
+                      foregroundColor: cs.primary,
+                      side: BorderSide(color: cs.primary),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(2),
                       ),
@@ -131,7 +129,9 @@ Future<bool> showReportContentSheet({
                   onPressed: () => Navigator.pop(ctx, false),
                   child: Text(
                     'Cancel',
-                    style: context.bodyMedium?.copyWith(color: AppColors.textMuted(context)),
+                    style: context.bodyMedium.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],

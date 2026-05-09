@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/cache/image_cache_manager.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/theme_extensions.dart';
 
 /// User avatar — old-money luxury aesthetic
@@ -22,22 +21,20 @@ class UserAvatar extends StatelessWidget {
     this.onTap,
   });
 
-  /// Deterministic fallback palette derived from the central [AppColors] tokens.
-  /// Re-exporting hexes here would risk drift; reference the tokens instead.
-  static const _fallbackColors = <Color>[
-    AppColors.goldDeep,
-    AppColors.textMutedLight,
-    AppColors.info,
-    AppColors.textMutedDark,
-    AppColors.warning,
-    AppColors.success,
-  ];
-
-  Color _backgroundColor() {
+  Color _backgroundColor(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final fallbackPalette = <Color>[
+      colorScheme.primaryContainer,
+      colorScheme.secondaryContainer,
+      colorScheme.tertiaryContainer,
+      colorScheme.surfaceContainerHighest,
+      colorScheme.surfaceContainerHigh,
+      colorScheme.surfaceContainer,
+    ];
     final index = name.isEmpty
         ? 0
-        : name.codeUnitAt(0) % _fallbackColors.length;
-    return _fallbackColors[index];
+        : name.codeUnitAt(0) % fallbackPalette.length;
+    return fallbackPalette[index];
   }
 
   String _initials() {
@@ -51,14 +48,16 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = AppColors.gold(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     final avatar = Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: showBorder ? Border.all(color: gold, width: 1.5) : null,
+        border: showBorder
+            ? Border.all(color: colorScheme.primary, width: 1.5)
+            : null,
       ),
       child: imageUrl != null
           ? ClipOval(
@@ -91,7 +90,7 @@ class UserAvatar extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: _backgroundColor(),
+        color: _backgroundColor(context),
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -100,7 +99,7 @@ class UserAvatar extends StatelessWidget {
           style: context.textTheme.headlineMedium?.copyWith(
             fontSize: size * 0.38,
             fontWeight: FontWeight.w700,
-            color: AppColors.bgLight,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
           ),
         ),
       ),

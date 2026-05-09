@@ -11,6 +11,12 @@ PODS:
     - GoogleUtilities/Environment (~> 8.0)
     - GoogleUtilities/UserDefaults (~> 8.0)
     - PromisesObjC (~> 2.4)
+  - CocoaLumberjack (3.9.1):
+    - CocoaLumberjack/Core (= 3.9.1)
+  - CocoaLumberjack/Core (3.9.1)
+  - cupertino_native_plus (0.0.1):
+    - Flutter
+    - SVGKit (~> 3.0)
   - Firebase/CoreOnly (12.12.0):
     - FirebaseCore (~> 12.12.0)
   - Firebase/Messaging (12.12.0):
@@ -116,10 +122,13 @@ PODS:
   - sqflite_darwin (0.0.4):
     - Flutter
     - FlutterMacOS
+  - SVGKit (3.0.0):
+    - CocoaLumberjack (~> 3.0)
   - TOCropViewController (2.6.1)
 
 DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
+  - cupertino_native_plus (from `.symlinks/plugins/cupertino_native_plus/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
   - Flutter (from `Flutter`)
@@ -137,6 +146,7 @@ SPEC REPOS:
   trunk:
     - AppAuth
     - AppCheckCore
+    - CocoaLumberjack
     - Firebase
     - FirebaseCore
     - FirebaseCoreInternal
@@ -149,11 +159,14 @@ SPEC REPOS:
     - GTMSessionFetcher
     - nanopb
     - PromisesObjC
+    - SVGKit
     - TOCropViewController
 
 EXTERNAL SOURCES:
   app_links:
     :path: ".symlinks/plugins/app_links/ios"
+  cupertino_native_plus:
+    :path: ".symlinks/plugins/cupertino_native_plus/ios"
   firebase_core:
     :path: ".symlinks/plugins/firebase_core/ios"
   firebase_messaging:
@@ -183,6 +196,8 @@ SPEC CHECKSUMS:
   app_links: 3dbc685f76b1693c66a6d9dd1e9ab6f73d97dc0a
   AppAuth: d4f13a8fe0baf391b2108511793e4b479691fb73
   AppCheckCore: cc8fd0a3a230ddd401f326489c99990b013f0c4f
+  CocoaLumberjack: e4ba3b414dfca8c1916c6303d37f63b3a95134c6
+  cupertino_native_plus: d86c2d22e15e85fe4ee351662e47b5f20f422144
   Firebase: aa154fee4e9b8eac17aa42344988865b3e857d33
   firebase_core: 9156a152117c843440b0b990c785aa0259bc5447
   firebase_messaging: 0d962ab44ff24ed36deb8fa2ee043c4671858269
@@ -207,6 +222,7 @@ SPEC CHECKSUMS:
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   sign_in_with_apple: c5dcc141574c8c54d5ac99dd2163c0c72ad22418
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
+  SVGKit: 1ad7513f8c74d9652f94ed64ddecda1a23864dea
   TOCropViewController: edfd4f25713d56905ad1e0b9f5be3fbe0f59c863
 
 PODFILE CHECKSUM: 53a6aebc29ccee84c41f92f409fc20cd4ca011f1

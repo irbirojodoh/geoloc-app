@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/theme_extensions.dart';
 
 import '../../../config/routes.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 
-/// Register screen — old-money luxury aesthetic
+/// Material 3 register screen.
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -54,52 +51,106 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  Future<void> _handleGoogleSignUp() async {
+    final success = await ref.read(authStateProvider.notifier).signInWithGoogle();
+    if (success && mounted) {
+      final authState = ref.read(authStateProvider);
+      if (authState.isNewUser) {
+        context.go(RoutePaths.editProfile);
+      } else {
+        context.go(RoutePaths.feed);
+      }
+    }
+  }
+
+  Future<void> _handleAppleSignUp() async {
+    final success = await ref.read(authStateProvider.notifier).signInWithApple();
+    if (success && mounted) {
+      final authState = ref.read(authStateProvider);
+      if (authState.isNewUser) {
+        context.go(RoutePaths.editProfile);
+      } else {
+        context.go(RoutePaths.feed);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
-    final screenSize = MediaQuery.of(context).size;
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final pillShape = const StadiumBorder();
+    final pillOutline = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(999),
+      borderSide: BorderSide(color: Colors.white.withOpacity(0.25)),
+    );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      value: Theme.of(context).brightness == Brightness.dark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: Colors.transparent,
-        resizeToAvoidBottomInset: false,
-        body: Stack(
-          children: [
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 350),
-                curve: Curves.easeInOut,
-                constraints: BoxConstraints(
-                  maxHeight: keyboardHeight > 0
-                      ? screenSize.height * 0.92
-                      : screenSize.height * 0.80,
-                ),
-                decoration: BoxDecoration(
-                  color: cs.surface,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(2),
-                    topRight: Radius.circular(2),
+        backgroundColor: colorScheme.surface.withOpacity(0),
+        body: Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Material(
+              color: colorScheme.scrim.withOpacity(0.55),
+              elevation: 3,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 20,
+                    bottom: 16 +
+                        (MediaQuery.viewInsetsOf(context).bottom > 0
+                            ? MediaQuery.viewInsetsOf(context).bottom
+                            : MediaQuery.paddingOf(context).bottom),
                   ),
-                  border: Border(
-                    top: BorderSide(color: gold, width: 1),
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: 32,
-                      right: 32,
-                      top: 28,
-                      bottom: 34 + keyboardHeight,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      inputDecorationTheme:
+                          Theme.of(context).inputDecorationTheme.copyWith(
+                                filled: true,
+                                fillColor: Colors.white.withOpacity(0.12),
+                                border: pillOutline,
+                                enabledBorder: pillOutline,
+                                focusedBorder: pillOutline,
+                                hintStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.5),
+                                ),
+                                labelStyle: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                                prefixIconColor: Colors.white.withOpacity(0.9),
+                                suffixIconColor: Colors.white.withOpacity(0.9),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 14,
+                                ),
+                              ),
+                      filledButtonTheme: FilledButtonThemeData(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(56),
+                          shape: pillShape,
+                          textStyle: textTheme.labelLarge,
+                        ),
+                      ),
+                      textButtonTheme: TextButtonThemeData(
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          shape: pillShape,
+                          textStyle: textTheme.labelLarge,
+                        ),
+                      ),
                     ),
                     child: Form(
                       key: _formKey,
@@ -107,120 +158,68 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Header with back button
                           Row(
                             children: [
-                              GestureDetector(
-                                onTap: () {
-                                  HapticFeedback.lightImpact();
-                                  context.pop();
-                                },
-                                child: Container(
-                                  width: 36,
-                                  height: 36,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(2),
-                                    border: Border.all(
-                                      color: cs.outline,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    Icons.arrow_back,
-                                    color: cs.onSurface,
-                                    size: 18,
-                                  ),
-                                ),
+                              IconButton(
+                                tooltip: 'Back to sign in',
+                                onPressed: () => context.pop(),
+                                icon: const Icon(Icons.arrow_back),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 4),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Create Account',
-                                      style: context.sectionTitle,
+                                      'Create account',
+                                      style: textTheme.titleLarge?.copyWith(
+                                        color: Colors.white.withOpacity(0.9),
+                                      ),
                                     ),
-                                    const SizedBox(height: 2),
+                                    const SizedBox(height: 4),
                                     Text(
                                       'Sign up to get started',
-                                      style: context.bodySmallLight,
+                                      style: textTheme.bodyMedium?.copyWith(
+                                        color: Colors.white.withOpacity(0.6),
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
-
-                          // Error
+                          const SizedBox(height: 16),
                           if (authState.error != null) ...[
-                            Container(
-                              padding: const EdgeInsets.all(14),
-                              margin: const EdgeInsets.only(bottom: 16),
-                              decoration: BoxDecoration(
-                                color: AppColors.error.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(2),
-                                border: Border.all(
-                                  color: AppColors.error.withValues(alpha: 0.3),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.error_outline,
-                                    color: AppColors.error,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      authState.error!,
-                                      style: context.errorText,
-                                    ),
-                                  ),
-                                ],
+                            Text(
+                              authState.error!,
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.error,
                               ),
                             ),
+                            const SizedBox(height: 12),
                           ],
-
-                          // Full Name
                           TextFormField(
                             controller: _fullNameController,
                             textInputAction: TextInputAction.next,
                             textCapitalization: TextCapitalization.words,
-                            style: context.bodyMedium,
-                            decoration: InputDecoration(
-                              labelText: 'Full Name',
-                              hintText: 'Enter your full name',
-                              prefixIcon: Icon(
-                                Icons.person_outlined,
-                                size: 20,
-                                color: AppColors.textMuted(context),
-                              ),
+                            decoration: const InputDecoration(
+                              labelText: 'Full name',
+                              prefixIcon: Icon(Icons.person_outline),
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Please enter your full name';
                               }
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16),
-
-                          // Username
+                          const SizedBox(height: 12),
                           TextFormField(
                             controller: _usernameController,
                             textInputAction: TextInputAction.next,
-                            style: context.bodyMedium,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               labelText: 'Username',
-                              hintText: 'Choose a username',
-                              prefixIcon: Icon(
-                                Icons.alternate_email,
-                                size: 20,
-                                color: AppColors.textMuted(context),
-                              ),
+                              prefixIcon: Icon(Icons.alternate_email),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -235,22 +234,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16),
-
-                          // Email
+                          const SizedBox(height: 12),
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
-                            style: context.bodyMedium,
-                            decoration: InputDecoration(
+                            autofillHints: const [AutofillHints.email],
+                            decoration: const InputDecoration(
                               labelText: 'Email',
-                              hintText: 'Enter your email',
-                              prefixIcon: Icon(
-                                Icons.mail_outlined,
-                                size: 20,
-                                color: AppColors.textMuted(context),
-                              ),
+                              prefixIcon: Icon(Icons.email_outlined),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -264,32 +256,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16),
-
-                          // Password
+                          const SizedBox(height: 12),
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.next,
-                            style: context.bodyMedium,
+                            autofillHints: const [AutofillHints.newPassword],
                             decoration: InputDecoration(
                               labelText: 'Password',
-                              hintText: 'Create a password',
-                              prefixIcon: Icon(
-                                Icons.lock_outlined,
-                                size: 20,
-                                color: AppColors.textMuted(context),
-                              ),
-                              suffixIcon: GestureDetector(
-                                onTap: () => setState(
-                                  () => _obscurePassword = !_obscurePassword,
-                                ),
-                                child: Icon(
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                tooltip: _obscurePassword
+                                    ? 'Show password'
+                                    : 'Hide password',
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                                icon: Icon(
                                   _obscurePassword
                                       ? Icons.visibility_outlined
                                       : Icons.visibility_off_outlined,
-                                  size: 20,
-                                  color: AppColors.textMuted(context),
                                 ),
                               ),
                             ),
@@ -303,34 +291,29 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16),
-
-                          // Confirm Password
+                          const SizedBox(height: 12),
                           TextFormField(
                             controller: _confirmPasswordController,
                             obscureText: _obscureConfirmPassword,
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _handleRegister(),
-                            style: context.bodyMedium,
                             decoration: InputDecoration(
-                              labelText: 'Confirm Password',
-                              hintText: 'Re-enter your password',
-                              prefixIcon: Icon(
-                                Icons.lock_outlined,
-                                size: 20,
-                                color: AppColors.textMuted(context),
-                              ),
-                              suffixIcon: GestureDetector(
-                                onTap: () => setState(
-                                  () => _obscureConfirmPassword =
-                                      !_obscureConfirmPassword,
-                                ),
-                                child: Icon(
+                              labelText: 'Confirm password',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                tooltip: _obscureConfirmPassword
+                                    ? 'Show password'
+                                    : 'Hide password',
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureConfirmPassword =
+                                        !_obscureConfirmPassword;
+                                  });
+                                },
+                                icon: Icon(
                                   _obscureConfirmPassword
                                       ? Icons.visibility_outlined
                                       : Icons.visibility_off_outlined,
-                                  size: 20,
-                                  color: AppColors.textMuted(context),
                                 ),
                               ),
                             ),
@@ -344,143 +327,87 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 24),
-
-                          // Register button
-                          Center(
-                            child: SizedBox(
-                              width: screenSize.width * 0.50,
-                              height: 48,
-                              child: OutlinedButton(
-                                onPressed: authState.isLoading
-                                    ? null
-                                    : _handleRegister,
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: gold, width: 1),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                                child: authState.isLoading
-                                    ? SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 1.5,
-                                          color: gold,
-                                        ),
-                                      )
-                                    : Text(
-                                        'CREATE ACCOUNT',
-                                        style: context.buttonCaps,
-                                      ),
-                              ),
-                            ),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed:
+                                authState.isLoading ? null : _handleRegister,
+                            child: authState.isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('Create account'),
                           ),
-                          const SizedBox(height: 20),
-
-                          // Or divider
+                          const SizedBox(height: 16),
                           Row(
                             children: [
                               Expanded(
-                                child: Container(
-                                  height: 1,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.transparent,
-                                        cs.outline,
-                                        Colors.transparent,
-                                      ],
-                                    ),
-                                  ),
+                                child: Divider(
+                                  color: Colors.white.withOpacity(0.25),
                                 ),
                               ),
                               Padding(
                                 padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
+                                    const EdgeInsets.symmetric(horizontal: 12),
                                 child: Text(
-                                  'OR REGISTER USING',
-                                  style: context.dividerOrnament,
+                                  'or sign up using',
+                                  style: textTheme.bodySmall?.copyWith(
+                                    color: Colors.white.withOpacity(0.6),
+                                  ),
                                 ),
                               ),
                               Expanded(
-                                child: Container(
-                                  height: 1,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.transparent,
-                                        cs.outline,
-                                        Colors.transparent,
-                                      ],
-                                    ),
-                                  ),
+                                child: Divider(
+                                  color: Colors.white.withOpacity(0.25),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 20),
-
-                          // Social buttons
+                          const SizedBox(height: 12),
                           Row(
                             children: [
                               Expanded(
-                                child: _SocialButton(
-                                  icon: SvgPicture.asset(
-                                    'assets/icons/google_logo.svg',
-                                    width: 18,
-                                    height: 18,
-                                  ),
+                                child: _SocialAuthButton(
+                                  onPressed:
+                                      authState.isLoading ? null : _handleGoogleSignUp,
+                                  icon: Icons.g_mobiledata,
                                   label: 'Google',
-                                  onTap: () {},
                                 ),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 12),
                               Expanded(
-                                child: _SocialButton(
-                                  icon: Icon(
-                                    Icons.apple,
-                                    color: cs.onSurface,
-                                    size: 22,
-                                  ),
+                                child: _SocialAuthButton(
+                                  onPressed:
+                                      authState.isLoading ? null : _handleAppleSignUp,
+                                  icon: Icons.apple,
                                   label: 'Apple',
-                                  onTap: () {},
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-
-                          // Terms
-                          Center(
-                            child: Text(
-                              'By registering, you agree to our Terms & Privacy Policy',
-                              style: context.bodyMedium,
-                              textAlign: TextAlign.center,
+                          const SizedBox(height: 12),
+                          Text(
+                            'By registering, you agree to our Terms & Privacy Policy',
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withOpacity(0.6),
                             ),
                           ),
-                          const SizedBox(height: 20),
-
-                          // Login link
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Already have an account? ',
-                                style: context.bodySmallLight,
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              context.pop();
+                            },
+                            child: Text(
+                              'Already have an account? Sign in',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withOpacity(0.9),
                               ),
-                              GestureDetector(
-                                onTap: () {
-                                  HapticFeedback.mediumImpact();
-                                  context.pop();
-                                },
-                                child: Text(
-                                  'Sign In',
-                                  style: context.link,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
@@ -489,47 +416,40 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Gold-outlined social button
-class _SocialButton extends StatelessWidget {
-  final Widget icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _SocialButton({
+class _SocialAuthButton extends StatelessWidget {
+  const _SocialAuthButton({
+    required this.onPressed,
     required this.icon,
     required this.label,
-    required this.onTap,
   });
+
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 46,
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(2),
-          border: Border.all(color: cs.outline, width: 1),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            icon,
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: context.bodySmall,
-            ),
-          ],
+    final textTheme = Theme.of(context).textTheme;
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(52),
+        foregroundColor: Colors.white.withOpacity(1),
+        backgroundColor: Colors.white.withOpacity(0.08),
+        side: BorderSide(color: Colors.white.withOpacity(0.35)),
+      ),
+      onPressed: onPressed,
+      icon: Icon(icon),
+      label: Text(
+        label,
+        style: textTheme.labelLarge?.copyWith(
+          color: Colors.white.withOpacity(0.9),
         ),
       ),
     );

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
 /// 44×44 outlined-square icon button used across the top bars and toolbars.
@@ -31,7 +30,7 @@ class IconSquareButton extends StatelessWidget {
   final String? semanticLabel;
 
   /// Override the icon color. Defaults to `colorScheme.onSurface` for neutral
-  /// buttons; pass [AppColors.gold] for accent buttons.
+  /// buttons; pass `colorScheme.primary` for accent buttons.
   final Color? iconColor;
 
   /// Outer dimensions. Default is 44×44 — the Apple minimum.

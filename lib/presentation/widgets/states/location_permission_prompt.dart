@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/theme_extensions.dart';
-
-/// Standardized "Location Access Required" prompt used wherever a screen
-/// can't proceed without location permission.
+/// Standardized Material 3 location permission prompt.
 class LocationPermissionPrompt extends StatelessWidget {
   const LocationPermissionPrompt({
     super.key,
@@ -23,49 +18,46 @@ class LocationPermissionPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = AppColors.gold(context);
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.huge),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.location_off_outlined,
-              size: 64,
-              color: gold.withValues(alpha: 0.5),
+              size: 96,
+              color: colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: AppSpacing.xxl),
+            const SizedBox(height: 24),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: context.emptyTitle,
+              style: textTheme.titleMedium?.copyWith(
+                color: colorScheme.onSurface,
+              ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: context.bodyMedium?.copyWith(
-                color: AppColors.textMuted(context),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: AppSpacing.xxxl),
-            OutlinedButton.icon(
+            const SizedBox(height: 24),
+            FilledButton.tonalIcon(
               onPressed: onRequest,
-              icon: Icon(Icons.location_on_outlined, size: 18, color: gold),
-              label: Text(
-                'ENABLE LOCATION',
-                style: context.actionLabel,
-              ),
+              icon: const Icon(Icons.location_on_outlined),
+              label: const Text('Enable location'),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: 12),
             TextButton(
               onPressed: onOpenSettings,
-              child: Text(
-                'Open Settings',
-                style: context.bodySmall?.copyWith(color: gold),
-              ),
+              child: const Text('Open settings'),
             ),
           ],
         ),

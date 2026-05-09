@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/theme_extensions.dart';
-
-/// Shared empty-state layout: gold icon + serif headline + muted body
-/// + optional outlined "ALL CAPS" call-to-action button.
-///
-/// Replaces 4+ inline reimplementations across feed/profile/search/notifications.
+/// Shared Material 3 empty-state layout.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -31,38 +24,38 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gold = AppColors.gold(context);
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.huge),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: gold.withValues(alpha: 0.5)),
-            const SizedBox(height: AppSpacing.xxl),
+            Icon(icon, size: 96, color: colorScheme.onSurfaceVariant),
+            const SizedBox(height: 24),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: context.emptyTitle,
+              style: textTheme.titleMedium?.copyWith(
+                color: colorScheme.onSurface,
+              ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: context.bodyMedium?.copyWith(
-                color: AppColors.textMuted(context),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             if (actionLabel != null) ...[
-              const SizedBox(height: AppSpacing.xxxl),
-              OutlinedButton.icon(
+              const SizedBox(height: 24),
+              FilledButton.tonalIcon(
                 onPressed: onAction,
-                icon: Icon(actionIcon ?? Icons.add, size: 18, color: gold),
-                label: Text(
-                  actionLabel!.toUpperCase(),
-                  style: context.actionLabel,
-                ),
+                icon: Icon(actionIcon ?? Icons.add),
+                label: Text(actionLabel!),
               ),
             ],
           ],

@@ -1,28 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../config/routes.dart';
-import '../../../core/cache/image_cache_manager.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/theme_extensions.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
-import '../../widgets/geoloc_app_bar.dart';
-import '../../widgets/hairline_divider.dart';
-import '../../widgets/icon_square_button.dart';
 import '../../widgets/loading_shimmer.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/states/empty_state.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/location_permission_prompt.dart';
-import '../../widgets/wordmark.dart';
 
-/// Main feed screen — old-money luxury aesthetic
+/// Material 3 feed screen.
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
 
@@ -31,19 +22,14 @@ class FeedScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedScreenState extends ConsumerState<FeedScreen>
-    with SingleTickerProviderStateMixin {
+    with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
-  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    _tabController = TabController(length: 1, vsync: this);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeFeed();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeFeed());
   }
 
   Future<void> _initializeFeed() async {
@@ -68,66 +54,171 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
   @override
   void dispose() {
     _scrollController.dispose();
-    _tabController.dispose();
     super.dispose();
   }
 
-  void _showLogoutSheet(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
+  Future<void> _showAccountSheet(BuildContext context) async {
+    final currentUser = ref.read(currentUserProvider);
+    final textTheme = Theme.of(context).textTheme;
 
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: cs.surface,
-      shape: const RoundedRectangleBorder(borderRadius: AppRadii.sheetTop),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          left: AppSpacing.xxl,
-          right: AppSpacing.xxl,
-          top: AppSpacing.xxl,
-          bottom: MediaQuery.paddingOf(context).bottom + AppSpacing.lg,
+      builder: (context) {
+        return SafeArea(
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.35,
+            minChildSize: 0.25,
+            maxChildSize: 0.6,
+            builder: (context, scrollController) {
+              return ListView(
+                controller: scrollController,
+                children: [
+                  ListTile(
+                    title: Text('Account', style: textTheme.titleLarge),
+                    subtitle: Text(currentUser?.email ?? ''),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.person_outline),
+                    title: const Text('Profile'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (currentUser != null) {
+                        context.push('/profile/${currentUser.id}');
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.settings_outlined),
+                    title: const Text('Settings'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push(RoutePaths.settings);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout),
+                    title: const Text('Sign out'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ref.read(authStateProvider.notifier).logout();
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final feedState = ref.watch(feedStateProvider);
+    final locationState = ref.watch(locationStateProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    ref.listen<LocationState>(locationStateProvider, (previous, next) {
+      if (previous?.position == null && next.position != null) {
+        ref.read(feedStateProvider.notifier).loadFeed();
+      }
+    });
+
+    if (!locationState.hasPermission && !locationState.isLoading) {
+      return Scaffold(
+        body: LocationPermissionPrompt(
+          onRequest: () =>
+              ref.read(locationStateProvider.notifier).requestPermission(),
+          onOpenSettings: () =>
+              ref.read(locationStateProvider.notifier).openAppSettings(),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('ACCOUNT', style: context.sectionLabel),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              ref.read(currentUserProvider)?.email ?? 'Logged in',
-              style: context.monoSmall,
+      );
+    }
+
+    if (feedState.isLoading && feedState.posts.isEmpty) {
+      return const Scaffold(body: FeedShimmer());
+    }
+
+    if (feedState.error != null && feedState.posts.isEmpty) {
+      return Scaffold(
+        body: ErrorState(
+          message: feedState.error!,
+          onRetry: () => ref.read(feedStateProvider.notifier).loadFeed(),
+        ),
+      );
+    }
+
+    if (feedState.posts.isEmpty) {
+      return Scaffold(
+        body: EmptyState(
+          icon: Icons.explore_outlined,
+          title: 'No posts nearby',
+          message: 'Be the first to post in your area.',
+          actionLabel: 'Post',
+          onAction: () => context.push(RoutePaths.createPost),
+        ),
+      );
+    }
+
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(locationStateProvider.notifier).refreshLocation();
+          await ref.read(feedStateProvider.notifier).refreshFeed();
+        },
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverAppBar.medium(
+              backgroundColor: colorScheme.surface,
+              title: Text(
+                'Home',
+                style: textTheme.headlineMedium?.copyWith(
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              actions: [
+                IconButton(
+                  tooltip: 'Notifications',
+                  onPressed: () => context.push(RoutePaths.notifications),
+                  icon: const Icon(Icons.notifications_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Account options',
+                  onPressed: () => _showAccountSheet(context),
+                  icon: const Icon(Icons.account_circle_outlined),
+                ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.xl),
-            const HairlineDivider(),
-            const SizedBox(height: AppSpacing.md),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                final userId = ref.read(currentUserProvider)?.id;
-                if (userId != null) {
-                  context.push('/profile/$userId');
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+              sliver: SliverList.builder(
+                itemCount: feedState.posts.length + (feedState.hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == feedState.posts.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final post = feedState.posts[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: PostCard(
+                      post: post,
+                      headerTrailing: PostOverflowMenuButton(post: post),
+                      onTap: () => context.push('/post/${post.id}'),
+                      onLike: () =>
+                          ref.read(feedStateProvider.notifier).toggleLike(post.id),
+                      onComment: () => context.push('/post/${post.id}'),
+                      onUserTap: () => context.push('/profile/${post.userId}'),
+                    ),
+                  );
                 }
-              },
-              child: Text(
-                'View Profile',
-                style: context.sheetItem?.copyWith(color: gold),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.push(RoutePaths.settings);
-              },
-              child: Text(
-                'Settings',
-                style: context.sheetItem?.copyWith(color: gold),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ref.read(authStateProvider.notifier).logout();
-              },
-              child: Text('Log Out', style: context.sheetItemDestructive),
             ),
           ],
         ),
@@ -136,235 +227,5 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
-    final feedState = ref.watch(feedStateProvider);
-    final locationState = ref.watch(locationStateProvider);
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final gold = AppColors.gold(context);
-
-    ref.listen<LocationState>(locationStateProvider, (previous, next) {
-      if (previous?.position == null && next.position != null) {
-        ref.read(feedStateProvider.notifier).loadFeed();
-      }
-    });
-
-    return Scaffold(
-      body: Column(
-        children: [
-          GeolocAppBar(
-            titleWidget: const Wordmark(),
-            leading: _buildProfileLeading(context),
-            trailing: IconSquareButton(
-              icon: Icons.notifications_outlined,
-              iconColor: gold,
-              semanticLabel: 'Notifications',
-              tooltip: 'Notifications',
-              onTap: () => context.push(RoutePaths.notifications),
-            ),
-          ),
-          // Tab bar
-          Container(
-            decoration: BoxDecoration(
-              color: cs.surface,
-              border: Border(
-                bottom: BorderSide(color: cs.outline, width: 0.5),
-              ),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: 'Nearby'),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildBody(feedState, locationState, theme),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Leading widget in the top bar — a 44pt avatar tap target.
-  Widget _buildProfileLeading(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Builder(
-      builder: (context) {
-        final currentUser = ref.watch(currentUserProvider);
-        final hasAvatar = currentUser?.profilePictureUrl != null;
-        return Semantics(
-          label: 'Profile (long-press for account menu)',
-          button: true,
-          child: GestureDetector(
-            onTap: () {
-              final userId = ref.read(currentUserProvider)?.id;
-              if (userId != null) context.push('/profile/$userId');
-            },
-            onLongPress: () => _showLogoutSheet(context),
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: AppTapTarget.iosMinimum,
-              height: AppTapTarget.iosMinimum,
-              alignment: Alignment.center,
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  borderRadius: AppRadii.sharpAll,
-                  border: Border.all(color: cs.outline, width: 1),
-                ),
-                child: hasAvatar
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(1),
-                        child: Builder(
-                          builder: (context) {
-                            final dpr =
-                                MediaQuery.devicePixelRatioOf(context);
-                            return CachedNetworkImage(
-                              imageUrl: currentUser!.profilePictureUrl!,
-                              fit: BoxFit.cover,
-                              width: 34,
-                              height: 34,
-                              cacheManager: AvatarCacheManager.instance,
-                              memCacheWidth: (34 * dpr).round(),
-                              memCacheHeight: (34 * dpr).round(),
-                              placeholder: (c, _) => Icon(
-                                Icons.person_outlined,
-                                size: 18,
-                                color: AppColors.textMuted(c),
-                              ),
-                              errorWidget: (c, url, error) => Icon(
-                                Icons.person_outlined,
-                                size: 18,
-                                color: AppColors.textMuted(c),
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                    : Icon(
-                        Icons.person_outlined,
-                        size: 18,
-                        color: AppColors.textMuted(context),
-                      ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBody(
-    FeedState feedState,
-    LocationState locationState,
-    ThemeData theme,
-  ) {
-    if (!locationState.hasPermission && !locationState.isLoading) {
-      return LocationPermissionPrompt(
-        onRequest: () =>
-            ref.read(locationStateProvider.notifier).requestPermission(),
-        onOpenSettings: () =>
-            ref.read(locationStateProvider.notifier).openAppSettings(),
-      );
-    }
-
-    if (feedState.isLoading && feedState.posts.isEmpty) {
-      return const FeedShimmer();
-    }
-
-    if (feedState.error != null && feedState.posts.isEmpty) {
-      return ErrorState(
-        message: feedState.error!,
-        onRetry: () => ref.read(feedStateProvider.notifier).loadFeed(),
-      );
-    }
-
-    if (feedState.posts.isEmpty) {
-      return _buildEmptyView();
-    }
-
-    final gold = AppColors.gold(context);
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        await ref.read(locationStateProvider.notifier).refreshLocation();
-        await ref.read(feedStateProvider.notifier).refreshFeed();
-      },
-      color: gold,
-      child: Scrollbar(
-        controller: _scrollController,
-        child: ListView.builder(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.only(
-            bottom: 80 + MediaQuery.paddingOf(context).bottom,
-          ),
-          itemCount: feedState.posts.length + (feedState.hasMore ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == feedState.posts.length) {
-              return Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: gold,
-                  ),
-                ),
-              );
-            }
-
-            final post = feedState.posts[index];
-            return PostCard(
-              post: post,
-              headerTrailing:
-                  PostOverflowMenuButton(post: post),
-              onTap: () => context.push('/post/${post.id}'),
-              onLike: () =>
-                  ref.read(feedStateProvider.notifier).toggleLike(post.id),
-              onComment: () => context.push('/post/${post.id}'),
-              onUserTap: () => context.push('/profile/${post.userId}'),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  /// Empty-feed view: keep the [RefreshIndicator] wrapper so users can pull
-  /// even when the list is empty.
-  Widget _buildEmptyView() {
-    final gold = AppColors.gold(context);
-    return RefreshIndicator(
-      onRefresh: () async {
-        await ref.read(locationStateProvider.notifier).refreshLocation();
-        await ref.read(feedStateProvider.notifier).refreshFeed();
-      },
-      color: gold,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: EmptyState(
-                icon: Icons.explore_outlined,
-                title: 'No posts nearby',
-                message: 'Be the first to share something in your area!',
-                actionLabel: 'CREATE POST',
-                actionIcon: Icons.add,
-                onAction: () => context.push(RoutePaths.createPost),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
+  bool get wantKeepAlive => true;
 }

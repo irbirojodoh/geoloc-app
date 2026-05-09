@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/theme_extensions.dart';
-
-import '../../../core/theme/app_colors.dart';
 import '../../providers/search_provider.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/user_avatar.dart';
+import '../../widgets/states/empty_state.dart';
 
-/// Search screen — old-money luxury aesthetic
+/// Explore screen (Search) — Material 3.
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
@@ -19,20 +17,15 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _searchFocusNode.requestFocus();
-    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -54,389 +47,236 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(searchProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildSearchHeader(context, state),
-            if (state.query.isNotEmpty && state.hasSearched)
-              _buildTabBar(context, state),
-            Expanded(
-              child: state.query.isEmpty
-                  ? _buildInitialContent(context, state)
-                  : _buildSearchResults(context, state),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchHeader(BuildContext context, SearchState state) {
-    final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        border: Border(
-          bottom: BorderSide(color: cs.outline, width: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              onChanged: _onSearchChanged,
-              onSubmitted: _onSearchSubmit,
-              cursorColor: gold,
-              style: context.body,
-              decoration: InputDecoration(
-                hintText: 'Search users or posts...',
-                hintStyle: context.body,
-                prefixIcon: Icon(
-                  Icons.search,
-                  size: 20,
-                  color: AppColors.textMuted(context),
-                ),
-                filled: false,
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 4,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.medium(
+            backgroundColor: colorScheme.surface,
+            title: const Text('Explore'),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(76),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: SearchBar(
+                  controller: _searchController,
+                  leading: const Icon(Icons.search),
+                  hintText: 'Search users or posts',
+                  backgroundColor: WidgetStatePropertyAll(
+                    colorScheme.surfaceContainerHighest,
+                  ),
+                  hintStyle: WidgetStatePropertyAll(
+                    textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  onChanged: _onSearchChanged,
+                  onSubmitted: _onSearchSubmit,
+                  trailing: [
+                    if (state.query.isNotEmpty)
+                      IconButton(
+                        tooltip: 'Clear',
+                        onPressed: () {
+                          _searchController.clear();
+                          ref.read(searchProvider.notifier).clearSearch();
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
+                  ],
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () => context.pop(),
-            child: Text(
-              'Cancel',
-              style: context.sheetItem?.copyWith(color: gold),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: SegmentedButton<SearchTab>(
+                segments: const [
+                  ButtonSegment(
+                    value: SearchTab.users,
+                    label: Text('Users'),
+                    icon: Icon(Icons.person_outline),
+                  ),
+                  ButtonSegment(
+                    value: SearchTab.posts,
+                    label: Text('Posts'),
+                    icon: Icon(Icons.article_outlined),
+                  ),
+                ],
+                selected: {state.activeTab},
+                onSelectionChanged: (s) {
+                  ref.read(searchProvider.notifier).setActiveTab(s.first);
+                },
+              ),
             ),
           ),
+          if (state.query.isEmpty)
+            _buildInitialSliver(context, state)
+          else
+            _buildResultsSliver(context, state, colorScheme, textTheme),
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
       ),
     );
   }
 
-  Widget _buildTabBar(BuildContext context, SearchState state) {
+  SliverList _buildInitialSliver(BuildContext context, SearchState state) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          _buildTabButton(
-            context,
-            'Users',
-            SearchTab.users,
-            state.activeTab,
-            state.userResults.length,
-          ),
-          const SizedBox(width: 10),
-          _buildTabButton(
-            context,
-            'Posts',
-            SearchTab.posts,
-            state.activeTab,
-            state.postResults.length,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabButton(
-    BuildContext context,
-    String label,
-    SearchTab tab,
-    SearchTab activeTab,
-    int count,
-  ) {
-    final isActive = tab == activeTab;
-    final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
-
-    return GestureDetector(
-      onTap: () => ref.read(searchProvider.notifier).setActiveTab(tab),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? gold : Colors.transparent,
-          borderRadius: BorderRadius.circular(2),
-          border: Border.all(
-            color: isActive ? gold : cs.outline,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Text(
-              label,
-              style: context.bodySmall,
+    if (state.recentSearches.isEmpty && state.suggestedUsers.isEmpty) {
+      return const SliverList(
+        delegate: SliverChildListDelegate.fixed([
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: EmptyState(
+              icon: Icons.people_outline,
+              title: 'Discover nearby',
+              message: 'Search for users and posts in your area.',
             ),
-            if (count > 0) ...[
-              const SizedBox(width: 6),
-              Text(
-                count.toString(),
-                style: context.monoCaption,
+          ),
+        ]),
+      );
+    }
+
+    final children = <Widget>[];
+
+    if (state.recentSearches.isNotEmpty) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text('Recent', style: textTheme.titleMedium),
+              ),
+              TextButton(
+                onPressed: () =>
+                    ref.read(searchProvider.notifier).clearRecentSearches(),
+                child: const Text('Clear'),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInitialContent(BuildContext context, SearchState state) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (state.recentSearches.isNotEmpty) ...[
-          _buildSectionHeader(
-            context,
-            'RECENT SEARCHES',
-            onClear: () =>
-                ref.read(searchProvider.notifier).clearRecentSearches(),
           ),
-          const SizedBox(height: 8),
-          ...state.recentSearches.map(
-            (search) => _buildRecentSearchTile(context, search),
+        ),
+      );
+      children.addAll(
+        state.recentSearches.map(
+          (q) => ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: const Icon(Icons.history),
+            title: Text(q, style: textTheme.bodyLarge),
+            onTap: () => _onRecentSearchTap(q),
           ),
-          const SizedBox(height: 24),
-        ],
-        if (state.suggestedUsers.isNotEmpty) ...[
-          _buildSectionHeader(context, 'SUGGESTED USERS'),
-          const SizedBox(height: 8),
-          ...state.suggestedUsers.map(
-            (user) => _buildUserTile(
-              context,
-              user.id,
-              user.username,
-              user.fullName,
-              user.profilePictureUrl,
-            ),
-          ),
-        ],
-        if (state.recentSearches.isEmpty && state.suggestedUsers.isEmpty)
-          _buildEmptyInitialState(context),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader(
-    BuildContext context,
-    String title, {
-    VoidCallback? onClear,
-  }) {
-    final gold = AppColors.gold(context);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: context.sectionLabel,
-        ),
-        if (onClear != null)
-          GestureDetector(
-            onTap: onClear,
-            child: Text(
-              'Clear',
-              style: context.link,
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildRecentSearchTile(BuildContext context, String search) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Dismissible(
-      key: Key('recent_$search'),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) =>
-          ref.read(searchProvider.notifier).removeRecentSearch(search),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        color: AppColors.error,
-        child: const Icon(
-          Icons.delete_outlined,
-          color: Colors.white,
-        ),
-      ),
-      child: ListTile(
-        leading: Icon(
-          Icons.history,
-          color: AppColors.textMuted(context),
-        ),
-        title: Text(
-          search,
-          style: context.body,
-        ),
-        trailing: Icon(
-          Icons.north_west,
-          size: 16,
-          color: AppColors.textMuted(context),
-        ),
-        onTap: () => _onRecentSearchTap(search),
-        contentPadding: EdgeInsets.zero,
-      ),
-    );
-  }
-
-  Widget _buildSearchResults(BuildContext context, SearchState state) {
-    final gold = AppColors.gold(context);
-
-    if (state.isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 1.5,
-          color: gold,
         ),
       );
     }
 
+    if (state.suggestedUsers.isNotEmpty) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text('Suggested', style: textTheme.titleMedium),
+        ),
+      );
+      children.addAll(
+        state.suggestedUsers.map(
+          (u) => ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: UserAvatar(
+              imageUrl: u.profilePictureUrl,
+              name: u.username,
+              size: 40,
+            ),
+            title: Text(u.username, style: textTheme.titleMedium),
+            subtitle: u.fullName != null && u.fullName!.isNotEmpty
+                ? Text(
+                    u.fullName!,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                : null,
+            onTap: () => context.push('/profile/${u.id}'),
+          ),
+        ),
+      );
+    }
+
+    return SliverList(delegate: SliverChildListDelegate(children));
+  }
+
+  Widget _buildResultsSliver(
+    BuildContext context,
+    SearchState state,
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+  ) {
+    if (state.isLoading) {
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     if (state.showEmptyState) {
-      return _buildEmptySearchState(context);
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: EmptyState(
+          icon: Icons.search_off_outlined,
+          title: 'No results',
+          message: 'Try a different search.',
+        ),
+      );
     }
 
     if (state.activeTab == SearchTab.users) {
-      return _buildUserResults(context, state);
-    } else {
-      return _buildPostResults(context, state);
+      return SliverList.builder(
+        itemCount: state.userResults.length,
+        itemBuilder: (context, index) {
+          final user = state.userResults[index];
+          return ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: UserAvatar(
+              imageUrl: user.profilePictureUrl,
+              name: user.username,
+              size: 40,
+            ),
+            title: Text(user.username, style: textTheme.titleMedium),
+            subtitle: user.fullName != null && user.fullName!.isNotEmpty
+                ? Text(
+                    user.fullName!,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                : null,
+            onTap: () => context.push('/profile/${user.id}'),
+          );
+        },
+      );
     }
-  }
 
-  Widget _buildUserResults(BuildContext context, SearchState state) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: state.userResults.length,
-      itemBuilder: (context, index) {
-        final user = state.userResults[index];
-        return _buildUserTile(
-          context,
-          user.id,
-          user.username,
-          user.fullName,
-          user.profilePictureUrl,
-        );
-      },
-    );
-  }
-
-  Widget _buildUserTile(
-    BuildContext context,
-    String userId,
-    String username,
-    String? fullName,
-    String? avatarUrl,
-  ) {
-    final cs = Theme.of(context).colorScheme;
-
-    return ListTile(
-      leading: UserAvatar(
-        imageUrl: avatarUrl,
-        name: username,
-        size: 44,
-      ),
-      title: Text(
-        username,
-        style: context.body,
-      ),
-      subtitle: fullName != null
-          ? Text(
-              fullName,
-              style: context.bodySmallLight,
-            )
-          : null,
-      onTap: () {
-        ref.read(searchProvider.notifier).addRecentSearch(username);
-        context.push('/profile/$userId');
-      },
-    );
-  }
-
-  Widget _buildPostResults(BuildContext context, SearchState state) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: state.postResults.length,
-      itemBuilder: (context, index) {
-        final post = state.postResults[index];
-        return PostCard(
-          post: post,
-          headerTrailing: PostOverflowMenuButton(post: post),
-          onTap: () => context.push('/post/${post.id}'),
-          onUserTap: () => context.push('/profile/${post.userId}'),
-        );
-      },
-    );
-  }
-
-  Widget _buildEmptySearchState(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 64,
-              color: AppColors.textMuted(context).withValues(alpha: 0.5),
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      sliver: SliverList.builder(
+        itemCount: state.postResults.length,
+        itemBuilder: (context, index) {
+          final post = state.postResults[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: PostCard(
+              post: post,
+              headerTrailing: PostOverflowMenuButton(post: post),
+              onTap: () => context.push('/post/${post.id}'),
+              onUserTap: () => context.push('/profile/${post.userId}'),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'No results found',
-              style: context.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try searching for something else',
-              style: context.bodyMedium?.copyWith(color: AppColors.textMuted(context)),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyInitialState(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.people_outlined,
-              size: 64,
-              color: AppColors.textMuted(context).withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Find people nearby',
-              style: context.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Search for users or posts in your area',
-              style: context.bodyMedium?.copyWith(color: AppColors.textMuted(context)),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

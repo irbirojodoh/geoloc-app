@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/routes.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/geoloc_app_bar.dart';
@@ -16,7 +15,6 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
 
     return Scaffold(
       body: Column(
@@ -38,7 +36,7 @@ class SettingsScreen extends ConsumerWidget {
               'Manage people you blocked.',
               style: context.caption,
             ),
-            trailing: Icon(Icons.chevron_right, color: gold),
+            trailing: Icon(Icons.chevron_right, color: cs.primary),
             onTap: () => context.push(RoutePaths.settingsBlocked),
           ),
           const Divider(height: 1),
@@ -48,14 +46,14 @@ class SettingsScreen extends ConsumerWidget {
               'Manage muted feeds.',
               style: context.caption,
             ),
-            trailing: Icon(Icons.chevron_right, color: gold),
+            trailing: Icon(Icons.chevron_right, color: cs.primary),
             onTap: () => context.push(RoutePaths.settingsMuted),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 32, 16, 8),
             child: Text(
               'DANGER ZONE',
-              style: context.sectionLabel.copyWith(color: AppColors.error),
+              style: context.sectionLabel.copyWith(color: cs.error),
             ),
           ),
           ListTile(
@@ -67,7 +65,7 @@ class SettingsScreen extends ConsumerWidget {
               'Permanent. Your data will be anonymized.',
               style: context.caption,
             ),
-            trailing: Icon(Icons.delete_forever_outlined, color: AppColors.error),
+            trailing: Icon(Icons.delete_forever_outlined, color: cs.error),
             onTap: () => _startDeleteFlow(context, ref),
           ),
         ],
@@ -83,7 +81,6 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
-        final gold = AppColors.gold(ctx);
         return AlertDialog(
           backgroundColor: cs.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
@@ -98,13 +95,16 @@ class SettingsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('KEEP ACCOUNT', style: TextStyle(color: gold)),
+              child: Text(
+                'KEEP ACCOUNT',
+                style: TextStyle(color: cs.primary),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text(
+              child: Text(
                 'CONTINUE',
-                style: TextStyle(color: AppColors.error),
+                style: TextStyle(color: cs.error),
               ),
             ),
           ],
@@ -180,7 +180,6 @@ class _DeleteAccountPasswordDialogState
         context: context,
         builder: (nested) {
           final ncs = Theme.of(nested).colorScheme;
-          final ngold = AppColors.gold(nested);
           return AlertDialog(
             backgroundColor: ncs.surface,
             shape: RoundedRectangleBorder(
@@ -198,7 +197,7 @@ class _DeleteAccountPasswordDialogState
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(nested),
-                child: Text('OK', style: TextStyle(color: ngold)),
+                child: Text('OK', style: TextStyle(color: ncs.primary)),
               ),
             ],
           );
@@ -212,7 +211,6 @@ class _DeleteAccountPasswordDialogState
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
 
     return AlertDialog(
       backgroundColor: cs.surface,
@@ -237,7 +235,7 @@ class _DeleteAccountPasswordDialogState
                   _obscure
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: AppColors.textMuted(context),
+                  color: cs.onSurfaceVariant,
                 ),
                 onPressed:
                     _busy ? null : () => setState(() => _obscure = !_obscure),
@@ -252,7 +250,7 @@ class _DeleteAccountPasswordDialogState
       actions: [
         TextButton(
           onPressed: _busy ? null : () => Navigator.pop(context),
-          child: Text('Cancel', style: TextStyle(color: gold)),
+          child: Text('Cancel', style: TextStyle(color: cs.primary)),
         ),
         TextButton(
           onPressed: _busy ? null : _submit,
@@ -262,12 +260,12 @@ class _DeleteAccountPasswordDialogState
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 1.5,
-                    color: gold,
+                    color: cs.primary,
                   ),
                 )
               : Text(
                   'DELETE',
-                  style: const TextStyle(color: AppColors.error),
+                  style: TextStyle(color: cs.error),
                 ),
         ),
       ],

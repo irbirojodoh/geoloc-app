@@ -9,15 +9,15 @@ class HairlineDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final outline = Theme.of(context).colorScheme.outline;
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       height: height,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.transparent,
-            outline,
-            Colors.transparent,
+            colorScheme.surface.withValues(alpha: 0),
+            colorScheme.outline,
+            colorScheme.surface.withValues(alpha: 0),
           ],
         ),
       ),

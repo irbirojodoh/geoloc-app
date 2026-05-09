@@ -3,13 +3,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/cache/image_cache_manager.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
-import '../../core/theme/theme_extensions.dart';
 import '../../data/models/post.dart';
 import 'user_avatar.dart';
 
-/// Post card — old-money luxury aesthetic
+/// Material 3 post card for feed/detail contexts.
 class PostCard extends StatelessWidget {
   final Post post;
   final VoidCallback? onTap;
@@ -35,120 +32,106 @@ class PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final authorName = post.author?.username ?? 'Unknown';
 
-    return Semantics(
-      button: true,
-      label: 'Post by ${post.author?.username ?? 'unknown'}',
-      child: GestureDetector(
+    return Card(
+      child: InkWell(
         onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
-          ),
-          padding: AppSpacing.cardPadding,
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: AppRadii.sharpAll,
-            border: Border.all(color: cs.outline, width: 1),
-          ),
-          child: Row(
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            _buildProfileColumn(context),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(child: _buildContentColumn(context)),
-          ],
-        ),
-      ),
-      ),
-    );
-  }
-
-  Widget _buildProfileColumn(BuildContext context) {
-    return GestureDetector(
-      onTap: onUserTap,
-      child: Column(
-        children: [
-          UserAvatar(
-            imageUrl: post.author?.profilePictureUrl,
-            name: post.author?.username ?? 'U',
-            size: 38,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _formatTime(post.createdAt),
-            style: context.monoTimestamp,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContentColumn(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final locationName = _getLocationName();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Username and location (+ optional trailing menu)
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Row(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Flexible(
-                    child: GestureDetector(
-                      onTap: onUserTap,
-                      child: Text(
-                        post.author?.username ?? 'Username',
-                        style: context.username,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  InkWell(
+                    onTap: onUserTap,
+                    borderRadius: BorderRadius.circular(24),
+                    child: UserAvatar(
+                      imageUrl: post.author?.profilePictureUrl,
+                      name: authorName,
+                      size: 40,
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Text(
-                      '·',
-                      style: context.bodyMedium?.copyWith(
-                        color: AppColors.textMuted(context),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      locationName,
-                      style: context.caption,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          authorName,
+                          style: textTheme.titleSmall?.copyWith(
+                            color: cs.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatTime(post.createdAt),
+                          style: textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  if (headerTrailing != null) headerTrailing!,
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                post.content,
+                style: textTheme.bodyLarge,
+              ),
+              if (post.mediaUrls.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildMedia(context),
+              ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _ActionButton(
+                    icon: post.isLiked
+                        ? Icons.favorite
+                        : Icons.favorite_outline,
+                    count: post.likeCount,
+                    onPressed: onLike,
+                    iconColor: post.isLiked ? cs.primary : cs.onSurfaceVariant,
+                    chipBackgroundColor: post.isLiked
+                        ? cs.primaryContainer
+                        : cs.surfaceContainerHighest,
+                    chipTextColor: post.isLiked
+                        ? cs.onPrimaryContainer
+                        : cs.onSurfaceVariant,
+                    semanticLabel: 'Like post',
+                  ),
+                  _ActionButton(
+                    icon: Icons.comment_outlined,
+                    count: post.commentCount,
+                    onPressed: onComment,
+                    iconColor: cs.onSurfaceVariant,
+                    chipBackgroundColor: cs.surfaceContainerHighest,
+                    chipTextColor: cs.onSurfaceVariant,
+                    semanticLabel: 'Open comments',
+                  ),
+                  _ActionButton(
+                    icon: Icons.share_outlined,
+                    count: null,
+                    onPressed: onShare,
+                    iconColor: cs.onSurfaceVariant,
+                    chipBackgroundColor: cs.surfaceContainerHighest,
+                    chipTextColor: cs.onSurfaceVariant,
+                    semanticLabel: 'Share post',
                   ),
                 ],
               ),
-            ),
-            if (headerTrailing != null) headerTrailing!,
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 6),
-
-        // Post content
-        Text(
-          post.content,
-          style: context.postContent,
-        ),
-
-        // Media
-        if (post.mediaUrls.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          _buildMedia(context),
-        ],
-
-        // Actions
-        const SizedBox(height: 10),
-        _buildActionButtons(context),
-      ],
+      ),
     );
   }
 
@@ -162,7 +145,7 @@ class PostCard extends StatelessWidget {
       final dpr = MediaQuery.devicePixelRatioOf(context);
       final maxLogicalWidth = MediaQuery.sizeOf(context).width;
       return ClipRRect(
-        borderRadius: BorderRadius.circular(2),
+        borderRadius: BorderRadius.circular(12),
         child: CachedNetworkImage(
           imageUrl: post.mediaUrls.first,
           fit: BoxFit.cover,
@@ -172,10 +155,7 @@ class PostCard extends StatelessWidget {
             height: 200,
             color: cs.surface,
             child: Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 1,
-                color: AppColors.gold(context),
-              ),
+              child: CircularProgressIndicator(strokeWidth: 1),
             ),
           ),
           errorWidget: (context, url, error) => Container(
@@ -252,7 +232,7 @@ class PostCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(2),
+      borderRadius: BorderRadius.circular(12),
       child: CachedNetworkImage(
         imageUrl: imageUrl,
         height: height,
@@ -264,10 +244,7 @@ class PostCard extends StatelessWidget {
           height: height,
           color: cs.surface,
           child: Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 1,
-              color: AppColors.gold(context),
-            ),
+            child: CircularProgressIndicator(strokeWidth: 1),
           ),
         ),
         errorWidget: (context, url, error) => Container(
@@ -285,50 +262,25 @@ class PostCard extends StatelessWidget {
     double height,
     int moreCount,
   ) {
+    final cs = Theme.of(context).colorScheme;
     return Stack(
       children: [
         _buildGridImage(context, imageUrl, height),
         Positioned.fill(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(12),
             child: Container(
-              color: Colors.black.withValues(alpha: 0.5),
+              color: cs.scrim.withValues(alpha: 0.5),
               child: Center(
                 child: Text(
                   '+$moreCount',
-                  style: context.monoOverlay,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.headlineMedium?.copyWith(color: cs.onPrimary),
                 ),
               ),
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    final muted = AppColors.textMuted(context);
-
-    return Row(
-      children: [
-        _ActionButton(
-          icon: post.isLiked ? Icons.favorite : Icons.favorite_outline,
-          iconColor: post.isLiked ? AppColors.error : muted,
-          label: post.likeCount > 0 ? post.likeCount.toString() : '',
-          onTap: onLike,
-        ),
-        const SizedBox(width: 20),
-        _ActionButton(
-          icon: Icons.chat_bubble_outline,
-          iconColor: muted,
-          label: post.commentCount > 0 ? post.commentCount.toString() : '',
-          onTap: onComment,
-        ),
-        const SizedBox(width: 20),
-        _ActionButton(
-          icon: Icons.share_outlined,
-          iconColor: muted,
-          onTap: onShare,
         ),
       ],
     );
@@ -345,65 +297,59 @@ class PostCard extends StatelessWidget {
     if (difference.inDays < 30) return '${(difference.inDays / 7).floor()}w';
     return timeago.format(dateTime, locale: 'en_short');
   }
-
-  String _getLocationName() {
-    if (post.formattedLocation.isNotEmpty) return post.formattedLocation;
-    if (post.geohash.isNotEmpty) return 'Nearby location';
-    return 'Unknown location';
-  }
 }
 
 class _ActionButton extends StatelessWidget {
   final IconData icon;
-  final Color? iconColor;
-  final String? label;
-  final VoidCallback? onTap;
+  final int? count;
+  final VoidCallback? onPressed;
+  final Color iconColor;
+  final Color chipBackgroundColor;
+  final Color chipTextColor;
+  final String semanticLabel;
 
   const _ActionButton({
     required this.icon,
-    this.iconColor,
-    this.label,
-    this.onTap,
+    this.count,
+    this.onPressed,
+    required this.iconColor,
+    required this.chipBackgroundColor,
+    required this.chipTextColor,
+    required this.semanticLabel,
   });
-
-  String get _semanticLabel {
-    if (icon == Icons.favorite || icon == Icons.favorite_outline) {
-      return 'Like${label != null && label!.isNotEmpty ? ", $label likes" : ""}';
-    }
-    if (icon == Icons.chat_bubble_outline) {
-      return 'Comment${label != null && label!.isNotEmpty ? ", $label comments" : ""}';
-    }
-    if (icon == Icons.share_outlined) return 'Share';
-    return 'Action';
-  }
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Semantics(
       button: true,
-      label: _semanticLabel,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          constraints: const BoxConstraints(
-            minWidth: AppTapTarget.materialMinimum,
-            minHeight: AppTapTarget.materialMinimum,
-          ),
-          alignment: Alignment.center,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 16, color: iconColor),
-                if (label != null && label!.isNotEmpty) ...[
-                  const SizedBox(width: 4),
-                  Text(label!, style: context.monoCaption),
-                ],
-              ],
+      label: semanticLabel,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: semanticLabel,
+              onPressed: onPressed,
+              icon: Icon(icon, size: 24, color: iconColor),
             ),
-          ),
+            if (count != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: chipBackgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$count',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: chipTextColor,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 8),
+          ],
         ),
       ),
     );

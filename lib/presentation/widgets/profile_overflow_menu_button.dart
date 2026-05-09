@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/theme_extensions.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../services/moderation_service.dart';
 import '../helpers/content_purge.dart';
 import '../providers/auth_provider.dart';
@@ -28,13 +27,13 @@ class ProfileOverflowMenuButton extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Material(
-      color: Colors.black.withValues(alpha: 0.35),
+      color: cs.scrim.withValues(alpha: 0.35),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
       child: PopupMenuButton<String>(
         icon: Icon(
           Icons.more_vert,
           size: 20,
-          color: Colors.white.withValues(alpha: 0.92),
+          color: cs.onSurface,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         shape: RoundedRectangleBorder(
@@ -90,7 +89,6 @@ class ProfileOverflowMenuButton extends ConsumerWidget {
       context: context,
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
-        final gold = AppColors.gold(ctx);
         return AlertDialog(
           backgroundColor: cs.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
@@ -105,13 +103,16 @@ class ProfileOverflowMenuButton extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: TextStyle(color: gold)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: cs.primary),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text(
+              child: Text(
                 'Block',
-                style: TextStyle(color: AppColors.error),
+                style: TextStyle(color: cs.error),
               ),
             ),
           ],
@@ -138,7 +139,6 @@ class ProfileOverflowMenuButton extends ConsumerWidget {
       context: context,
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
-        final gold = AppColors.gold(ctx);
         return AlertDialog(
           backgroundColor: cs.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
@@ -153,11 +153,17 @@ class ProfileOverflowMenuButton extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: TextStyle(color: gold)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: cs.primary),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Mute', style: TextStyle(color: gold)),
+              child: Text(
+                'Mute',
+                style: TextStyle(color: cs.primary),
+              ),
             ),
           ],
         );

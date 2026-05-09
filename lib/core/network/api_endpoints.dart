@@ -7,8 +7,8 @@ class ApiEndpoints {
   static const String _apiBase = '/api/v1';
 
   static const String _locationsBase = '/locations';
-  static const String _notificationsBase = '/notifications';
-  static const String _searchBase = '/search';
+  static const String _notificationsBase = '$_apiBase/notifications';
+  static const String _searchBase = '$_apiBase/search';
 
   static const String _devicesBase = '$_apiBase/devices';
 

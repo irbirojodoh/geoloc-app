@@ -6,7 +6,6 @@ import '../../../core/theme/theme_extensions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/cache/image_cache_manager.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../providers/edit_profile_provider.dart';
 import '../../widgets/user_avatar.dart';
 
@@ -73,8 +72,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
 
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
-
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -93,7 +90,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Keep Editing',
-              style: TextStyle(color: gold),
+              style: TextStyle(color: cs.primary),
             ),
           ),
           TextButton(
@@ -102,9 +99,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ref.read(editProfileProvider.notifier).discardChanges();
               this.context.pop();
             },
-            child: const Text(
+            child: Text(
               'Discard',
-              style: TextStyle(color: AppColors.error),
+              style: TextStyle(color: cs.error),
             ),
           ),
         ],
@@ -114,8 +111,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   void _showImagePickerSheet({required bool isProfileImage}) {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
-
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: cs.surface,
@@ -142,9 +137,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.transparent,
+                    cs.surface.withValues(alpha: 0),
                     cs.outline,
-                    Colors.transparent,
+                    cs.surface.withValues(alpha: 0),
                   ],
                 ),
               ),
@@ -163,7 +158,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       .pickCoverImageFromCamera();
                 }
               },
-              icon: Icon(Icons.camera_alt_outlined, size: 20, color: gold),
+              icon: Icon(Icons.camera_alt_outlined, size: 20, color: cs.primary),
               label: Text(
                 'Take Photo',
                 style: context.body,
@@ -183,7 +178,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 }
               },
               icon:
-                  Icon(Icons.photo_library_outlined, size: 20, color: gold),
+                  Icon(Icons.photo_library_outlined, size: 20, color: cs.primary),
               label: Text(
                 'Choose from Library',
                 style: context.body,
@@ -206,7 +201,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(editProfileProvider);
-    final gold = AppColors.gold(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     ref.listen<EditProfileState>(editProfileProvider, (prev, next) {
       if (prev?.isLoading == true && !next.isLoading) {
@@ -225,7 +220,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ? Center(
                 child: CircularProgressIndicator(
                   strokeWidth: 1.5,
-                  color: gold,
+                  color: colorScheme.primary,
                 ),
               )
             : Form(
@@ -270,7 +265,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'OK',
-              style: TextStyle(color: AppColors.gold(context)),
+              style: TextStyle(color: cs.primary),
             ),
           ),
         ],
@@ -280,7 +275,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Widget _buildHeader(BuildContext context, EditProfileState state) {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
 
     return Container(
       color: cs.surface,
@@ -330,7 +324,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 1.5,
-                            color: gold,
+                            color: cs.primary,
                           ),
                         )
                       : Text(
@@ -349,7 +343,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Widget _buildCoverSection(BuildContext context, EditProfileState state) {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
     const double coverHeight = 150;
     const double avatarSize = 100;
     const double avatarOverlap = avatarSize / 2;
@@ -368,7 +361,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  gold.withValues(alpha: 0.15),
+                  cs.primary.withValues(alpha: 0.15),
                   cs.surface,
                 ],
               ),
@@ -389,11 +382,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ),
                 // Edit overlay
                 Container(
-                  color: Colors.black.withValues(alpha: 0.25),
+                  color: cs.scrim.withValues(alpha: 0.25),
                   child: Center(
                     child: Icon(
                       Icons.camera_alt_outlined,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: cs.onSurface.withValues(alpha: 0.8),
                       size: 28,
                     ),
                   ),
@@ -426,13 +419,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: gold,
+                        color: cs.primary,
                         shape: BoxShape.circle,
                         border: Border.all(color: cs.surface, width: 2),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.camera_alt,
-                        color: Colors.white,
+                        color: cs.onPrimary,
                         size: 16,
                       ),
                     ),
@@ -467,16 +460,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Widget _buildFormFields(BuildContext context, EditProfileState state) {
-    final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 70, 16, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Full Name
-          _buildFieldLabel('FULL NAME', gold),
+          _buildFieldLabel('FULL NAME'),
           const SizedBox(height: 8),
           TextFormField(
             controller: _fullNameController,
@@ -493,7 +483,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(height: 24),
 
           // Username
-          _buildFieldLabel('USERNAME', gold),
+          _buildFieldLabel('USERNAME'),
           const SizedBox(height: 8),
           TextFormField(
             controller: _usernameController,
@@ -512,7 +502,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(height: 24),
 
           // Bio
-          _buildFieldLabel('BIO', gold),
+          _buildFieldLabel('BIO'),
           const SizedBox(height: 8),
           TextFormField(
             controller: _bioController,
@@ -540,7 +530,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
-  Widget _buildFieldLabel(String label, Color color) {
+  Widget _buildFieldLabel(String label) {
     return Text(
       label,
       style: context.textTheme.headlineSmall,

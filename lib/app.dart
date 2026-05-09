@@ -65,19 +65,6 @@ class _GeolocAppState extends ConsumerState<GeolocApp> {
 
       // Router configuration
       routerConfig: router,
-
-      // Clamp text scaling to prevent layout breakage on large accessibility fonts
-      builder: (context, child) {
-        final mediaQuery = MediaQuery.of(context);
-        final clampedScale = mediaQuery.textScaler.clamp(
-          minScaleFactor: 1.0,
-          maxScaleFactor: 1.3,
-        );
-        return MediaQuery(
-          data: mediaQuery.copyWith(textScaler: clampedScale),
-          child: child!,
-        );
-      },
     );
   }
 }

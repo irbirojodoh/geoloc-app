@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../services/moderation_service.dart';
 import '../../providers/moderation_lists_provider.dart';
@@ -30,7 +29,7 @@ class MutedUsersScreen extends ConsumerWidget {
           ),
           Expanded(
             child: RefreshIndicator(
-              color: AppColors.gold(context),
+              color: cs.primary,
               onRefresh: () async {
                 ref.invalidate(mutedUsersListProvider);
                 await Future<void>.delayed(const Duration(milliseconds: 150));
@@ -46,7 +45,7 @@ class MutedUsersScreen extends ConsumerWidget {
                         Icon(
                           Icons.volume_off_outlined,
                           size: 48,
-                          color: AppColors.textMuted(context),
+                          color: cs.onSurfaceVariant,
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -82,7 +81,7 @@ class MutedUsersScreen extends ConsumerWidget {
                           onPressed: () => _confirmUnmute(context, ref, u.id),
                           child: Text(
                             'Unmute',
-                            style: TextStyle(color: AppColors.gold(context)),
+                            style: TextStyle(color: cs.primary),
                           ),
                         ),
                       );
@@ -106,7 +105,7 @@ class MutedUsersScreen extends ConsumerWidget {
                               ref.invalidate(mutedUsersListProvider),
                           child: Text(
                             'Retry',
-                            style: TextStyle(color: AppColors.gold(context)),
+                            style: TextStyle(color: cs.primary),
                           ),
                         ),
                       ],
@@ -127,8 +126,6 @@ class MutedUsersScreen extends ConsumerWidget {
     String userId,
   ) async {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
-
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -143,11 +140,11 @@ class MutedUsersScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: gold)),
+            child: Text('Cancel', style: TextStyle(color: cs.primary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Unmute', style: TextStyle(color: gold)),
+            child: Text('Unmute', style: TextStyle(color: cs.primary)),
           ),
         ],
       ),

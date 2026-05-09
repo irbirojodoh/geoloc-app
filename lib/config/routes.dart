@@ -218,7 +218,6 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final gold = AppColors.gold(context);
     return Scaffold(
       body: Center(

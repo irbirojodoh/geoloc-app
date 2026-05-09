@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../services/auth_service.dart';
 import '../../widgets/geoloc_app_bar.dart';
@@ -40,7 +38,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         context: context,
         builder: (ctx) {
           final cs = Theme.of(ctx).colorScheme;
-          final gold = AppColors.gold(ctx);
           return AlertDialog(
             backgroundColor: cs.surface,
             shape: RoundedRectangleBorder(
@@ -53,12 +50,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             content: Text(
               'If an account exists for that address, you will receive a link to '
               'reset your password.',
-              style: context.bodyMedium?.copyWith(height: 1.45),
+              style: context.bodyMedium.copyWith(height: 1.45),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text('OK', style: TextStyle(color: gold)),
+                child: Text('OK', style: TextStyle(color: cs.primary)),
               ),
             ],
           );
@@ -78,7 +75,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
 
     return Scaffold(
       body: Column(
@@ -125,8 +121,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   child: OutlinedButton(
                     onPressed: _submitting ? null : _submit,
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: gold),
-                      foregroundColor: gold,
+                      side: BorderSide(color: cs.primary),
+                      foregroundColor: cs.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(2),
                       ),
@@ -137,7 +133,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 1.6,
-                              color: gold,
+                              color: cs.primary,
                             ),
                           )
                         : Text(

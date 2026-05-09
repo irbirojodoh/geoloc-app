@@ -6,7 +6,6 @@ import '../../widgets/geoloc_app_bar.dart';
 import '../../widgets/icon_square_button.dart';
 
 import '../../../config/routes.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../services/auth_service.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
@@ -68,7 +67,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
 
     return Scaffold(
       body: Column(
@@ -91,7 +89,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               children: [
                 Text(
                   'Create a secure password for your account.',
-                  style: context.bodyMedium?.copyWith(height: 1.45),
+                  style: context.bodyMedium.copyWith(height: 1.45),
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
@@ -115,7 +113,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                        color: AppColors.textMuted(context),
+                        color: cs.onSurfaceVariant,
                       ),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
@@ -146,8 +144,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   child: OutlinedButton(
                     onPressed: _loading ? null : _submit,
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: gold),
-                      foregroundColor: gold,
+                      side: BorderSide(color: cs.primary),
+                      foregroundColor: cs.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(2),
                       ),
@@ -158,7 +156,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 1.5,
-                              color: gold,
+                              color: cs.primary,
                             ),
                           )
                         : Text(

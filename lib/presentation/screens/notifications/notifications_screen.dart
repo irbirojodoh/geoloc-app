@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/theme_extensions.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../data/models/notification.dart';
 import '../../providers/notifications_provider.dart';
@@ -20,7 +19,7 @@ class NotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notificationState = ref.watch(notificationsProvider);
-    final gold = AppColors.gold(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: Column(
@@ -52,7 +51,7 @@ class NotificationsScreen extends ConsumerWidget {
                 ? Center(
                     child: CircularProgressIndicator(
                       strokeWidth: 1.5,
-                      color: gold,
+                      color: colorScheme.primary,
                     ),
                   )
                 : notificationState.error != null
@@ -87,11 +86,10 @@ class NotificationsScreen extends ConsumerWidget {
     NotificationsState state,
   ) {
     final notifCs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
     final notifications = state.notifications;
 
     return RefreshIndicator(
-      color: gold,
+      color: notifCs.primary,
       onRefresh: () async {
         await ref.read(notificationsProvider.notifier).refreshNotifications();
       },
@@ -119,7 +117,7 @@ class NotificationsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: CircularProgressIndicator(
                   strokeWidth: 1.5,
-                  color: gold,
+                  color: notifCs.primary,
                 ),
               ),
             );
@@ -142,8 +140,8 @@ class NotificationsScreen extends ConsumerWidget {
             },
             child: Container(
               color: notification.isRead
-                  ? Colors.transparent
-                  : gold.withValues(alpha: 0.04),
+                  ? notifCs.surface.withValues(alpha: 0)
+                  : notifCs.primaryContainer.withValues(alpha: 0.25),
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
@@ -156,7 +154,7 @@ class NotificationsScreen extends ConsumerWidget {
                       width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: gold,
+                        color: notifCs.primary,
                         shape: BoxShape.circle,
                       ),
                     )
@@ -174,7 +172,7 @@ class NotificationsScreen extends ConsumerWidget {
                     child: Icon(
                       _getNotificationIcon(notification.type),
                       size: 18,
-                      color: gold,
+                      color: notifCs.primary,
                     ),
                   ),
                   const SizedBox(width: 12),

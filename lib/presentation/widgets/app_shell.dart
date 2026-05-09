@@ -4,8 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/routes.dart';
-import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
+import '../providers/auth_provider.dart';
 import '../providers/notifications_provider.dart';
 
 /// Persistent shell with bottom [NavigationBar] and [FloatingActionButton]
@@ -20,13 +19,10 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Listen to real-time notifications
     ref.listen(notificationStreamProvider, (previous, next) {
       if (next.hasValue && next.value != null) {
         final notification = next.value!;
-        // Update state
         ref.read(notificationsProvider.notifier).addNotification(notification);
-        // Show local toast
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(notification.message),
@@ -43,65 +39,57 @@ class AppShell extends ConsumerWidget {
       }
     });
 
+    final user = ref.watch(currentUserProvider);
     final unreadCount = ref.watch(unreadCountProvider);
-    final cs = Theme.of(context).colorScheme;
-    final gold = AppColors.gold(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       body: child,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: FloatingActionButton(
-          onPressed: () => context.push(RoutePaths.createPost),
-          backgroundColor: gold,
-          shape: const RoundedRectangleBorder(borderRadius: AppRadii.sharpAll),
-          elevation: 0,
-          tooltip: 'Create post',
-          child: Icon(Icons.add, color: cs.onPrimary, size: AppIconSize.lg),
-        ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push(RoutePaths.createPost),
+        icon: const Icon(Icons.edit_outlined),
+        label: const Text('Post'),
+        tooltip: 'Create post',
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: cs.surface,
-        indicatorColor: gold.withValues(alpha: 0.12),
-        selectedIndex: _calculateSelectedIndex(context),
-        onDestinationSelected: (index) => _onItemTapped(index, context),
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Feed',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.add_circle_outline, size: 32),
-            selectedIcon: Icon(Icons.add_circle, size: 32),
-            label: 'Post',
-          ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: unreadCount > 0,
-              label: Text(unreadCount.toString()),
-              child: const Icon(Icons.notifications_outlined),
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+        ),
+        child: NavigationBar(
+          selectedIndex: _calculateSelectedIndex(context),
+          onDestinationSelected: (index) =>
+              _onItemTapped(index, context, user?.id),
+          destinations: [
+            const NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Home',
             ),
-            selectedIcon: Badge(
-              isLabelVisible: unreadCount > 0,
-              label: Text(unreadCount.toString()),
-              child: const Icon(Icons.notifications),
+            const NavigationDestination(
+              icon: Icon(Icons.explore_outlined),
+              selectedIcon: Icon(Icons.explore),
+              label: 'Explore',
             ),
-            label: 'Notifications',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+            NavigationDestination(
+              icon: Badge(
+                isLabelVisible: unreadCount > 0,
+                label: Text(unreadCount.toString()),
+                child: const Icon(Icons.notifications_outlined),
+              ),
+              selectedIcon: Badge(
+                isLabelVisible: unreadCount > 0,
+                label: Text(unreadCount.toString()),
+                child: const Icon(Icons.notifications),
+              ),
+              label: 'Notifications',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.person_outlined),
+              selectedIcon: Icon(Icons.person),
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -110,13 +98,12 @@ class AppShell extends ConsumerWidget {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith(RoutePaths.feed)) return 0;
     if (location.startsWith(RoutePaths.search)) return 1;
-    if (location.startsWith('/create')) return 2;
-    if (location.startsWith(RoutePaths.notifications)) return 3;
-    if (location.startsWith('/profile')) return 4;
+    if (location.startsWith(RoutePaths.notifications)) return 2;
+    if (location.startsWith('/profile')) return 3;
     return 0;
   }
 
-  void _onItemTapped(int index, BuildContext context) {
+  void _onItemTapped(int index, BuildContext context, String? userId) {
     switch (index) {
       case 0:
         context.go(RoutePaths.feed);
@@ -125,13 +112,14 @@ class AppShell extends ConsumerWidget {
         context.go(RoutePaths.search);
         break;
       case 2:
-        context.push(RoutePaths.createPost);
-        break;
-      case 3:
         context.go(RoutePaths.notifications);
         break;
-      case 4:
-        context.go(RoutePaths.feed); // Profile needs userId, go to feed
+      case 3:
+        if (userId != null && userId.isNotEmpty) {
+          context.go('/profile/$userId');
+        } else {
+          context.go(RoutePaths.feed);
+        }
         break;
     }
   }

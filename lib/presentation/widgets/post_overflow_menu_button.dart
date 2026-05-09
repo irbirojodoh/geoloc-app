@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/theme_extensions.dart';
 
-import '../../core/theme/app_colors.dart';
 import '../../data/models/post.dart';
 import '../../services/moderation_service.dart';
 import '../helpers/content_purge.dart';
@@ -36,7 +35,7 @@ class PostOverflowMenuButton extends ConsumerWidget {
       icon: Icon(
         Icons.more_horiz,
         size: 20,
-        color: AppColors.textMuted(context),
+        color: cs.onSurfaceVariant,
       ),
       padding: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
@@ -95,7 +94,6 @@ class PostOverflowMenuButton extends ConsumerWidget {
       context: context,
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
-        final gold = AppColors.gold(ctx);
         return AlertDialog(
           backgroundColor: cs.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
@@ -110,13 +108,16 @@ class PostOverflowMenuButton extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: TextStyle(color: gold)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: cs.primary),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text(
+              child: Text(
                 'Delete',
-                style: TextStyle(color: AppColors.error),
+                style: TextStyle(color: cs.error),
               ),
             ),
           ],
@@ -161,7 +162,6 @@ class PostOverflowMenuButton extends ConsumerWidget {
       context: context,
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
-        final gold = AppColors.gold(ctx);
         return AlertDialog(
           backgroundColor: cs.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
@@ -176,13 +176,16 @@ class PostOverflowMenuButton extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: TextStyle(color: gold)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: cs.primary),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text(
+              child: Text(
                 'Block',
-                style: TextStyle(color: AppColors.error),
+                style: TextStyle(color: cs.error),
               ),
             ),
           ],
@@ -217,7 +220,6 @@ class PostOverflowMenuButton extends ConsumerWidget {
       context: context,
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
-        final gold = AppColors.gold(ctx);
         return AlertDialog(
           backgroundColor: cs.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
@@ -232,11 +234,17 @@ class PostOverflowMenuButton extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: TextStyle(color: gold)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: cs.primary),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Mute', style: TextStyle(color: gold)),
+              child: Text(
+                'Mute',
+                style: TextStyle(color: cs.primary),
+              ),
             ),
           ],
         );
