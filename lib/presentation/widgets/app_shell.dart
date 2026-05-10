@@ -42,21 +42,25 @@ class AppShell extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final unreadCount = ref.watch(unreadCountProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final selectedIndex = _calculateSelectedIndex(context);
+    final matchedLocation = GoRouterState.of(context).matchedLocation;
+    final isOnHomePage = matchedLocation == RoutePaths.feed;
 
     return Scaffold(
       body: child,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(RoutePaths.createPost),
-        icon: const Icon(Icons.edit_outlined),
-        label: const Text('Post'),
-        tooltip: 'Create post',
-      ),
+      floatingActionButton: isOnHomePage
+          ? FloatingActionButton(
+              onPressed: () => context.push(RoutePaths.createPost),
+              tooltip: 'Create post',
+              child: const Icon(Icons.add),
+            )
+          : null,
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
         ),
         child: NavigationBar(
-          selectedIndex: _calculateSelectedIndex(context),
+          selectedIndex: selectedIndex,
           onDestinationSelected: (index) =>
               _onItemTapped(index, context, user?.id),
           destinations: [
@@ -103,7 +107,11 @@ class AppShell extends ConsumerWidget {
     return 0;
   }
 
-  void _onItemTapped(int index, BuildContext context, String? userId) {
+  void _onItemTapped(
+    int index,
+    BuildContext context,
+    String? userId,
+  ) {
     switch (index) {
       case 0:
         context.go(RoutePaths.feed);

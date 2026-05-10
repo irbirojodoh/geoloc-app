@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/theme_extensions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../providers/auth_provider.dart';
@@ -12,7 +11,7 @@ import '../../providers/location_provider.dart';
 import '../../../core/cache/image_cache_manager.dart';
 import '../../../data/models/user.dart';
 
-/// Create post screen — old-money luxury aesthetic
+/// Create post screen.
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
 
@@ -49,6 +48,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   void _showMediaPicker() {
     final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     showModalBottomSheet<void>(
       context: context,
@@ -68,7 +68,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           children: [
             Text(
               'ADD MEDIA',
-              style: context.sectionLabel,
+              style: textTheme.titleSmall?.copyWith(
+                color: cs.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 16),
             Container(
@@ -92,7 +95,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               icon: Icon(Icons.camera_alt_outlined, size: 20, color: cs.primary),
               label: Text(
                 'Take Photo',
-                style: context.body,
+                style: textTheme.bodyMedium,
               ),
             ),
             TextButton.icon(
@@ -107,7 +110,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               ),
               label: Text(
                 'Choose from Gallery',
-                style: context.body,
+                style: textTheme.bodyMedium,
               ),
             ),
             const SizedBox(height: 8),
@@ -115,7 +118,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text(
                 'Cancel',
-                style: context.body,
+                style: textTheme.bodyMedium,
               ),
             ),
           ],
@@ -165,6 +168,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Widget _buildHeader(BuildContext context, CreatePostState state) {
     final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       color: cs.surface,
@@ -180,55 +184,35 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             ),
             child: Row(
               children: [
-                GestureDetector(
-                  onTap: () => context.pop(),
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2),
-                      border: Border.all(color: cs.outline, width: 1),
-                    ),
-                    child: Icon(
-                      Icons.close,
-                      size: 18,
-                      color: cs.onSurface,
-                    ),
-                  ),
+                IconButton(
+                  tooltip: 'Close',
+                  onPressed: () => context.pop(),
+                  icon: const Icon(Icons.close),
                 ),
                 const Spacer(),
                 Text(
                   'Create Post',
-                  style: context.appBarTitle,
+                  style: textTheme.titleLarge?.copyWith(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const Spacer(),
-                GestureDetector(
-                  onTap: state.canSubmit ? _submitPost : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: state.canSubmit
-                          ? cs.primary
-                          : cs.outline.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                    child: state.isSubmitting
-                        ? SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: cs.onPrimary,
-                            ),
-                          )
-                        : Text(
-                            'POST',
-                            style: context.caption,
+                FilledButton(
+                  onPressed: state.canSubmit ? _submitPost : null,
+                  child: state.isSubmitting
+                      ? SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: cs.onPrimary,
                           ),
-                  ),
+                        )
+                      : Text(
+                          'Post',
+                          style: textTheme.labelLarge,
+                        ),
                 ),
               ],
             ),
@@ -240,6 +224,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   Widget _buildInputSection(BuildContext context, User? currentUser) {
     final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -302,11 +287,13 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               cursorColor: cs.primary,
               maxLines: null,
               minLines: 5,
-              style: context.body,
+              style: textTheme.bodyLarge,
               decoration: InputDecoration(
                 filled: false,
                 hintText: "What's happening in your area?",
-                hintStyle: context.body,
+                hintStyle: textTheme.bodyLarge?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -395,6 +382,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     LocationState locationState,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final createPostState = ref.watch(createPostProvider);
 
     ref.listen<LocationState>(locationStateProvider, (prev, next) {
@@ -435,7 +423,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'Getting location...',
-                  style: context.monoSmall,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             )
@@ -444,14 +434,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             Expanded(
               child: Text(
                 createPostState.locationName!,
-                style: context.monoSmall,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             )
           else if (locationState.hasLocation)
             Text(
               'Location available',
-              style: context.monoSmall,
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             )
           else
             GestureDetector(
@@ -460,7 +454,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               },
               child: Text(
                 'Enable location',
-                style: context.sheetItem.copyWith(color: colorScheme.primary),
+                style: textTheme.labelMedium?.copyWith(
+                  color: colorScheme.primary,
+                ),
               ),
             ),
         ],
@@ -484,32 +480,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: _showMediaPicker,
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                border: Border.all(color: cs.outline, width: 1),
-              ),
-              child: Icon(Icons.photo_outlined, size: 20, color: cs.primary),
-            ),
+          IconButton.filledTonal(
+            onPressed: _showMediaPicker,
+            tooltip: 'Pick image from gallery',
+            icon: const Icon(Icons.photo_outlined),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () {
+          IconButton.filledTonal(
+            onPressed: () {
               ref.read(createPostProvider.notifier).pickImageFromCamera();
             },
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                border: Border.all(color: cs.outline, width: 1),
-              ),
-              child: Icon(Icons.camera_alt_outlined, size: 20, color: cs.primary),
-            ),
+            tooltip: 'Take a photo',
+            icon: const Icon(Icons.camera_alt_outlined),
           ),
           const Spacer(),
         ],
@@ -526,11 +508,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
         title: Text(
           'Error',
-          style: context.textTheme.headlineSmall,
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
         content: Text(
           message,
-          style: context.bodyMedium,
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
         actions: [
           TextButton(

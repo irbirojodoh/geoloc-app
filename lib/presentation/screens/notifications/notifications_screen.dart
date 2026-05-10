@@ -1,104 +1,84 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/theme_extensions.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../core/theme/app_spacing.dart';
 import '../../../data/models/notification.dart';
 import '../../providers/notifications_provider.dart';
-import '../../widgets/geoloc_app_bar.dart';
-import '../../widgets/icon_square_button.dart';
 import '../../widgets/states/empty_state.dart';
 import '../../widgets/states/error_state.dart';
 
-/// Notifications screen — old-money luxury aesthetic
+/// Notifications screen.
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notificationState = ref.watch(notificationsProvider);
+    final state = ref.watch(notificationsProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      body: Column(
-        children: [
-          GeolocAppBar(
-            title: 'Notifications',
-            leading: IconSquareButton(
-              icon: Icons.arrow_back,
-              semanticLabel: 'Back',
-              onTap: () => context.pop(),
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        actions: [
+          if (state.unreadCount > 0)
+            TextButton(
+              onPressed: () =>
+                  ref.read(notificationsProvider.notifier).markAllAsRead(),
+              child: const Text('Read all'),
             ),
-            trailing: notificationState.unreadCount > 0
-                ? Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.xs),
-                    child: TextButton(
-                      onPressed: () => ref
-                          .read(notificationsProvider.notifier)
-                          .markAllAsRead(),
-                      child: Text(
-                        'Read all',
-                        style: context.link,
-                      ),
-                    ),
-                  )
-                : null,
-          ),
-          Expanded(
-            child: notificationState.isLoading
-                ? Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: colorScheme.primary,
-                    ),
-                  )
-                : notificationState.error != null
-                    ? ErrorState(
-                        message: notificationState.error!,
-                        onRetry: () => ref
-                            .read(notificationsProvider.notifier)
-                            .loadNotifications(),
-                        retryLabel: 'RETRY',
-                      )
-                    : notificationState.notifications.isEmpty
-                        ? const EmptyState(
-                            icon: Icons.notifications_outlined,
-                            title: 'No notifications yet',
-                            message:
-                                "When someone interacts with your posts, you'll see it here.",
-                          )
-                        : _buildNotificationsList(
-                            context,
-                            ref,
-                            notificationState,
-                          ),
-          ),
         ],
       ),
+      body: state.isLoading
+          ? Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: colorScheme.primary,
+              ),
+            )
+          : state.error != null
+              ? ErrorState(
+                  message: state.error!,
+                  onRetry: () =>
+                      ref.read(notificationsProvider.notifier).loadNotifications(),
+                  retryLabel: 'RETRY',
+                )
+              : state.notifications.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.notifications_outlined,
+                      title: 'No notifications yet',
+                      message:
+                          "When someone interacts with your posts, you'll see it here.",
+                    )
+                  : _NotificationList(
+                      state: state,
+                      textTheme: textTheme,
+                    ),
     );
   }
+}
 
-  Widget _buildNotificationsList(
-    BuildContext context,
-    WidgetRef ref,
-    NotificationsState state,
-  ) {
-    final notifCs = Theme.of(context).colorScheme;
+class _NotificationList extends ConsumerWidget {
+  const _NotificationList({required this.state, required this.textTheme});
+
+  final NotificationsState state;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final notifications = state.notifications;
 
     return RefreshIndicator(
-      color: notifCs.primary,
-      onRefresh: () async {
-        await ref.read(notificationsProvider.notifier).refreshNotifications();
-      },
+      color: colorScheme.primary,
+      onRefresh: () =>
+          ref.read(notificationsProvider.notifier).refreshNotifications(),
       child: NotificationListener<ScrollNotification>(
-        onNotification: (ScrollNotification scrollInfo) {
+        onNotification: (scrollInfo) {
           if (!state.isLoading &&
               state.hasMore &&
-              scrollInfo.metrics.pixels ==
-                  scrollInfo.metrics.maxScrollExtent) {
+              scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
             ref.read(notificationsProvider.notifier).loadMore();
           }
           return false;
@@ -107,116 +87,116 @@ class NotificationsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: notifications.length + (state.hasMore ? 1 : 0),
           separatorBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(height: 0.5, color: notifCs.outline),
-        ),
-        itemBuilder: (context, index) {
-          if (index == notifications.length) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  color: notifCs.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Divider(
+              height: 1,
+              thickness: 0.5,
+              color: colorScheme.outlineVariant,
+            ),
+          ),
+          itemBuilder: (context, index) {
+            if (index == notifications.length) {
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              );
+            }
+
+            final item = notifications[index];
+            final actorName = item.actor?.username ?? 'Someone';
+
+            return Material(
+              color: item.isRead
+                  ? colorScheme.surface
+                  : colorScheme.primaryContainer.withValues(alpha: 0.22),
+              child: InkWell(
+                onTap: () {
+                  ref.read(notificationsProvider.notifier).markAsRead(item.id);
+                  if (item.targetType == TargetType.post ||
+                      item.targetType == TargetType.comment) {
+                    context.push('/post/${item.targetId}');
+                  } else {
+                    context.push('/profile/${item.actorId}');
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!item.isRead)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8, right: 8),
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      else
+                        const SizedBox(width: 14),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          _iconFor(item.type),
+                          size: 20,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            RichText(
+                              text: TextSpan(
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurface,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: actorName,
+                                    style: textTheme.titleSmall?.copyWith(
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  TextSpan(text: ' ${_textFor(item.type)}'),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              timeago.format(item.createdAt, locale: 'en_short'),
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
-          }
-
-          final notification = notifications[index];
-
-          return GestureDetector(
-            onTap: () {
-              ref
-                  .read(notificationsProvider.notifier)
-                  .markAsRead(notification.id);
-
-              if (notification.targetType == TargetType.post ||
-                  notification.targetType == TargetType.comment) {
-                context.push('/post/${notification.targetId}');
-              } else {
-                context.push('/profile/${notification.actorId}');
-              }
-            },
-            child: Container(
-              color: notification.isRead
-                  ? notifCs.surface.withValues(alpha: 0)
-                  : notifCs.primaryContainer.withValues(alpha: 0.25),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Unread dot
-                  if (!notification.isRead)
-                    Container(
-                      margin: const EdgeInsets.only(top: 6, right: 8),
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: notifCs.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 14),
-
-                  // Type icon
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2),
-                      border: Border.all(color: notifCs.outline, width: 1),
-                    ),
-                    child: Icon(
-                      _getNotificationIcon(notification.type),
-                      size: 18,
-                      color: notifCs.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Content
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: notification.actor?.username ?? 'Someone',
-                                style: context.username,
-                              ),
-                              TextSpan(
-                                text:
-                                    ' ${_getNotificationText(notification.type)}',
-                                style: context.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          timeago.format(notification.createdAt,
-                              locale: 'en_short'),
-                          style: context.monoCaption,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+          },
+        ),
       ),
     );
   }
 
-  IconData _getNotificationIcon(NotificationType type) {
+  IconData _iconFor(NotificationType type) {
     switch (type) {
       case NotificationType.like:
         return Icons.favorite_outline;
@@ -229,7 +209,7 @@ class NotificationsScreen extends ConsumerWidget {
     }
   }
 
-  String _getNotificationText(NotificationType type) {
+  String _textFor(NotificationType type) {
     switch (type) {
       case NotificationType.like:
         return 'liked your post';
@@ -241,5 +221,4 @@ class NotificationsScreen extends ConsumerWidget {
         return 'posted near you';
     }
   }
-
 }

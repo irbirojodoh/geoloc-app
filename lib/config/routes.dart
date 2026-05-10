@@ -154,7 +154,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: RoutePaths.feed,
-            builder: (context, state) => const FeedScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: FeedScreen(),
+            ),
           ),
           GoRoute(
             path: RoutePaths.createPost,
@@ -178,18 +180,24 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: RoutePaths.profile,
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final userId = state.pathParameters['id']!;
-              return ProfileScreen(userId: userId);
+              return NoTransitionPage(
+                child: ProfileScreen(userId: userId),
+              );
             },
           ),
           GoRoute(
             path: RoutePaths.search,
-            builder: (context, state) => const SearchScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SearchScreen(),
+            ),
           ),
           GoRoute(
             path: RoutePaths.notifications,
-            builder: (context, state) => const NotificationsScreen(),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: NotificationsScreen(),
+            ),
           ),
           GoRoute(
             path: RoutePaths.settings,
