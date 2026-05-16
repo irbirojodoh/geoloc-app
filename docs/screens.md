@@ -81,8 +81,8 @@ Features:
 - Post cards with author, content, location
 - Like/comment actions
 - Navigation to post detail, profile
-- Floating action button for creating posts
-- Bottom navigation (feed, search, create, notifications, profile)
+- Bottom navbar with Home/Search/Notifications/Profile
+- Inline `+` compose action appears on Home only
 
 #### Create Post Screen (`/create-post`)
 **File**: `lib/presentation/screens/post/create_post_screen.dart`
@@ -141,15 +141,17 @@ Features:
 - User search results
 - Post search results
 - Recent searches
+- Autocomplete users + hashtags
 
 #### Notifications Screen (`/notifications`)
 **File**: `lib/presentation/screens/notifications/notifications_screen.dart`
 
 Features:
-- Notification list
+- Notification list from `/api/v1/notifications`
 - Types: likes, comments, follows, nearby posts
-- Mark as read
+- Read-all action
 - Navigate to related content
+- Pull-to-refresh + limit-based load more
 
 ---
 
@@ -224,3 +226,16 @@ pageBuilder: (context, state) => CustomTransitionPage(
   },
 ),
 ```
+
+Shell menu pages (`/feed`, `/search`, `/notifications`, `/profile/:id`) use a
+directional slide transition. Direction follows navbar order:
+
+- Home = 0
+- Search = 1
+- Notifications = 2
+- Profile = 3
+
+Rules:
+
+- target > current: target enters from right, current exits left
+- target < current: target enters from left, current exits right

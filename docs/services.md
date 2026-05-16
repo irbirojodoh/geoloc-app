@@ -234,7 +234,8 @@ void _handleMessage(RemoteMessage message) {
 
 **File**: `lib/services/notification_service.dart`
 
-Handles notification history, marking as read, and real-time SSE streams.
+Handles notifications list, read endpoints, actor enrichment by `actor_id`, and
+real-time SSE streams.
 
 ### Provider
 
@@ -245,6 +246,30 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 ```
 
 ### Methods
+
+#### Fetch Notifications
+```dart
+Future<NotificationPage> getNotifications({
+  int limit = 50,
+  bool unreadOnly = false,
+})
+```
+
+Contract:
+
+- `GET /api/v1/notifications?limit={n}[&unread=true]`
+- Parses:
+  - `notifications`
+  - `unread_count`
+  - `total`
+- No cursor pagination on this endpoint; "load more" is implemented by
+  increasing `limit` (capped at 100).
+
+The service also resolves missing actor info (`actor_id`) using:
+
+- `GET /api/v1/users/{actor_id}`
+
+and caches users in-memory for the session.
 
 #### Get Notification Stream (SSE)
 ```dart
@@ -371,12 +396,12 @@ class AuthInterceptor extends Interceptor {
 ### Notifications
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/notifications` | List notifications |
-| PUT | `/notifications/:id/read` | Mark as read |
-| POST | `/notifications/read-all` | Mark all as read |
-| GET | `/notifications/stream` | SSE stream |
-| POST | `/devices` | Register FCM token |
-| DELETE | `/devices/:token` | Unregister FCM token |
+| GET | `/api/v1/notifications` | List notifications (`limit`, `unread`) |
+| PUT | `/api/v1/notifications/:id/read` | Mark as read |
+| PUT | `/api/v1/notifications/read-all` | Mark all as read |
+| GET | `/api/v1/notifications/stream` | SSE stream |
+| POST | `/api/v1/devices` | Register FCM token |
+| DELETE | `/api/v1/devices` | Unregister FCM token |
 
 ### Search
 | Method | Endpoint | Description |

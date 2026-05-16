@@ -209,7 +209,11 @@ Manages notification history, unread counts, and real-time SSE stream.
 class NotificationsState {
   final List<AppNotification> notifications;
   final int unreadCount;
+  final int total;
+  final int limit;
   final bool isLoading;
+  final bool isRefreshing;
+  final bool hasMore;
   // ...
 }
 
@@ -227,12 +231,17 @@ final unreadCountProvider = Provider<int>((ref) => ...);
 ```
 
 **Actions**:
-- `loadNotifications()` - Fetch notification history
-- `refreshNotifications()` - Pull-to-refresh
-- `loadMore()` - Pagination
-- `markAsRead(id)` - Mark single notification as read
+- `loadNotifications()` - Fetch `/api/v1/notifications?limit=50`
+- `refreshNotifications()` - Refetch with default limit
+- `loadMore()` - Increase limit (up to 100) and refetch
+- `markAsRead(id)` - Local read-state update
 - `markAllAsRead()` - Mark all as read
-- `addNotification(notification)` - Insert real-time SSE notification into state
+- `addNotification(notification)` - Insert SSE notification into state
+
+Notes:
+
+- `unreadCount` is sourced from server `unread_count` on list fetch.
+- Actor details are resolved in service layer from `actor_id` and cached.
 
 ---
 
