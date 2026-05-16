@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/search_provider.dart';
-import '../../widgets/animated_scroll_gradient_background.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/user_avatar.dart';
@@ -54,17 +53,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: AnimatedScrollGradientBackground(
-              scrollController: _scrollController,
-              opacity: 0.16,
-            ),
-          ),
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
+      backgroundColor: Colors.transparent,
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
               SliverAppBar.medium(
                 backgroundColor: colorScheme.surface,
                 title: const Text('Explore'),
@@ -129,8 +121,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               else
                 _buildResultsSliver(context, state, colorScheme, textTheme),
               const SliverToBoxAdapter(child: SizedBox(height: 96)),
-            ],
-          ),
         ],
       ),
     );
@@ -259,7 +249,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       sliver: SliverList.builder(
         itemCount:
             state.postResults.length +

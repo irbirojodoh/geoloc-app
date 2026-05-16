@@ -8,7 +8,6 @@ import '../../providers/profile_provider.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/profile_overflow_menu_button.dart';
-import '../../widgets/animated_scroll_gradient_background.dart';
 import '../../widgets/states/empty_state.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/user_avatar.dart';
@@ -107,20 +106,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final activePosts = _activeTabIndex == 0 ? profileState.posts : likedPosts;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         onRefresh: () =>
             ref.read(profileProvider(widget.userId).notifier).refreshProfile(),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: AnimatedScrollGradientBackground(
-                scrollController: _scrollController,
-                opacity: 0.16,
-              ),
-            ),
-            CustomScrollView(
-              controller: _scrollController,
-              slivers: [
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
                 SliverAppBar(
                   backgroundColor: colorScheme.surface,
                   title: Text('@${user.username}'),
@@ -203,7 +195,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
                     sliver: SliverList.builder(
                       itemCount: activePosts.length +
                           (_activeTabIndex == 0 && profileState.isLoadingPosts
@@ -230,8 +222,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       },
                     ),
                   ),
-              ],
-            ),
           ],
         ),
       ),

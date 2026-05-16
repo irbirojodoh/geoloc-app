@@ -154,8 +154,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: RoutePaths.feed,
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: FeedScreen(),
+            pageBuilder: (context, state) => _buildShellRootPage(
+              state: state,
+              child: const FeedScreen(),
             ),
           ),
           GoRoute(
@@ -164,9 +165,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: RoutePaths.postDetail,
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final postId = state.pathParameters['id']!;
-              return PostDetailScreen(postId: postId);
+              return _buildDetailSlidePage(
+                state: state,
+                child: PostDetailScreen(postId: postId),
+              );
             },
           ),
           // Edit profile must come BEFORE /profile/:id to avoid "edit" being parsed as userId
@@ -182,21 +186,24 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: RoutePaths.profile,
             pageBuilder: (context, state) {
               final userId = state.pathParameters['id']!;
-              return NoTransitionPage(
+              return _buildShellRootPage(
+                state: state,
                 child: ProfileScreen(userId: userId),
               );
             },
           ),
           GoRoute(
             path: RoutePaths.search,
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: SearchScreen(),
+            pageBuilder: (context, state) => _buildShellRootPage(
+              state: state,
+              child: const SearchScreen(),
             ),
           ),
           GoRoute(
             path: RoutePaths.notifications,
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: NotificationsScreen(),
+            pageBuilder: (context, state) => _buildShellRootPage(
+              state: state,
+              child: const NotificationsScreen(),
             ),
           ),
           GoRoute(
@@ -219,6 +226,60 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
+
+CustomTransitionPage<void> _buildShellRootPage({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final outgoingOffset = Tween<Offset>(
+        begin: Offset.zero,
+        end: const Offset(-1, 0),
+      ).animate(
+        CurvedAnimation(
+          parent: secondaryAnimation,
+          curve: Curves.easeInOutCubic,
+        ),
+      );
+      return SlideTransition(
+        position: outgoingOffset,
+        child: child,
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 320),
+    reverseTransitionDuration: const Duration(milliseconds: 320),
+  );
+}
+
+CustomTransitionPage<void> _buildDetailSlidePage({
+  required GoRouterState state,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final incomingOffset = Tween<Offset>(
+        begin: const Offset(1, 0),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeInOutCubic,
+        ),
+      );
+      return SlideTransition(
+        position: incomingOffset,
+        child: child,
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 320),
+    reverseTransitionDuration: const Duration(milliseconds: 320),
+  );
+}
 
 /// Branded splash screen while checking auth state.
 class _SplashScreen extends StatelessWidget {

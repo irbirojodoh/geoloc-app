@@ -8,11 +8,11 @@ import 'package:flutter/material.dart';
 class AnimatedScrollGradientBackground extends StatefulWidget {
   const AnimatedScrollGradientBackground({
     super.key,
-    required this.scrollController,
+    this.scrollController,
     this.opacity = 0.2,
   });
 
-  final ScrollController scrollController;
+  final ScrollController? scrollController;
   final double opacity;
 
   @override
@@ -34,34 +34,37 @@ class _AnimatedScrollGradientBackgroundState
       duration: const Duration(seconds: 20),
     )..repeat();
 
-    widget.scrollController.addListener(_handleScroll);
-    _scrollOffset = widget.scrollController.hasClients
-        ? widget.scrollController.position.pixels
-        : 0;
+    final controller = widget.scrollController;
+    if (controller != null) {
+      controller.addListener(_handleScroll);
+      _scrollOffset = controller.hasClients ? controller.position.pixels : 0;
+    }
   }
 
   @override
   void didUpdateWidget(covariant AnimatedScrollGradientBackground oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.scrollController != widget.scrollController) {
-      oldWidget.scrollController.removeListener(_handleScroll);
-      widget.scrollController.addListener(_handleScroll);
-      _scrollOffset = widget.scrollController.hasClients
-          ? widget.scrollController.position.pixels
+      oldWidget.scrollController?.removeListener(_handleScroll);
+      widget.scrollController?.addListener(_handleScroll);
+      _scrollOffset = widget.scrollController?.hasClients == true
+          ? widget.scrollController!.position.pixels
           : 0;
     }
   }
 
   @override
   void dispose() {
-    widget.scrollController.removeListener(_handleScroll);
+    widget.scrollController?.removeListener(_handleScroll);
     _animationController.dispose();
     super.dispose();
   }
 
   void _handleScroll() {
+    final controller = widget.scrollController;
+    if (controller == null || !controller.hasClients) return;
     if (!mounted) return;
-    final nextOffset = widget.scrollController.position.pixels;
+    final nextOffset = controller.position.pixels;
     if ((nextOffset - _scrollOffset).abs() > 0.5) {
       setState(() => _scrollOffset = nextOffset);
     }

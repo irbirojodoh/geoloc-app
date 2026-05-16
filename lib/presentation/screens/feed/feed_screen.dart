@@ -7,7 +7,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../widgets/loading_shimmer.dart';
-import '../../widgets/animated_scroll_gradient_background.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/states/empty_state.dart';
@@ -165,22 +164,15 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     }
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         onRefresh: () async {
           await ref.read(locationStateProvider.notifier).refreshLocation();
           await ref.read(feedStateProvider.notifier).refreshFeed();
         },
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: AnimatedScrollGradientBackground(
-                scrollController: _scrollController,
-                opacity: 0.18,
-              ),
-            ),
-            CustomScrollView(
-              controller: _scrollController,
-              slivers: [
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
                 SliverAppBar.medium(
                   backgroundColor: colorScheme.surface,
                   title: Text(
@@ -203,7 +195,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                   ],
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
                   sliver: SliverList.builder(
                     itemCount:
                         feedState.posts.length + (feedState.hasMore ? 1 : 0),
@@ -231,8 +223,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                     },
                   ),
                 ),
-              ],
-            ),
           ],
         ),
       ),

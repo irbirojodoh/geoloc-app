@@ -21,6 +21,10 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+  await SystemChrome.setEnabledSystemUIMode(
+    SystemUiMode.manual,
+    overlays: SystemUiOverlay.values,
+  );
 
   // Set system UI overlay style — warm-neutral old-money aesthetic
   SystemChrome.setSystemUIOverlayStyle(

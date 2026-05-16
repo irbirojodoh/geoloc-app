@@ -21,13 +21,20 @@ class PostDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
+  static const _composerEnterDelay = Duration(milliseconds: 340);
+  static const _composerEnterDuration = Duration(milliseconds: 260);
   final TextEditingController _commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _showCommentComposer = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_maybePaginateComments);
+    Future<void>.delayed(_composerEnterDelay, () {
+      if (!mounted) return;
+      setState(() => _showCommentComposer = true);
+    });
   }
 
   void _maybePaginateComments() {
@@ -68,15 +75,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     final comments = _flattenComments(postDetailState.comments);
 
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text('Post'),
-        leading: IconButton(
-          tooltip: 'Back',
-          onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back),
-        ),
-      ),
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         onRefresh: () async {
           await ref.read(postDetailProvider(widget.postId).notifier).loadPost();
@@ -84,11 +83,27 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               .read(postDetailProvider(widget.postId).notifier)
               .loadComments();
         },
-        child: postDetailState.post == null
-            ? ListView(
-                children: [
-                  SizedBox(
-                    height: MediaQuery.sizeOf(context).height * 0.6,
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+                SliverAppBar.medium(
+                  backgroundColor: colorScheme.surface,
+                  leading: IconButton(
+                    tooltip: 'Back',
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  title: Text(
+                    'Post',
+                    style: textTheme.headlineMedium?.copyWith(
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                if (postDetailState.post == null)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
                     child: Center(
                       child: postDetailState.error != null
                           ? ErrorState(
@@ -99,92 +114,146 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             )
                           : const CircularProgressIndicator(),
                     ),
-                  ),
-                ],
-              )
-            : ListView(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                children: [
-                  PostCard(
-                    post: postDetailState.post!,
-                    headerTrailing: PostOverflowMenuButton(
-                      post: postDetailState.post!,
-                      viewingPostDetailId: widget.postId,
-                    ),
-                    onLike: () => ref
-                        .read(postDetailProvider(widget.postId).notifier)
-                        .togglePostLike(),
-                    onUserTap: () =>
-                        context.push('/profile/${postDetailState.post!.userId}'),
-                  ),
-                  const SizedBox(height: 16),
-                  Divider(color: colorScheme.outlineVariant),
-                  const SizedBox(height: 8),
-                  Text('Comments', style: textTheme.labelLarge),
-                  const SizedBox(height: 8),
-                  if (comments.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Text(
-                        'No comments yet',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        PostCard(
+                          post: postDetailState.post!,
+                          headerTrailing: PostOverflowMenuButton(
+                            post: postDetailState.post!,
+                            viewingPostDetailId: widget.postId,
+                          ),
+                          onLike: () => ref
+                              .read(postDetailProvider(widget.postId).notifier)
+                              .togglePostLike(),
+                          onUserTap: () =>
+                              context.push('/profile/${postDetailState.post!.userId}'),
                         ),
+                        const SizedBox(height: 16),
+                        Divider(color: colorScheme.outlineVariant),
+                        const SizedBox(height: 8),
+                        Text('Comments', style: textTheme.labelLarge),
+                        const SizedBox(height: 8),
+                        if (comments.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            child: Text(
+                              'No comments yet',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ...comments.map(
+                          (comment) => _CommentTile(
+                            comment: comment,
+                            postId: widget.postId,
+                          ),
+                        ),
+                        if (postDetailState.isLoadingMoreComments)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                      ]),
+                    ),
+                  ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: AnimatedSwitcher(
+        duration: _composerEnterDuration,
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final slide = Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slide, child: child),
+          );
+        },
+        child: _showCommentComposer
+            ? DecoratedBox(
+                key: const ValueKey('comment-composer-visible'),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withValues(alpha: 0.92),
+                  border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    12,
+                    10,
+                    12,
+                    10 + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  child: Material(
+                    elevation: 2,
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _commentController,
+                              minLines: 1,
+                              maxLines: 4,
+                              textInputAction: TextInputAction.newline,
+                              decoration: InputDecoration(
+                                hintText: 'Write a comment...',
+                                hintStyle: textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                                isDense: true,
+                                filled: true,
+                                fillColor: colorScheme.surfaceContainerHighest,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filled(
+                            tooltip: 'Send comment',
+                            onPressed: postDetailState.isSubmittingComment
+                                ? null
+                                : _submitCommentInput,
+                            style: IconButton.styleFrom(
+                              minimumSize: const Size(42, 42),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            icon: postDetailState.isSubmittingComment
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.send_rounded, size: 20),
+                          ),
+                        ],
                       ),
                     ),
-                  ...comments.map(
-                    (comment) => _CommentTile(
-                      comment: comment,
-                      postId: widget.postId,
-                    ),
-                  ),
-                  if (postDetailState.isLoadingMoreComments)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                ],
-              ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _commentController,
-                  minLines: 1,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Comment',
-                    helperText: 'Be respectful',
-                    isDense: true,
                   ),
                 ),
+              )
+            : const SizedBox(
+                key: ValueKey('comment-composer-hidden'),
               ),
-              IconButton(
-                tooltip: 'Send comment',
-                onPressed:
-                    postDetailState.isSubmittingComment ? null : _submitCommentInput,
-                color: colorScheme.primary,
-                icon: postDetailState.isSubmittingComment
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send_outlined),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

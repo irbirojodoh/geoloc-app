@@ -213,6 +213,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     });
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         top: false,
         bottom: false,

@@ -140,6 +140,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     });
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         top: false,
         bottom: false,

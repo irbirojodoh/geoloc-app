@@ -17,6 +17,7 @@ class SettingsScreen extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: Column(
         children: [
           GeolocAppBar(
