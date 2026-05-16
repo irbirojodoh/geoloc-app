@@ -41,7 +41,7 @@ class PostCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -54,35 +54,41 @@ class PostCard extends StatelessWidget {
                     child: UserAvatar(
                       imageUrl: post.author?.profilePictureUrl,
                       name: authorName,
-                      size: 40,
+                      size: 36,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          authorName,
-                          style: textTheme.titleSmall?.copyWith(
-                            color: cs.onSurface,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _formatTime(post.createdAt),
-                          style: textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                authorName,
+                                style: textTheme.titleSmall?.copyWith(
+                                  color: cs.onSurface,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _formatTime(post.createdAt),
+                              style: textTheme.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
                         if (location.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Row(
                             children: [
                               Icon(
                                 Icons.location_on_outlined,
-                                size: 14,
+                                size: 13,
                                 color: cs.onSurfaceVariant,
                               ),
                               const SizedBox(width: 4),
@@ -105,16 +111,16 @@ class PostCard extends StatelessWidget {
                   if (headerTrailing != null) headerTrailing!,
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 post.content,
                 style: textTheme.bodyLarge,
               ),
               if (post.mediaUrls.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _buildMedia(context),
               ],
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   _ActionButton(
@@ -349,18 +355,21 @@ class _ActionButton extends StatelessWidget {
       button: true,
       label: semanticLabel,
       child: Padding(
-        padding: const EdgeInsets.only(right: 4),
+        padding: const EdgeInsets.only(right: 2),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               tooltip: semanticLabel,
               onPressed: onPressed,
-              icon: Icon(icon, size: 24, color: iconColor),
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+              padding: EdgeInsets.zero,
+              icon: Icon(icon, size: 21, color: iconColor),
             ),
             if (count != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: chipBackgroundColor,
                   borderRadius: BorderRadius.circular(8),
@@ -372,7 +381,7 @@ class _ActionButton extends StatelessWidget {
                   ),
                 ),
               ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
           ],
         ),
       ),

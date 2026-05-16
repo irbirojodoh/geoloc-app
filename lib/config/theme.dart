@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
-  static const Color _seedColor = Color(0xFFEB5E28);
+  static const Color _seedColor = Color(0xFF6B7280);
 
   static ColorScheme _buildColorScheme(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(
@@ -14,22 +14,22 @@ class AppTheme {
     );
     if (brightness == Brightness.light) {
       return scheme.copyWith(
-        surface: const Color(0xFFFFFCF2),
-        onSurface: const Color(0xFF252422),
-        onSurfaceVariant: const Color(0xFF403D39),
-        surfaceContainerHighest: const Color(0xFFE8E3DC),
-        outlineVariant: const Color(0xFFCCC5B9),
-        outline: const Color(0xFF8A847C),
+        surface: const Color(0xFFFFFFFF),
+        onSurface: const Color(0xFF111111),
+        onSurfaceVariant: const Color(0xFF5F6368),
+        surfaceContainerHighest: const Color(0xFFF1F3F4),
+        outlineVariant: const Color(0xFFDADCE0),
+        outline: const Color(0xFF9AA0A6),
       );
     }
 
     return scheme.copyWith(
-      surface: const Color(0xFF1A1917),
-      onSurface: const Color(0xFFFFFCF2),
-      onSurfaceVariant: const Color(0xFFCCC5B9),
-      surfaceContainerHighest: const Color(0xFF403D39),
-      outlineVariant: const Color(0xFF4E4A45),
-      outline: const Color(0xFF8A847C),
+      surface: const Color(0xFF121212),
+      onSurface: const Color(0xFFF5F5F5),
+      onSurfaceVariant: const Color(0xFFC5C7CE),
+      surfaceContainerHighest: const Color(0xFF2A2B2F),
+      outlineVariant: const Color(0xFF44474F),
+      outline: const Color(0xFF8A8D96),
     );
   }
 

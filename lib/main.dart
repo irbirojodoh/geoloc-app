@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -29,17 +32,15 @@ void main() async {
   );
 
   // Initialize Firebase and Push Notifications
-  await Firebase.initializeApp();
-  
-  // Note: We need a provider container to use the service if not inside a widget,
-  // or we can initialize it in GeoloApp's initState. Since we don't have direct access
-  // to PushNotificationService without a ref here, let's initialize it in the ProviderScope
-  // using a ProviderContainer or inside GeoloApp.
-  // Actually, we can just instantiate it directly for the background handler registration
-  // or we can handle initialization inside the first screen. Let's create an ad-hoc container:
   final container = ProviderContainer();
-  final pushService = container.read(pushNotificationServiceProvider);
-  await pushService.initialize();
+  final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  if (isMobile) {
+    await Firebase.initializeApp();
+
+    // Initialize push notification channels/listeners only on mobile.
+    final pushService = container.read(pushNotificationServiceProvider);
+    await pushService.initialize();
+  }
 
   runApp(UncontrolledProviderScope(container: container, child: const GeolocApp()));
 }

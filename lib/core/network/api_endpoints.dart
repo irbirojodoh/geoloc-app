@@ -180,13 +180,17 @@ class ApiEndpoints {
 
   // ==================== Search Endpoints (Protected) ====================
 
-  /// GET - Search users
-  /// Query param: q
-  static const String searchUsers = '$_searchBase/users';
+  /// GET - Elasticsearch global search
+  /// Query params: q, type(all|posts|users), page, limit
+  static const String search = _searchBase;
 
-  /// GET - Search posts
-  /// Query param: q
-  static const String searchPosts = '$_searchBase/posts';
+  /// GET - Elasticsearch nearby search (geo-filtered posts)
+  /// Query params: q, lat, lon, radius_km, type
+  static const String searchNearby = '$_searchBase/nearby';
+
+  /// GET - Autocomplete for usernames and hashtags
+  /// Query params: q, type(all|users|hashtags)
+  static const String autocomplete = '$_apiBase/autocomplete';
 
   // ==================== Upload Endpoints (Protected) ====================
 

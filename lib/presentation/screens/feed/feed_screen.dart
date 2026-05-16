@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../widgets/loading_shimmer.dart';
+import '../../widgets/animated_scroll_gradient_background.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/states/empty_state.dart';
@@ -169,56 +170,68 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
           await ref.read(locationStateProvider.notifier).refreshLocation();
           await ref.read(feedStateProvider.notifier).refreshFeed();
         },
-        child: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            SliverAppBar.medium(
-              backgroundColor: colorScheme.surface,
-              title: Text(
-                'Home',
-                style: textTheme.headlineMedium?.copyWith(
-                  color: colorScheme.onSurface,
-                ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: AnimatedScrollGradientBackground(
+                scrollController: _scrollController,
+                opacity: 0.18,
               ),
-              actions: [
-                IconButton(
-                  tooltip: 'Notifications',
-                  onPressed: () => context.push(RoutePaths.notifications),
-                  icon: const Icon(Icons.notifications_outlined),
+            ),
+            CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                SliverAppBar.medium(
+                  backgroundColor: colorScheme.surface,
+                  title: Text(
+                    'Home',
+                    style: textTheme.headlineMedium?.copyWith(
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  actions: [
+                    IconButton(
+                      tooltip: 'Notifications',
+                      onPressed: () => context.push(RoutePaths.notifications),
+                      icon: const Icon(Icons.notifications_outlined),
+                    ),
+                    IconButton(
+                      tooltip: 'Account options',
+                      onPressed: () => _showAccountSheet(context),
+                      icon: const Icon(Icons.account_circle_outlined),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  tooltip: 'Account options',
-                  onPressed: () => _showAccountSheet(context),
-                  icon: const Icon(Icons.account_circle_outlined),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                  sliver: SliverList.builder(
+                    itemCount:
+                        feedState.posts.length + (feedState.hasMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == feedState.posts.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      final post = feedState.posts[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: PostCard(
+                          post: post,
+                          headerTrailing: PostOverflowMenuButton(post: post),
+                          onTap: () => context.push('/post/${post.id}'),
+                          onLike: () => ref
+                              .read(feedStateProvider.notifier)
+                              .toggleLike(post.id),
+                          onComment: () => context.push('/post/${post.id}'),
+                          onUserTap: () => context.push('/profile/${post.userId}'),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-              sliver: SliverList.builder(
-                itemCount: feedState.posts.length + (feedState.hasMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == feedState.posts.length) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  final post = feedState.posts[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: PostCard(
-                      post: post,
-                      headerTrailing: PostOverflowMenuButton(post: post),
-                      onTap: () => context.push('/post/${post.id}'),
-                      onLike: () =>
-                          ref.read(feedStateProvider.notifier).toggleLike(post.id),
-                      onComment: () => context.push('/post/${post.id}'),
-                      onUserTap: () => context.push('/profile/${post.userId}'),
-                    ),
-                  );
-                }
-              ),
             ),
           ],
         ),

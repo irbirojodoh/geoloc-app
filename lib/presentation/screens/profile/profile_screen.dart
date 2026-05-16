@@ -8,6 +8,7 @@ import '../../providers/profile_provider.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/profile_overflow_menu_button.dart';
+import '../../widgets/animated_scroll_gradient_background.dart';
 import '../../widgets/states/empty_state.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/user_avatar.dart';
@@ -109,115 +110,128 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       body: RefreshIndicator(
         onRefresh: () =>
             ref.read(profileProvider(widget.userId).notifier).refreshProfile(),
-        child: CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            SliverAppBar(
-              backgroundColor: colorScheme.surface,
-              title: Text('@${user.username}'),
-              pinned: true,
-              leading: IconButton(
-                tooltip: 'Back',
-                onPressed: () => context.pop(),
-                icon: const Icon(Icons.arrow_back),
-              ),
-              actions: [
-                if (!isOwnProfile)
-                  ProfileOverflowMenuButton(profileUserId: widget.userId),
-              ],
-            ),
-            SliverToBoxAdapter(
-              child: _ProfileHeaderSection(
-                hasCoverImage: hasCoverImage,
-                coverImageUrl: coverImageUrl,
-                hasProfileImage: hasProfileImage,
-                profileImageUrl: profileImageUrl,
-                username: user.username,
-                displayName: user.fullName?.isNotEmpty == true
-                    ? user.fullName!
-                    : user.username,
-                bio: user.bio,
-                postsCount: profileState.posts.length,
-                followersCount: user.followersCount,
-                followingCount: user.followingCount,
-                isOwnProfile: isOwnProfile,
-                isFollowing: user.isFollowing ?? false,
-                isFollowLoading: profileState.isFollowLoading,
-                onEditProfile: () => context.push('/profile/edit'),
-                onToggleFollow: () => ref
-                    .read(profileProvider(widget.userId).notifier)
-                    .toggleFollow(),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: AnimatedScrollGradientBackground(
+                scrollController: _scrollController,
+                opacity: 0.16,
               ),
             ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _TabBarSliverDelegate(
-                colorScheme: colorScheme,
-                tabBar: TabBar(
-                  controller: _tabController,
-                  onTap: (index) {
-                    if (_activeTabIndex != index) {
-                      setState(() => _activeTabIndex = index);
-                    }
-                  },
-                  indicatorColor: colorScheme.primary,
-                  labelColor: colorScheme.onSurface,
-                  unselectedLabelColor: colorScheme.onSurfaceVariant,
-                  tabs: const [
-                    Tab(text: 'Posts'),
-                    Tab(text: 'Likes'),
-                    Tab(text: 'Saved'),
+            CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                SliverAppBar(
+                  backgroundColor: colorScheme.surface,
+                  title: Text('@${user.username}'),
+                  pinned: true,
+                  leading: IconButton(
+                    tooltip: 'Back',
+                    onPressed: () => context.pop(),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  actions: [
+                    if (!isOwnProfile)
+                      ProfileOverflowMenuButton(profileUserId: widget.userId),
                   ],
                 ),
-              ),
+                SliverToBoxAdapter(
+                  child: _ProfileHeaderSection(
+                    hasCoverImage: hasCoverImage,
+                    coverImageUrl: coverImageUrl,
+                    hasProfileImage: hasProfileImage,
+                    profileImageUrl: profileImageUrl,
+                    username: user.username,
+                    displayName: user.fullName?.isNotEmpty == true
+                        ? user.fullName!
+                        : user.username,
+                    bio: user.bio,
+                    postsCount: profileState.posts.length,
+                    followersCount: user.followersCount,
+                    followingCount: user.followingCount,
+                    isOwnProfile: isOwnProfile,
+                    isFollowing: user.isFollowing ?? false,
+                    isFollowLoading: profileState.isFollowLoading,
+                    onEditProfile: () => context.push('/profile/edit'),
+                    onToggleFollow: () => ref
+                        .read(profileProvider(widget.userId).notifier)
+                        .toggleFollow(),
+                  ),
+                ),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _TabBarSliverDelegate(
+                    colorScheme: colorScheme,
+                    tabBar: TabBar(
+                      controller: _tabController,
+                      onTap: (index) {
+                        if (_activeTabIndex != index) {
+                          setState(() => _activeTabIndex = index);
+                        }
+                      },
+                      indicatorColor: colorScheme.primary,
+                      labelColor: colorScheme.onSurface,
+                      unselectedLabelColor: colorScheme.onSurfaceVariant,
+                      tabs: const [
+                        Tab(text: 'Posts'),
+                        Tab(text: 'Likes'),
+                        Tab(text: 'Saved'),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_activeTabIndex == 2)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyState(
+                      icon: Icons.bookmark_outline,
+                      title: 'No saved posts',
+                      message: 'Saved posts will appear here.',
+                    ),
+                  )
+                else if (activePosts.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyState(
+                      icon: Icons.article_outlined,
+                      title:
+                          _activeTabIndex == 0 ? 'No posts yet' : 'No liked posts',
+                      message: _activeTabIndex == 0
+                          ? 'This user has not posted yet.'
+                          : 'Liked posts will appear here.',
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                    sliver: SliverList.builder(
+                      itemCount: activePosts.length +
+                          (_activeTabIndex == 0 && profileState.isLoadingPosts
+                              ? 1
+                              : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= activePosts.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        final post = activePosts[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: PostCard(
+                            post: post,
+                            headerTrailing: PostOverflowMenuButton(post: post),
+                            onTap: () => context.push('/post/${post.id}'),
+                            onComment: () => context.push('/post/${post.id}'),
+                            onUserTap: () => context.push('/profile/${post.userId}'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
-            if (_activeTabIndex == 2)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: EmptyState(
-                  icon: Icons.bookmark_outline,
-                  title: 'No saved posts',
-                  message: 'Saved posts will appear here.',
-                ),
-              )
-            else if (activePosts.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: EmptyState(
-                  icon: Icons.article_outlined,
-                  title: _activeTabIndex == 0 ? 'No posts yet' : 'No liked posts',
-                  message: _activeTabIndex == 0
-                      ? 'This user has not posted yet.'
-                      : 'Liked posts will appear here.',
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                sliver: SliverList.builder(
-                  itemCount: activePosts.length +
-                      (_activeTabIndex == 0 && profileState.isLoadingPosts ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index >= activePosts.length) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    final post = activePosts[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: PostCard(
-                        post: post,
-                        headerTrailing: PostOverflowMenuButton(post: post),
-                        onTap: () => context.push('/post/${post.id}'),
-                        onComment: () => context.push('/post/${post.id}'),
-                        onUserTap: () => context.push('/profile/${post.userId}'),
-                      ),
-                    );
-                  },
-                ),
-              ),
           ],
         ),
       ),

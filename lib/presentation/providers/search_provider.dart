@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../data/models/post.dart';
 import '../../data/models/user.dart';
 import '../../services/search_service.dart';
+import 'location_provider.dart';
 
 /// Search tab enum
 enum SearchTab { users, posts }
@@ -17,7 +18,8 @@ class SearchState {
   final List<User> userResults;
   final List<Post> postResults;
   final List<String> recentSearches;
-  final List<User> suggestedUsers;
+  final List<String> autocompleteUsers;
+  final List<String> autocompleteHashtags;
   final bool isLoading;
   final bool hasSearched;
   final String? error;
@@ -28,7 +30,8 @@ class SearchState {
     this.userResults = const [],
     this.postResults = const [],
     this.recentSearches = const [],
-    this.suggestedUsers = const [],
+    this.autocompleteUsers = const [],
+    this.autocompleteHashtags = const [],
     this.isLoading = false,
     this.hasSearched = false,
     this.error,
@@ -47,7 +50,8 @@ class SearchState {
     List<User>? userResults,
     List<Post>? postResults,
     List<String>? recentSearches,
-    List<User>? suggestedUsers,
+    List<String>? autocompleteUsers,
+    List<String>? autocompleteHashtags,
     bool? isLoading,
     bool? hasSearched,
     String? error,
@@ -59,7 +63,8 @@ class SearchState {
       userResults: userResults ?? this.userResults,
       postResults: postResults ?? this.postResults,
       recentSearches: recentSearches ?? this.recentSearches,
-      suggestedUsers: suggestedUsers ?? this.suggestedUsers,
+      autocompleteUsers: autocompleteUsers ?? this.autocompleteUsers,
+      autocompleteHashtags: autocompleteHashtags ?? this.autocompleteHashtags,
       isLoading: isLoading ?? this.isLoading,
       hasSearched: hasSearched ?? this.hasSearched,
       error: clearError ? null : (error ?? this.error),
@@ -70,19 +75,19 @@ class SearchState {
 /// Search provider
 final searchProvider =
     StateNotifierProvider<SearchNotifier, SearchState>((ref) {
-  return SearchNotifier(ref.watch(searchServiceProvider));
+  return SearchNotifier(ref.watch(searchServiceProvider), ref);
 });
 
 /// Search state notifier
 class SearchNotifier extends StateNotifier<SearchState> {
   final SearchService _searchService;
+  final Ref _ref;
   Timer? _debounceTimer;
   static const String _recentSearchesBoxKey = 'recent_searches';
   static const int _maxRecentSearches = 10;
 
-  SearchNotifier(this._searchService) : super(const SearchState()) {
+  SearchNotifier(this._searchService, this._ref) : super(const SearchState()) {
     _loadRecentSearches();
-    _loadSuggestedUsers();
   }
 
   /// Load recent searches from Hive
@@ -96,16 +101,6 @@ class SearchNotifier extends StateNotifier<SearchState> {
     }
   }
 
-  /// Load suggested users
-  Future<void> _loadSuggestedUsers() async {
-    try {
-      final users = await _searchService.getSuggestedUsers();
-      state = state.copyWith(suggestedUsers: users);
-    } catch (_) {
-      // Ignore errors for suggestions
-    }
-  }
-
   /// Search with debounce
   void search(String query) {
     state = state.copyWith(query: query, clearError: true);
@@ -116,6 +111,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
       state = state.copyWith(
         userResults: [],
         postResults: [],
+        autocompleteUsers: [],
+        autocompleteHashtags: [],
         hasSearched: false,
         isLoading: false,
       );
@@ -132,15 +129,32 @@ class SearchNotifier extends StateNotifier<SearchState> {
     state = state.copyWith(isLoading: true);
 
     try {
-      // Search both users and posts
-      final results = await Future.wait([
-        _searchService.searchUsers(query),
-        _searchService.searchPosts(query),
+      final locationState = _ref.read(locationStateProvider);
+      final hasLocation =
+          locationState.hasLocation &&
+          locationState.latitude != null &&
+          locationState.longitude != null;
+
+      final searchFuture = hasLocation
+          ? _searchService.searchNearby(
+              query,
+              lat: locationState.latitude!,
+              lon: locationState.longitude!,
+            )
+          : _searchService.searchGlobal(query);
+
+      final results = await Future.wait<dynamic>([
+        searchFuture,
+        _searchService.autocomplete(query),
       ]);
+      final searchResponse = results[0] as SearchResponse;
+      final autocompleteResponse = results[1] as AutocompleteResponse;
 
       state = state.copyWith(
-        userResults: results[0] as List<User>,
-        postResults: results[1] as List<Post>,
+        userResults: searchResponse.users,
+        postResults: searchResponse.posts,
+        autocompleteUsers: autocompleteResponse.users,
+        autocompleteHashtags: autocompleteResponse.hashtags,
         isLoading: false,
         hasSearched: true,
       );
@@ -165,6 +179,8 @@ class SearchNotifier extends StateNotifier<SearchState> {
       query: '',
       userResults: [],
       postResults: [],
+      autocompleteUsers: [],
+      autocompleteHashtags: [],
       hasSearched: false,
       isLoading: false,
       clearError: true,
@@ -223,11 +239,6 @@ class SearchNotifier extends StateNotifier<SearchState> {
     } catch (_) {
       // Ignore storage errors
     }
-  }
-
-  /// Reload suggested users
-  Future<void> refreshSuggestions() async {
-    await _loadSuggestedUsers();
   }
 
   @override
