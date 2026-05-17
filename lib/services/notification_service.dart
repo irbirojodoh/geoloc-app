@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
 import '../data/models/notification.dart';
+import '../data/models/user.dart';
 
 /// Provider for NotificationService
 final notificationServiceProvider = Provider<NotificationService>((ref) {
@@ -16,30 +17,34 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 /// Response model for paginated notifications
 class NotificationPage {
   final List<AppNotification> notifications;
+  final int unreadCount;
+  final int total;
   final bool hasMore;
-  final String? nextCursor;
 
   const NotificationPage({
     required this.notifications,
+    required this.unreadCount,
+    required this.total,
     required this.hasMore,
-    this.nextCursor,
   });
 }
 
 /// Service for handling notification operations
 class NotificationService {
   final ApiClient _apiClient;
+  final Map<String, User> _actorCache = {};
 
   NotificationService(this._apiClient);
 
-  /// Get paginated notifications
+  /// Get notifications list (`limit` + optional unread filter).
   Future<NotificationPage> getNotifications({
-    String? cursor,
-    int limit = 20,
+    int limit = 50,
+    bool unreadOnly = false,
   }) async {
-    final queryParams = <String, dynamic>{'limit': limit};
-    if (cursor != null) {
-      queryParams['cursor'] = cursor;
+    final cappedLimit = limit.clamp(1, 100);
+    final queryParams = <String, dynamic>{'limit': cappedLimit};
+    if (unreadOnly) {
+      queryParams['unread'] = 'true';
     }
 
     final response = await _apiClient.get(
@@ -50,18 +55,30 @@ class NotificationService {
     if (response.statusCode == 200) {
       final data = response.data as Map<String, dynamic>;
       final notificationsJson = data['notifications'] as List<dynamic>? ?? [];
-      final notifications = notificationsJson
+      var notifications = notificationsJson
           .map((json) => AppNotification.fromJson(json as Map<String, dynamic>))
           .toList();
+      notifications = await _attachActors(notifications);
+
+      final unreadCount = data['unread_count'] as int? ??
+          notifications.where((n) => !n.isRead).length;
+      final total = data['total'] as int? ?? notifications.length;
+      final hasMore = notifications.length >= cappedLimit && cappedLimit < 100;
 
       return NotificationPage(
         notifications: notifications,
-        hasMore: data['has_more'] as bool? ?? false,
-        nextCursor: data['next_cursor'] as String?,
+        unreadCount: unreadCount,
+        total: total,
+        hasMore: hasMore,
       );
     }
 
-    return const NotificationPage(notifications: [], hasMore: false);
+    return const NotificationPage(
+      notifications: [],
+      unreadCount: 0,
+      total: 0,
+      hasMore: false,
+    );
   }
 
   /// Mark a single notification as read
@@ -121,5 +138,37 @@ class NotificationService {
         return null;
       }
     }).where((notification) => notification != null).cast<AppNotification>();
+  }
+
+  Future<List<AppNotification>> _attachActors(
+    List<AppNotification> notifications,
+  ) async {
+    final actorIds = notifications
+        .map((n) => n.actorId)
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    final missingIds = actorIds.where((id) => !_actorCache.containsKey(id));
+    await Future.wait(missingIds.map(_fetchAndCacheUser));
+
+    return notifications
+        .map((n) => n.copyWith(actor: _actorCache[n.actorId]))
+        .toList();
+  }
+
+  Future<void> _fetchAndCacheUser(String userId) async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.getUser(userId));
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        final body = response.data as Map<String, dynamic>;
+        final userJson =
+            body['user'] as Map<String, dynamic>? ??
+            body['data'] as Map<String, dynamic>? ??
+            body;
+        _actorCache[userId] = User.fromJson(userJson);
+      }
+    } catch (_) {
+      // Ignore actor lookup failures; UI falls back to "Someone".
+    }
   }
 }

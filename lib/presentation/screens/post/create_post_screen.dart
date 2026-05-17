@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,13 +20,23 @@ class CreatePostScreen extends ConsumerStatefulWidget {
   ConsumerState<CreatePostScreen> createState() => _CreatePostScreenState();
 }
 
-class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
+class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _contentController = TextEditingController();
   final FocusNode _contentFocusNode = FocusNode();
+  late final AnimationController _shakeController;
+
+  static const int _warnCharThreshold = 290;
+  bool _didShow290Alert = false;
+  bool _didShow300Alert = false;
 
   @override
   void initState() {
     super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _contentFocusNode.requestFocus();
     });
@@ -33,9 +44,55 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
   @override
   void dispose() {
+    _shakeController.dispose();
     _contentController.dispose();
     _contentFocusNode.dispose();
     super.dispose();
+  }
+
+  void _showCharAlert(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(milliseconds: 1200),
+        ),
+      );
+  }
+
+  void _onContentChanged(String value) {
+    final notifier = ref.read(createPostProvider.notifier);
+    final previousLength = ref.read(createPostProvider).content.length;
+    notifier.setContent(value);
+    final currentLength = ref.read(createPostProvider).content.length;
+
+    if (currentLength >= kCreatePostMaxContentLength) {
+      if (!_didShow300Alert || previousLength < kCreatePostMaxContentLength) {
+        _showCharAlert('You reached $kCreatePostMaxContentLength characters');
+        _didShow300Alert = true;
+      }
+    } else if (previousLength < _warnCharThreshold &&
+        currentLength >= _warnCharThreshold) {
+      if (!_didShow290Alert) {
+        _showCharAlert('Approaching limit: $currentLength/$kCreatePostMaxContentLength');
+        _didShow290Alert = true;
+      }
+    }
+
+    if (currentLength < _warnCharThreshold) {
+      _didShow290Alert = false;
+    }
+    if (currentLength < kCreatePostMaxContentLength) {
+      _didShow300Alert = false;
+    }
+  }
+
+  void _onMaxLengthRejected() {
+    if (!_shakeController.isAnimating) {
+      _shakeController.forward(from: 0);
+    }
   }
 
   Future<void> _submitPost() async {
@@ -47,6 +104,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   }
 
   void _showMediaPicker() {
+    final createPostState = ref.read(createPostProvider);
+    if (createPostState.mediaFiles.length >= kCreatePostMaxMediaCount) {
+      _showError('You can upload up to $kCreatePostMaxMediaCount images');
+      return;
+    }
+
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -54,66 +117,59 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       context: context,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(2)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) => Padding(
         padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 20,
-          bottom: MediaQuery.of(context).padding.bottom + 20,
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).padding.bottom + 12,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'ADD MEDIA',
-              style: textTheme.titleSmall?.copyWith(
+              'Add media',
+              style: textTheme.titleMedium?.copyWith(
                 color: cs.onSurface,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 16),
-            Container(
-              height: 1,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    cs.surface.withValues(alpha: 0),
-                    cs.outline,
-                    cs.surface.withValues(alpha: 0),
-                  ],
-                ),
+            const SizedBox(height: 8),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              onPressed: () {
+              leading: Icon(Icons.camera_alt_outlined, size: 20, color: cs.primary),
+              title: Text(
+                'Take photo',
+                style: textTheme.bodyLarge?.copyWith(color: cs.onSurface),
+              ),
+              onTap: () {
                 Navigator.pop(context);
                 ref.read(createPostProvider.notifier).pickImageFromCamera();
               },
-              icon: Icon(Icons.camera_alt_outlined, size: 20, color: cs.primary),
-              label: Text(
-                'Take Photo',
-                style: textTheme.bodyMedium,
-              ),
             ),
-            TextButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                ref.read(createPostProvider.notifier).pickImageFromGallery();
-              },
-              icon: Icon(
+            ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              leading: Icon(
                 Icons.photo_library_outlined,
                 size: 20,
                 color: cs.primary,
               ),
-              label: Text(
-                'Choose from Gallery',
-                style: textTheme.bodyMedium,
+              title: Text(
+                'Choose from gallery',
+                style: textTheme.bodyLarge?.copyWith(color: cs.onSurface),
               ),
+              onTap: () {
+                Navigator.pop(context);
+                ref.read(createPostProvider.notifier).pickImageFromGallery();
+              },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
@@ -138,171 +194,239 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         _showError(next.error!);
       }
     });
+    ref.listen<LocationState>(locationStateProvider, (prev, next) {
+      if (next.hasLocation && prev?.position != next.position) {
+        ref
+            .read(createPostProvider.notifier)
+            .fetchAddress(next.latitude!, next.longitude!);
+      }
+    });
+
+    if (locationState.hasLocation &&
+        createPostState.locationName == null &&
+        !createPostState.isLoadingAddress) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref
+            .read(createPostProvider.notifier)
+            .fetchAddress(locationState.latitude!, locationState.longitude!);
+      });
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(context, createPostState),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInputSection(context, currentUser),
-                    if (createPostState.mediaFiles.isNotEmpty)
-                      _buildMediaPreview(context, createPostState.mediaFiles),
-                    _buildLocationSection(context, locationState),
-                  ],
-                ),
-              ),
-            ),
-            _buildBottomToolbar(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, CreatePostState state) {
-    final cs = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      color: cs.surface,
-      child: Column(
+      appBar: _buildAppBar(context, createPostState),
+      body: Column(
         children: [
-          SizedBox(height: MediaQuery.of(context).padding.top),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: cs.outline, width: 0.5),
-              ),
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  tooltip: 'Close',
-                  onPressed: () => context.pop(),
-                  icon: const Icon(Icons.close),
-                ),
-                const Spacer(),
-                Text(
-                  'Create Post',
-                  style: textTheme.titleLarge?.copyWith(
-                    color: cs.onSurface,
-                    fontWeight: FontWeight.w600,
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildInputSection(
+                    context,
+                    currentUser,
+                    locationState: locationState,
+                    createPostState: createPostState,
                   ),
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: state.canSubmit ? _submitPost : null,
-                  child: state.isSubmitting
-                      ? SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: cs.onPrimary,
-                          ),
-                        )
-                      : Text(
-                          'Post',
-                          style: textTheme.labelLarge,
-                        ),
-                ),
-              ],
+                  if (createPostState.mediaFiles.isNotEmpty)
+                    _buildMediaPreview(context, createPostState.mediaFiles),
+                ],
+              ),
             ),
           ),
         ],
       ),
+      bottomNavigationBar: _buildBottomToolbar(context),
     );
   }
 
-  Widget _buildInputSection(BuildContext context, User? currentUser) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, CreatePostState state) {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: cs.outline, width: 1),
+    return AppBar(
+      backgroundColor: cs.surface,
+      title: Text(
+        'Create Post',
+        style: textTheme.titleLarge?.copyWith(
+          color: cs.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: cs.outline, width: 1),
-            ),
-            child: currentUser?.profilePictureUrl != null
-                ? ClipOval(
-                    child: Builder(
-                      builder: (context) {
-                        final dpr = MediaQuery.devicePixelRatioOf(context);
-                        return CachedNetworkImage(
-                          imageUrl: currentUser!.profilePictureUrl!,
-                          fit: BoxFit.cover,
-                          cacheManager: AvatarCacheManager.instance,
-                          memCacheWidth: (44 * dpr).round(),
-                          memCacheHeight: (44 * dpr).round(),
-                          placeholder: (context, url) => Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1,
-                              color: cs.primary,
+      leading: IconButton(
+        tooltip: 'Close',
+        onPressed: () => context.pop(),
+        icon: const Icon(Icons.close),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: FilledButton(
+            onPressed: state.canSubmit ? _submitPost : null,
+            child: state.isSubmitting
+                ? SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: cs.onPrimary,
+                    ),
+                  )
+                : Text(
+                    'Post',
+                    style: textTheme.labelLarge,
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInputSection(
+    BuildContext context,
+    User? currentUser, {
+    required LocationState locationState,
+    required CreatePostState createPostState,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final currentLength = createPostState.content.length;
+    final isAtMaxLength = currentLength >= kCreatePostMaxContentLength;
+    final showLocationTag =
+        locationState.isLoading ||
+        createPostState.isLoadingAddress ||
+        locationState.hasLocation ||
+        createPostState.locationName != null;
+
+    return AnimatedBuilder(
+      animation: _shakeController,
+      builder: (context, child) {
+        final offsetX = math.sin(_shakeController.value * math.pi * 8) * 6;
+        return Transform.translate(
+          offset: Offset(offsetX, 0),
+          child: child,
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.all(12),
+        color: cs.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: isAtMaxLength ? cs.error : cs.outlineVariant,
+            width: isAtMaxLength ? 1.4 : 1,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: cs.outlineVariant, width: 1),
+                    ),
+                    child: currentUser?.profilePictureUrl != null
+                        ? ClipOval(
+                            child: Builder(
+                              builder: (context) {
+                                final dpr = MediaQuery.devicePixelRatioOf(context);
+                                return CachedNetworkImage(
+                                  imageUrl: currentUser!.profilePictureUrl!,
+                                  fit: BoxFit.cover,
+                                  cacheManager: AvatarCacheManager.instance,
+                                  memCacheWidth: (44 * dpr).round(),
+                                  memCacheHeight: (44 * dpr).round(),
+                                  placeholder: (context, url) => Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1,
+                                      color: cs.primary,
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) => Icon(
+                                    Icons.person_outlined,
+                                    size: 24,
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                );
+                              },
                             ),
-                          ),
-                          errorWidget: (context, url, error) => Icon(
+                          )
+                        : Icon(
                             Icons.person_outlined,
                             size: 24,
                             color: cs.onSurfaceVariant,
                           ),
-                        );
-                      },
-                    ),
-                  )
-                : Icon(
-                    Icons.person_outlined,
-                    size: 24,
-                    color: cs.onSurfaceVariant,
                   ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _contentController,
-              focusNode: _contentFocusNode,
-              onChanged: (value) {
-                ref.read(createPostProvider.notifier).setContent(value);
-              },
-              cursorColor: cs.primary,
-              maxLines: null,
-              minLines: 5,
-              style: textTheme.bodyLarge,
-              decoration: InputDecoration(
-                filled: false,
-                hintText: "What's happening in your area?",
-                hintStyle: textTheme.bodyLarge?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _contentController,
+                      focusNode: _contentFocusNode,
+                      onChanged: _onContentChanged,
+                      cursorColor: cs.primary,
+                      maxLines: null,
+                      minLines: 5,
+                      inputFormatters: [
+                        _MaxLengthWithFeedbackFormatter(
+                          maxLength: kCreatePostMaxContentLength,
+                          onRejected: _onMaxLengthRejected,
+                        ),
+                      ],
+                      style: textTheme.bodyLarge,
+                      decoration: InputDecoration(
+                        filled: false,
+                        hintText: "What's happening in your area?",
+                        hintStyle: textTheme.bodyLarge?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        counterText: '',
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
+              const SizedBox(height: 20),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: showLocationTag
+                        ? Padding(
+                            padding: const EdgeInsets.only(left: 8, bottom: 8),
+                            child: _buildInlineLocationTag(
+                              context,
+                              locationState: locationState,
+                              createPostState: createPostState,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8, bottom: 8),
+                    child: Text(
+                      '$currentLength/$kCreatePostMaxContentLength',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: isAtMaxLength ? cs.error : cs.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -310,7 +434,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
   Widget _buildMediaPreview(BuildContext context, List<File> mediaFiles) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -327,7 +451,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   child: Stack(
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(12),
                         child: Image.file(
                           mediaFiles[index],
                           width: 120,
@@ -343,8 +467,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         ),
                       ),
                       Positioned(
-                        top: 4,
-                        right: 4,
+                        top: 6,
+                        right: 6,
                         child: GestureDetector(
                           onTap: () {
                             ref
@@ -356,7 +480,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                             height: 24,
                             decoration: BoxDecoration(
                               color: colorScheme.scrim.withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(2),
+                              shape: BoxShape.circle,
                             ),
                             child: Icon(
                               Icons.close,
@@ -378,90 +502,67 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     );
   }
 
-  Widget _buildLocationSection(
-    BuildContext context,
-    LocationState locationState,
-  ) {
+  Widget _buildInlineLocationTag(
+    BuildContext context, {
+    required LocationState locationState,
+    required CreatePostState createPostState,
+  }) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final createPostState = ref.watch(createPostProvider);
-
-    ref.listen<LocationState>(locationStateProvider, (prev, next) {
-      if (next.hasLocation && prev?.position != next.position) {
-        ref
-            .read(createPostProvider.notifier)
-            .fetchAddress(next.latitude!, next.longitude!);
-      }
-    });
-
-    if (locationState.hasLocation &&
-        createPostState.locationName == null &&
-        !createPostState.isLoadingAddress) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref
-            .read(createPostProvider.notifier)
-            .fetchAddress(locationState.latitude!, locationState.longitude!);
-      });
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Icon(Icons.location_on_outlined, size: 16, color: colorScheme.primary),
-          const SizedBox(width: 6),
-          if (locationState.isLoading || createPostState.isLoadingAddress)
-            Row(
-              children: [
-                SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1,
-                    color: colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Getting location...',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            )
-          else if (locationState.hasLocation &&
-              createPostState.locationName != null)
-            Expanded(
-              child: Text(
-                createPostState.locationName!,
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            )
-          else if (locationState.hasLocation)
-            Text(
-              'Location available',
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            )
-          else
-            GestureDetector(
-              onTap: () {
-                ref.read(locationStateProvider.notifier).requestPermission();
-              },
-              child: Text(
-                'Enable location',
-                style: textTheme.labelMedium?.copyWith(
+    return Row(
+      children: [
+        Icon(Icons.location_on_outlined, size: 16, color: colorScheme.primary),
+        const SizedBox(width: 6),
+        if (locationState.isLoading || createPostState.isLoadingAddress)
+          Row(
+            children: [
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1,
                   color: colorScheme.primary,
                 ),
               ),
+              const SizedBox(width: 8),
+              Text(
+                'Getting location...',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          )
+        else if (locationState.hasLocation && createPostState.locationName != null)
+          Expanded(
+            child: Text(
+              createPostState.locationName!,
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
-        ],
-      ),
+          )
+        else if (locationState.hasLocation)
+          Text(
+            'Location available',
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          )
+        else
+          GestureDetector(
+            onTap: () {
+              ref.read(locationStateProvider.notifier).requestPermission();
+            },
+            child: Text(
+              'Enable location',
+              style: textTheme.labelMedium?.copyWith(
+                color: colorScheme.primary,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -469,33 +570,36 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final cs = Theme.of(context).colorScheme;
 
     return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
-      ),
       decoration: BoxDecoration(
-        color: cs.surface,
-        border: Border(top: BorderSide(color: cs.outline, width: 0.5)),
+        color: cs.surfaceContainerHighest,
+        border: Border(top: BorderSide(color: cs.outlineVariant)),
       ),
-      child: Row(
-        children: [
-          IconButton.filledTonal(
-            onPressed: _showMediaPicker,
-            tooltip: 'Pick image from gallery',
-            icon: const Icon(Icons.photo_outlined),
+      child: SafeArea(
+        top: false,
+        minimum: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+          child: Row(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              IconButton(
+                onPressed: _showMediaPicker,
+                tooltip: 'Pick image from gallery',
+                icon: const Icon(Icons.photo_outlined),
+                color: cs.primary,
+              ),
+              IconButton(
+                onPressed: () {
+                  ref.read(createPostProvider.notifier).pickImageFromCamera();
+                },
+                tooltip: 'Take a photo',
+                icon: const Icon(Icons.camera_alt_outlined),
+                color: cs.primary,
+              ),
+              const Spacer(),
+            ],
           ),
-          const SizedBox(width: 12),
-          IconButton.filledTonal(
-            onPressed: () {
-              ref.read(createPostProvider.notifier).pickImageFromCamera();
-            },
-            tooltip: 'Take a photo',
-            icon: const Icon(Icons.camera_alt_outlined),
-          ),
-          const Spacer(),
-        ],
+        ),
       ),
     );
   }
@@ -506,7 +610,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: cs.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: Text(
           'Error',
           style: Theme.of(context).textTheme.headlineSmall,
@@ -526,5 +630,27 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         ],
       ),
     );
+  }
+}
+
+class _MaxLengthWithFeedbackFormatter extends TextInputFormatter {
+  _MaxLengthWithFeedbackFormatter({
+    required this.maxLength,
+    required this.onRejected,
+  });
+
+  final int maxLength;
+  final VoidCallback onRejected;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.length <= maxLength) {
+      return newValue;
+    }
+    onRejected();
+    return oldValue;
   }
 }

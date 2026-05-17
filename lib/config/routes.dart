@@ -44,6 +44,12 @@ class RoutePaths {
   static const String settingsMuted = '/settings/muted';
 }
 
+int _shellNavDirection = 1;
+
+void setShellNavTransitionDirection(int direction) {
+  _shellNavDirection = direction == 0 ? 1 : direction.sign;
+}
+
 /// Router configuration
 ///
 /// Subscribes once to [authStateProvider] via [ref.listen] and feeds a
@@ -161,7 +167,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: RoutePaths.createPost,
-            builder: (context, state) => const CreatePostScreen(),
+            pageBuilder: (context, state) => _buildDetailSlidePage(
+              state: state,
+              child: const CreatePostScreen(),
+            ),
           ),
           GoRoute(
             path: RoutePaths.postDetail,
@@ -235,9 +244,21 @@ CustomTransitionPage<void> _buildShellRootPage({
     key: state.pageKey,
     child: child,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      // Read direction at transition-time so incoming/outgoing pages
+      // participate in the same navigation event direction.
+      final direction = _shellNavDirection.toDouble();
+      final incomingOffset = Tween<Offset>(
+        begin: Offset(direction, 0),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeInOutCubic,
+        ),
+      );
       final outgoingOffset = Tween<Offset>(
         begin: Offset.zero,
-        end: const Offset(-1, 0),
+        end: Offset(-direction, 0),
       ).animate(
         CurvedAnimation(
           parent: secondaryAnimation,
@@ -246,7 +267,10 @@ CustomTransitionPage<void> _buildShellRootPage({
       );
       return SlideTransition(
         position: outgoingOffset,
-        child: child,
+        child: SlideTransition(
+          position: incomingOffset,
+          child: child,
+        ),
       );
     },
     transitionDuration: const Duration(milliseconds: 320),

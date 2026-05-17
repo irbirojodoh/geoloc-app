@@ -10,18 +10,20 @@ class NotificationsState {
   final bool isLoading;
   final bool isRefreshing;
   final bool hasMore;
-  final String? cursor;
   final String? error;
   final int unreadCount;
+  final int total;
+  final int limit;
 
   const NotificationsState({
     this.notifications = const [],
     this.isLoading = false,
     this.isRefreshing = false,
     this.hasMore = true,
-    this.cursor,
     this.error,
     this.unreadCount = 0,
+    this.total = 0,
+    this.limit = 50,
   });
 
   NotificationsState copyWith({
@@ -29,9 +31,10 @@ class NotificationsState {
     bool? isLoading,
     bool? isRefreshing,
     bool? hasMore,
-    String? cursor,
     String? error,
     int? unreadCount,
+    int? total,
+    int? limit,
     bool clearError = false,
   }) {
     return NotificationsState(
@@ -39,9 +42,10 @@ class NotificationsState {
       isLoading: isLoading ?? this.isLoading,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       hasMore: hasMore ?? this.hasMore,
-      cursor: cursor ?? this.cursor,
       error: clearError ? null : (error ?? this.error),
       unreadCount: unreadCount ?? this.unreadCount,
+      total: total ?? this.total,
+      limit: limit ?? this.limit,
     );
   }
 }
@@ -69,7 +73,7 @@ final notificationStreamProvider = StreamProvider<AppNotification>((ref) async* 
       await Future.delayed(const Duration(seconds: 2));
     } catch (e) {
       retryCount++;
-      final backoffSeconds = (2 << (retryCount < 6 ? retryCount : 6)); // max 128s
+      final backoffSeconds = 2 << (retryCount < 6 ? retryCount : 6); // max 128s
       await Future.delayed(Duration(seconds: backoffSeconds));
     }
   }
@@ -89,16 +93,18 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final page = await _notificationService.getNotifications();
-
-      final unreadCount = page.notifications.where((n) => !n.isRead).length;
+      const initialLimit = 50;
+      final page = await _notificationService.getNotifications(
+        limit: initialLimit,
+      );
 
       state = state.copyWith(
         notifications: page.notifications,
         isLoading: false,
         hasMore: page.hasMore,
-        cursor: page.nextCursor,
-        unreadCount: unreadCount,
+        unreadCount: page.unreadCount,
+        total: page.total,
+        limit: initialLimit,
       );
     } catch (e) {
       state = state.copyWith(
@@ -113,16 +119,18 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     state = state.copyWith(isRefreshing: true, clearError: true);
 
     try {
-      final page = await _notificationService.getNotifications();
-
-      final unreadCount = page.notifications.where((n) => !n.isRead).length;
+      const refreshedLimit = 50;
+      final page = await _notificationService.getNotifications(
+        limit: refreshedLimit,
+      );
 
       state = state.copyWith(
         notifications: page.notifications,
         isRefreshing: false,
         hasMore: page.hasMore,
-        cursor: page.nextCursor,
-        unreadCount: unreadCount,
+        unreadCount: page.unreadCount,
+        total: page.total,
+        limit: refreshedLimit,
       );
     } catch (e) {
       state = state.copyWith(
@@ -134,20 +142,23 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 
   /// Load more notifications (pagination)
   Future<void> loadMore() async {
-    if (state.isLoading || !state.hasMore || state.cursor == null) return;
+    if (state.isLoading || !state.hasMore) return;
 
     state = state.copyWith(isLoading: true);
 
     try {
+      final nextLimit = (state.limit + 25).clamp(1, 100);
       final page = await _notificationService.getNotifications(
-        cursor: state.cursor,
+        limit: nextLimit,
       );
 
       state = state.copyWith(
-        notifications: [...state.notifications, ...page.notifications],
+        notifications: page.notifications,
         isLoading: false,
         hasMore: page.hasMore,
-        cursor: page.nextCursor,
+        unreadCount: page.unreadCount,
+        total: page.total,
+        limit: nextLimit,
       );
     } catch (e) {
       state = state.copyWith(
@@ -160,22 +171,12 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   /// Mark a single notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
-      await _notificationService.markAsRead(notificationId);
+      // Phase 1: local state update only.
 
       // Update local state
       final updatedNotifications = state.notifications.map((n) {
         if (n.id == notificationId && !n.isRead) {
-          return AppNotification(
-            id: n.id,
-            type: n.type,
-            actorId: n.actorId,
-            targetType: n.targetType,
-            targetId: n.targetId,
-            message: n.message,
-            isRead: true,
-            createdAt: n.createdAt,
-            actor: n.actor,
-          );
+          return n.copyWith(isRead: true);
         }
         return n;
       }).toList();
@@ -199,17 +200,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       // Update local state
       final updatedNotifications = state.notifications.map((n) {
         if (!n.isRead) {
-          return AppNotification(
-            id: n.id,
-            type: n.type,
-            actorId: n.actorId,
-            targetType: n.targetType,
-            targetId: n.targetId,
-            message: n.message,
-            isRead: true,
-            createdAt: n.createdAt,
-            actor: n.actor,
-          );
+          return n.copyWith(isRead: true);
         }
         return n;
       }).toList();

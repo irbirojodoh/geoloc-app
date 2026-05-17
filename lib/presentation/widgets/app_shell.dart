@@ -10,6 +10,7 @@ import '../providers/notifications_provider.dart';
 import 'animated_scroll_gradient_background.dart';
 
 const _navVisibilityQueryKey = 'fromNav';
+const _navDirectionQueryKey = 'navDir';
 
 /// Persistent shell with capsule-shaped bottom navigation.
 class AppShell extends ConsumerWidget {
@@ -66,6 +67,16 @@ class AppShell extends ConsumerWidget {
     const navBarHeight = 75.0;
     const navBottomMargin = 10.0;
     final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
+    final screenSize = MediaQuery.sizeOf(context);
+    const createGlowCenterFromRight = 44.0;
+    final createGlowCenterFromBottom =
+        bottomSafeInset + navBottomMargin + (navBarHeight / 2);
+    final createGlowCenterX = screenSize.width - createGlowCenterFromRight;
+    final createGlowCenterY = screenSize.height - createGlowCenterFromBottom;
+    final createGlowAlignment = Alignment(
+      ((createGlowCenterX / screenSize.width) * 2) - 1,
+      ((createGlowCenterY / screenSize.height) * 2) - 1,
+    );
     final bottomGradientHeight = navBarHeight + navBottomMargin + bottomSafeInset;
     const navLabels = <String>['Home', 'Search', 'Notifications', 'Profile'];
     const navIcons = <IconData>[
@@ -74,8 +85,9 @@ class AppShell extends ConsumerWidget {
       Icons.notifications_rounded,
       Icons.person_rounded,
     ];
+    final createButtonLayerLink = LayerLink();
 
-    return Scaffold(
+    final scaffold = Scaffold(
       extendBody: true,
       body: Stack(
         children: [
@@ -115,11 +127,9 @@ class AppShell extends ConsumerWidget {
             begin: const Offset(0, 1),
             end: Offset.zero,
           ).animate(animation);
-          return ClipRect(
-            child: FadeTransition(
-              opacity: animation,
-              child: SlideTransition(position: slide, child: child),
-            ),
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slide, child: child),
           );
         },
         child: showNavigationBar
@@ -136,7 +146,6 @@ class AppShell extends ConsumerWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(22),
                     ),
-                    clipBehavior: Clip.antiAlias,
                     child: SizedBox(
                       // Taller bar: more breathing room top/bottom
                       height: navBarHeight,
@@ -236,7 +245,12 @@ class AppShell extends ConsumerWidget {
                                 inactiveColor: inactiveColor,
                                 badgeBackgroundColor: colorScheme.error,
                                 badgeCount: 0,
-                                onTap: () => _onItemTapped(0, context, user?.id),
+                                onTap: () => _onItemTapped(
+                                  0,
+                                  currentIndex: selectedIndex,
+                                  context: context,
+                                  userId: user?.id,
+                                ),
                               ),
                             ),
                             _FixedNavSlot(
@@ -249,7 +263,12 @@ class AppShell extends ConsumerWidget {
                                 inactiveColor: inactiveColor,
                                 badgeBackgroundColor: colorScheme.error,
                                 badgeCount: 0,
-                                onTap: () => _onItemTapped(1, context, user?.id),
+                                onTap: () => _onItemTapped(
+                                  1,
+                                  currentIndex: selectedIndex,
+                                  context: context,
+                                  userId: user?.id,
+                                ),
                               ),
                             ),
                             _FixedNavSlot(
@@ -262,7 +281,12 @@ class AppShell extends ConsumerWidget {
                                 inactiveColor: inactiveColor,
                                 badgeBackgroundColor: colorScheme.error,
                                 badgeCount: unreadCount,
-                                onTap: () => _onItemTapped(2, context, user?.id),
+                                onTap: () => _onItemTapped(
+                                  2,
+                                  currentIndex: selectedIndex,
+                                  context: context,
+                                  userId: user?.id,
+                                ),
                               ),
                             ),
                             _FixedNavSlot(
@@ -275,7 +299,12 @@ class AppShell extends ConsumerWidget {
                                 inactiveColor: inactiveColor,
                                 badgeBackgroundColor: colorScheme.error,
                                 badgeCount: 0,
-                                onTap: () => _onItemTapped(3, context, user?.id),
+                                onTap: () => _onItemTapped(
+                                  3,
+                                  currentIndex: selectedIndex,
+                                  context: context,
+                                  userId: user?.id,
+                                ),
                               ),
                             ),
                             _FixedNavSlot(
@@ -295,9 +324,14 @@ class AppShell extends ConsumerWidget {
                                 child: showCreateButton
                                     ? _CreateNavItem(
                                         key: const ValueKey('create-visible'),
-                                        onTap: () => context.push(RoutePaths.createPost),
+                                        onTap: () {
+                                          // Create post is treated as virtual index 5.
+                                          setShellNavTransitionDirection(1);
+                                          context.push(RoutePaths.createPost);
+                                        },
                                         backgroundColor: activeColor,
                                         iconColor: selectedContentColor,
+                                        layerLink: createButtonLayerLink,
                                       )
                                     : const SizedBox(
                                         key: ValueKey('create-hidden'),
@@ -323,6 +357,42 @@ class AppShell extends ConsumerWidget {
             : const SizedBox(key: ValueKey('nav-hidden')),
       ),
     );
+
+    return Stack(
+      children: [
+        scaffold,
+        if (showNavigationBar)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 420),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final scale = Tween<double>(
+                    begin: 0.08,
+                    end: 1,
+                  ).animate(animation);
+                  return ScaleTransition(
+                    scale: scale,
+                    alignment: createGlowAlignment,
+                    child: child,
+                  );
+                },
+                child: showCreateButton
+                    ? _CreatePostAttentionGlow(
+                        key: const ValueKey('create-glow-visible'),
+                        color: activeColor,
+                        layerLink: createButtonLayerLink,
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('create-glow-hidden'),
+                      ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   int _calculateSelectedIndex(BuildContext context) {
@@ -334,22 +404,38 @@ class AppShell extends ConsumerWidget {
     return 0;
   }
 
-  void _onItemTapped(int index, BuildContext context, String? userId) {
+  void _onItemTapped(
+    int index, {
+    required int currentIndex,
+    required BuildContext context,
+    required String? userId,
+  }) {
+    // Directionality rule:
+    // Home=0, Search=1, Notifications=2, Profile=3
+    // target > current => incoming from right (outgoing left)
+    // target < current => incoming from left (outgoing right)
+    final direction = index > currentIndex
+        ? 1
+        : index < currentIndex
+            ? -1
+            : 0;
+    setShellNavTransitionDirection(direction);
+    final navQuery = '$_navVisibilityQueryKey=1&$_navDirectionQueryKey=$direction';
     switch (index) {
       case 0:
-        context.go('${RoutePaths.feed}?$_navVisibilityQueryKey=1');
+        context.go('${RoutePaths.feed}?$navQuery');
         break;
       case 1:
-        context.go('${RoutePaths.search}?$_navVisibilityQueryKey=1');
+        context.go('${RoutePaths.search}?$navQuery');
         break;
       case 2:
-        context.go('${RoutePaths.notifications}?$_navVisibilityQueryKey=1');
+        context.go('${RoutePaths.notifications}?$navQuery');
         break;
       case 3:
         if (userId != null && userId.isNotEmpty) {
-          context.go('/profile/$userId?$_navVisibilityQueryKey=1');
+          context.go('/profile/$userId?$navQuery');
         } else {
-          context.go('${RoutePaths.feed}?$_navVisibilityQueryKey=1');
+          context.go('${RoutePaths.feed}?$navQuery');
         }
         break;
     }
@@ -590,6 +676,100 @@ class _SlideFadeLabelState extends State<_SlideFadeLabel>
 // reported values that didn't sum correctly during animation frames.
 // ---------------------------------------------------------------------------
 
+class _CreatePostAttentionGlow extends StatefulWidget {
+  const _CreatePostAttentionGlow({
+    super.key,
+    required this.color,
+    required this.layerLink,
+  });
+
+  final Color color;
+  final LayerLink layerLink;
+
+  @override
+  State<_CreatePostAttentionGlow> createState() => _CreatePostAttentionGlowState();
+}
+
+class _CreatePostAttentionGlowState extends State<_CreatePostAttentionGlow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 8000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformFollower(
+      link: widget.layerLink,
+      showWhenUnlinked: false,
+      targetAnchor: Alignment.center,
+      followerAnchor: Alignment.center,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final t = _sine01(_controller.value);
+          return SizedBox(
+            width: 520,
+            height: 520,
+            child: CustomPaint(
+              painter: _CreatePostAttentionGlowPainter(
+                color: widget.color,
+                t: t,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CreatePostAttentionGlowPainter extends CustomPainter {
+  _CreatePostAttentionGlowPainter({
+    required this.color,
+    required this.t,
+  });
+
+  final Color color;
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+
+    final radius = 100.0 + (t * 100.0);
+    final paint = Paint()
+      ..blendMode = BlendMode.hardLight
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: 0.7),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawCircle(center, radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CreatePostAttentionGlowPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.t != t;
+  }
+}
+
 class _FixedNavSlot extends StatelessWidget {
   const _FixedNavSlot({required this.width, required this.child});
 
@@ -607,39 +787,49 @@ class _FixedNavSlot extends StatelessWidget {
   }
 }
 
-class _CreateNavItem extends StatelessWidget {
+class _CreateNavItem extends StatefulWidget {
   const _CreateNavItem({
     super.key,
     required this.onTap,
     required this.backgroundColor,
     required this.iconColor,
+    required this.layerLink,
   });
 
   final VoidCallback onTap;
   final Color backgroundColor;
   final Color iconColor;
+  final LayerLink layerLink;
 
+  @override
+  State<_CreateNavItem> createState() => _CreateNavItemState();
+}
+
+class _CreateNavItemState extends State<_CreateNavItem> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       behavior: HitTestBehavior.opaque,
       child: SizedBox.expand(
         child: Padding(
           // Match nav item vertical spacing so + sits like other icons.
           padding: const EdgeInsets.symmetric(vertical: 11),
           child: Center(
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: backgroundColor,
-              ),
-              child: Icon(
-                Icons.add_rounded,
-                size: 22,
-                color: iconColor,
+            child: CompositedTransformTarget(
+              link: widget.layerLink,
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.backgroundColor,
+                ),
+                child: Icon(
+                  Icons.add_rounded,
+                  size: 22,
+                  color: widget.iconColor,
+                ),
               ),
             ),
           ),
@@ -662,6 +852,10 @@ class _SpringCurve extends Curve {
     const frequency = 5.2;
     return 1 - (math.exp(-damping * t) * math.cos(frequency * math.pi * t));
   }
+}
+
+double _sine01(double t) {
+  return (math.sin((t * 2 * math.pi) - (math.pi / 2)) + 1) / 2;
 }
 
 // ---------------------------------------------------------------------------

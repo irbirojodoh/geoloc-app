@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../config/routes.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../providers/auth_provider.dart';
@@ -214,8 +215,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           child: PostCard(
                             post: post,
                             headerTrailing: PostOverflowMenuButton(post: post),
-                            onTap: () => context.push('/post/${post.id}'),
-                            onComment: () => context.push('/post/${post.id}'),
+                            onTap: () {
+                              // Profile(3) -> Post detail(0.5): slide from left.
+                              setShellNavTransitionDirection(-1);
+                              context.push('/post/${post.id}');
+                            },
+                            onComment: () {
+                              setShellNavTransitionDirection(-1);
+                              context.push('/post/${post.id}');
+                            },
                             onUserTap: () => context.push('/profile/${post.userId}'),
                           ),
                         );

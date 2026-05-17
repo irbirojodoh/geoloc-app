@@ -158,7 +158,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
           title: 'No posts nearby',
           message: 'Be the first to post in your area.',
           actionLabel: 'Post',
-          onAction: () => context.push(RoutePaths.createPost),
+          onAction: () {
+            // Home(0) -> Create post(5): slide from right.
+            setShellNavTransitionDirection(1);
+            context.push(RoutePaths.createPost);
+          },
         ),
       );
     }
@@ -212,11 +216,18 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                         child: PostCard(
                           post: post,
                           headerTrailing: PostOverflowMenuButton(post: post),
-                          onTap: () => context.push('/post/${post.id}'),
+                          onTap: () {
+                            // Home(0) -> Post detail(0.5): slide from right.
+                            setShellNavTransitionDirection(1);
+                            context.push('/post/${post.id}');
+                          },
                           onLike: () => ref
                               .read(feedStateProvider.notifier)
                               .toggleLike(post.id),
-                          onComment: () => context.push('/post/${post.id}'),
+                          onComment: () {
+                            setShellNavTransitionDirection(1);
+                            context.push('/post/${post.id}');
+                          },
                           onUserTap: () => context.push('/profile/${post.userId}'),
                         ),
                       );

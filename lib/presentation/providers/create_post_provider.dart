@@ -6,6 +6,9 @@ import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import 'location_provider.dart';
 
+const int kCreatePostMaxContentLength = 300;
+const int kCreatePostMaxMediaCount = 4;
+
 /// Create post state
 class CreatePostState {
   final String content;
@@ -61,7 +64,10 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
 
   /// Update post content
   void setContent(String content) {
-    state = state.copyWith(content: content, error: null);
+    final nextContent = content.length > kCreatePostMaxContentLength
+        ? content.substring(0, kCreatePostMaxContentLength)
+        : content;
+    state = state.copyWith(content: nextContent, error: null);
   }
 
   /// Fetch address from coordinates
@@ -114,6 +120,14 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
 
   /// Pick image from gallery
   Future<void> pickImageFromGallery() async {
+    final remainingSlots = kCreatePostMaxMediaCount - state.mediaFiles.length;
+    if (remainingSlots <= 0) {
+      state = state.copyWith(
+        error: 'You can upload up to $kCreatePostMaxMediaCount images',
+      );
+      return;
+    }
+
     try {
       final images = await _imagePicker.pickMultiImage(
         maxWidth: 1920,
@@ -122,10 +136,13 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
       );
 
       if (images.isNotEmpty) {
-        final newFiles = images.map((xFile) => File(xFile.path)).toList();
+        final selectedFiles = images.map((xFile) => File(xFile.path)).toList();
+        final limitedFiles = selectedFiles.take(remainingSlots).toList();
         state = state.copyWith(
-          mediaFiles: [...state.mediaFiles, ...newFiles],
-          error: null,
+          mediaFiles: [...state.mediaFiles, ...limitedFiles],
+          error: selectedFiles.length > limitedFiles.length
+              ? 'Only $kCreatePostMaxMediaCount images are allowed'
+              : null,
         );
       }
     } catch (e) {
@@ -135,6 +152,13 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
 
   /// Pick image from camera
   Future<void> pickImageFromCamera() async {
+    if (state.mediaFiles.length >= kCreatePostMaxMediaCount) {
+      state = state.copyWith(
+        error: 'You can upload up to $kCreatePostMaxMediaCount images',
+      );
+      return;
+    }
+
     try {
       final image = await _imagePicker.pickImage(
         source: ImageSource.camera,
@@ -166,6 +190,12 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
   /// Submit post
   Future<bool> submitPost() async {
     if (!state.canSubmit) return false;
+    if (state.content.trim().length > kCreatePostMaxContentLength) {
+      state = state.copyWith(
+        error: 'Post must be at most $kCreatePostMaxContentLength characters',
+      );
+      return false;
+    }
 
     // Get current location
     final locationState = _ref.read(locationStateProvider);

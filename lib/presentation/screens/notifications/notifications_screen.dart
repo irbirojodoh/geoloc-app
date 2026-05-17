@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../config/routes.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../data/models/notification.dart';
@@ -23,6 +24,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_maybeLoadMore);
+    Future<void>.microtask(() {
+      final current = ref.read(notificationsProvider);
+      if (current.notifications.isEmpty && !current.isLoading) {
+        ref.read(notificationsProvider.notifier).loadNotifications();
+      }
+    });
   }
 
   void _maybeLoadMore() {
@@ -135,7 +142,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                                   .markAsRead(item.id);
                               if (item.targetType == TargetType.post ||
                                   item.targetType == TargetType.comment) {
-                                context.push('/post/${item.targetId}');
+                                if (item.targetType == TargetType.post &&
+                                    item.targetId != null &&
+                                    item.targetId!.isNotEmpty) {
+                                  // Notifications(2) -> Post detail(0.5): slide from left.
+                                  setShellNavTransitionDirection(-1);
+                                  context.push('/post/${item.targetId}');
+                                } else {
+                                  context.push('/profile/${item.actorId}');
+                                }
                               } else {
                                 context.push('/profile/${item.actorId}');
                               }
@@ -167,6 +182,10 @@ class _NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final actorName = item.actor?.username ?? 'Someone';
+    final actionText = item.message.trim().isNotEmpty
+        ? item.message.trim()
+        : _textFor(item.type);
+    final previewText = item.payload?['post_preview']?.trim();
 
     return Card(
       color: item.isRead
@@ -222,10 +241,21 @@ class _NotificationTile extends StatelessWidget {
                               color: colorScheme.onSurface,
                             ),
                           ),
-                          TextSpan(text: ' ${_textFor(item.type)}'),
+                          TextSpan(text: ' $actionText'),
                         ],
                       ),
                     ),
+                    if (previewText != null && previewText.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        previewText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       timeago.format(item.createdAt, locale: 'en_short'),

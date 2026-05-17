@@ -32,7 +32,7 @@ class _AnimatedScrollGradientBackgroundState
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 20),
-    )..repeat();
+    )..repeat(reverse: true);
 
     final controller = widget.scrollController;
     if (controller != null) {
