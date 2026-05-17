@@ -452,25 +452,43 @@ class _GlowPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.55),
-            blurRadius: 18,
-            spreadRadius: -2,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: color.withValues(alpha: 0.20),
-            blurRadius: 32,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
+    return CustomPaint(
+      painter: _GlowPillPainter(color: color),
+      child: const SizedBox.expand(),
     );
+  }
+}
+
+class _GlowPillPainter extends CustomPainter {
+  const _GlowPillPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius = Radius.circular(size.height / 2);
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(rect, radius);
+
+    final glowNear = Paint()
+      ..blendMode = BlendMode.screen
+      ..color = color.withValues(alpha: 0.35)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    canvas.drawRRect(rrect.shift(const Offset(0, 4)), glowNear);
+
+    final glowFar = Paint()
+      ..blendMode = BlendMode.screen
+      ..color = color.withValues(alpha: 0.05)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22);
+    canvas.drawRRect(rrect, glowFar);
+
+    final fill = Paint()..color = color;
+    canvas.drawRRect(rrect, fill);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GlowPillPainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 
@@ -699,7 +717,7 @@ class _CreatePostAttentionGlowState extends State<_CreatePostAttentionGlow>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 8000),
+      duration: const Duration(milliseconds: 6000),
     )..repeat();
   }
 
@@ -749,15 +767,36 @@ class _CreatePostAttentionGlowPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
 
-    final radius = 100.0 + (t * 100.0);
+    final radius = 100.0 + (t * 150.0);
+    const maxAlpha = 0.6; // I0
+    const mu = 3.8; // Attenuation coefficient for I(x)=I0*e^(-mu*x)
+
+    const sampleCount = 16;
+    final stops = <double>[];
+    final colors = <Color>[];
+
+    for (var i = 0; i < sampleCount; i++) {
+      final stop = (i / (sampleCount - 1)) * 0.96;
+      final x = stop; // normalized distance from center [0..1]
+      final normalized = math.exp(-mu * x).clamp(0.0, 1.0);
+      // Smoothly force the rim toward transparent to avoid a harsh edge ring.
+      final edgeSoftening = math.pow((1 - x).clamp(0.0, 1.0), 1.6).toDouble();
+
+      stops.add(stop);
+      colors.add(
+        color.withValues(alpha: maxAlpha * normalized * edgeSoftening),
+      );
+    }
+
+    // Force edge to transparent so the glow cleanly terminates at radius.
+    stops.add(1.0);
+    colors.add(Colors.transparent);
+
     final paint = Paint()
-      ..blendMode = BlendMode.hardLight
+      ..blendMode = BlendMode.plus
       ..shader = RadialGradient(
-        colors: [
-          color.withValues(alpha: 0.7),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 1.0],
+        colors: colors,
+        stops: stops,
       ).createShader(Rect.fromCircle(center: center, radius: radius));
 
     canvas.drawCircle(center, radius, paint);
@@ -854,9 +893,17 @@ class _SpringCurve extends Curve {
   }
 }
 
+
+
+
+
 double _sine01(double t) {
   return (math.sin((t * 2 * math.pi) - (math.pi / 2)) + 1) / 2;
 }
+
+
+
+
 
 // ---------------------------------------------------------------------------
 // Text measurement helper
