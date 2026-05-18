@@ -245,7 +245,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
     final textTheme = Theme.of(context).textTheme;
 
     return AppBar(
-      backgroundColor: cs.surface,
+      backgroundColor: cs.surface.withValues(alpha: 0.88),
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
       title: Text(
         'Create Post',
         style: textTheme.titleLarge?.copyWith(

@@ -109,20 +109,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: RefreshIndicator(
+        color: colorScheme.primary,
+        backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.96),
+        strokeWidth: 2.2,
+        elevation: 1,
+        edgeOffset: 86,
+        displacement: 28,
         onRefresh: () =>
             ref.read(profileProvider(widget.userId).notifier).refreshProfile(),
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
                 SliverAppBar(
-                  backgroundColor: colorScheme.surface,
+                  backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
                   title: Text('@${user.username}'),
                   pinned: true,
-                  leading: IconButton(
-                    tooltip: 'Back',
-                    onPressed: () => context.pop(),
-                    icon: const Icon(Icons.arrow_back),
-                  ),
+                  automaticallyImplyLeading: false,
+                  leading: null,
                   actions: [
                     if (!isOwnProfile)
                       ProfileOverflowMenuButton(profileUserId: widget.userId),

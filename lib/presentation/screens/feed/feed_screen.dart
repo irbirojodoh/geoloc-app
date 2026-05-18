@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/routes.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../widgets/loading_shimmer.dart';
@@ -55,62 +54,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _showAccountSheet(BuildContext context) async {
-    final currentUser = ref.read(currentUserProvider);
-    final textTheme = Theme.of(context).textTheme;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: DraggableScrollableSheet(
-            expand: false,
-            initialChildSize: 0.35,
-            minChildSize: 0.25,
-            maxChildSize: 0.6,
-            builder: (context, scrollController) {
-              return ListView(
-                controller: scrollController,
-                children: [
-                  ListTile(
-                    title: Text('Account', style: textTheme.titleLarge),
-                    subtitle: Text(currentUser?.email ?? ''),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.person_outline),
-                    title: const Text('Profile'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (currentUser != null) {
-                        context.push('/profile/${currentUser.id}');
-                      }
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.settings_outlined),
-                    title: const Text('Settings'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push(RoutePaths.settings);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.logout),
-                    title: const Text('Sign out'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      ref.read(authStateProvider.notifier).logout();
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -170,6 +113,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: RefreshIndicator(
+        color: colorScheme.primary,
+        backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.96),
+        strokeWidth: 2.2,
+        elevation: 1,
+        edgeOffset: 86,
+        displacement: 28,
         onRefresh: () async {
           await ref.read(locationStateProvider.notifier).refreshLocation();
           await ref.read(feedStateProvider.notifier).refreshFeed();
@@ -178,25 +127,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
           controller: _scrollController,
           slivers: [
                 SliverAppBar.medium(
-                  backgroundColor: colorScheme.surface,
+                  backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
                   title: Text(
                     'Home',
                     style: textTheme.headlineMedium?.copyWith(
                       color: colorScheme.onSurface,
                     ),
                   ),
-                  actions: [
-                    IconButton(
-                      tooltip: 'Notifications',
-                      onPressed: () => context.push(RoutePaths.notifications),
-                      icon: const Icon(Icons.notifications_outlined),
-                    ),
-                    IconButton(
-                      tooltip: 'Account options',
-                      onPressed: () => _showAccountSheet(context),
-                      icon: const Icon(Icons.account_circle_outlined),
-                    ),
-                  ],
+                  actions: const [],
                 ),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),

@@ -768,7 +768,7 @@ class _CreatePostAttentionGlowPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
 
     final radius = 100.0 + (t * 150.0);
-    const maxAlpha = 0.6; // I0
+    const maxAlpha = 0.4; // I0
     const mu = 3.8; // Attenuation coefficient for I(x)=I0*e^(-mu*x)
 
     const sampleCount = 16;
@@ -892,7 +892,6 @@ class _SpringCurve extends Curve {
     return 1 - (math.exp(-damping * t) * math.cos(frequency * math.pi * t));
   }
 }
-
 
 
 

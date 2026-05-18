@@ -59,6 +59,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         color: colorScheme.primary,
+        backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.96),
+        strokeWidth: 2.2,
+        elevation: 1,
+        edgeOffset: 86,
+        displacement: 28,
         onRefresh: () =>
             ref.read(notificationsProvider.notifier).refreshNotifications(),
         child: CustomScrollView(
@@ -66,7 +71,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
                 SliverAppBar.medium(
-                  backgroundColor: colorScheme.surface,
+                  backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
                   title: Text(
                     'Notifications',
                     style: textTheme.headlineMedium?.copyWith(

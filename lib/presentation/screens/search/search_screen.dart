@@ -59,7 +59,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         controller: _scrollController,
         slivers: [
               SliverAppBar.medium(
-                backgroundColor: colorScheme.surface,
+                backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
                 title: const Text('Explore'),
                 bottom: PreferredSize(
                   preferredSize: const Size.fromHeight(76),

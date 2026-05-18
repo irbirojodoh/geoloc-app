@@ -77,6 +77,12 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: RefreshIndicator(
+        color: colorScheme.primary,
+        backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.96),
+        strokeWidth: 2.2,
+        elevation: 1,
+        edgeOffset: 86,
+        displacement: 28,
         onRefresh: () async {
           await ref.read(postDetailProvider(widget.postId).notifier).loadPost();
           await ref
@@ -88,7 +94,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
                 SliverAppBar.medium(
-                  backgroundColor: colorScheme.surface,
+                  backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
                   leading: IconButton(
                     tooltip: 'Back',
                     onPressed: () => context.pop(),

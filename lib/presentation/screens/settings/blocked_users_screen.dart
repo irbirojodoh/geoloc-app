@@ -31,6 +31,11 @@ class BlockedUsersScreen extends ConsumerWidget {
           Expanded(
             child: RefreshIndicator(
               color: cs.primary,
+              backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.96),
+              strokeWidth: 2.1,
+              elevation: 1,
+              edgeOffset: 10,
+              displacement: 24,
               onRefresh: () async {
                 ref.invalidate(blockedUsersListProvider);
                 await Future<void>.delayed(const Duration(milliseconds: 150));
