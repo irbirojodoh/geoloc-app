@@ -7,6 +7,7 @@ import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/user_avatar.dart';
 import '../../widgets/states/empty_state.dart';
+import '../../widgets/top_bar_backdrop.dart';
 
 /// Explore screen (Search) — Material 3.
 class SearchScreen extends ConsumerStatefulWidget {
@@ -58,11 +59,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-              SliverAppBar.medium(
-                backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+              SliverAppBar(
+                backgroundColor: Colors.transparent,
                 surfaceTintColor: Colors.transparent,
                 elevation: 0,
                 scrolledUnderElevation: 0,
+                pinned: true,
+                centerTitle: false,
+                titleSpacing: 16,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(20),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                flexibleSpace: TopBarBackdrop(
+                  blurTintColor: colorScheme.surface,
+                  blendColor: colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(20),
+                  ),
+                ),
                 title: const Text('Explore'),
                 bottom: PreferredSize(
                   preferredSize: const Size.fromHeight(76),

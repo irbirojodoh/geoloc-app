@@ -60,10 +60,18 @@ class AppShell extends ConsumerWidget {
     final selectedContentColor = colorScheme.onPrimary;
     final capsuleColor = colorScheme.surfaceContainerHighest;
     final inactiveColor = colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
+    final isLightMode = Theme.of(context).brightness == Brightness.light;
     final overlayBaseColor =
-        Theme.of(context).brightness == Brightness.light
-            ? Colors.white
-            : Colors.black;
+        isLightMode ? Colors.white : Colors.black;
+    final navShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(22),
+      side: isLightMode
+          ? BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.95),
+              width: 0.8,
+            )
+          : BorderSide.none,
+    );
     const navBarHeight = 75.0;
     const navBottomMargin = 10.0;
     final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
@@ -140,12 +148,12 @@ class AppShell extends ConsumerWidget {
                   // Generous horizontal margin + comfortable bottom breathing room
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, navBottomMargin),
                   child: Material(
-                    elevation: 20,
-                    shadowColor: colorScheme.scrim.withValues(alpha: 0.28),
+                    elevation: isLightMode ? 24 : 20,
+                    shadowColor: isLightMode
+                        ? colorScheme.onSurface.withValues(alpha: 0.18)
+                        : colorScheme.scrim.withValues(alpha: 0.28),
                     color: capsuleColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(22),
-                    ),
+                    shape: navShape,
                     child: SizedBox(
                       // Taller bar: more breathing room top/bottom
                       height: navBarHeight,

@@ -11,6 +11,7 @@ import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/profile_overflow_menu_button.dart';
 import '../../widgets/states/empty_state.dart';
 import '../../widgets/states/error_state.dart';
+import '../../widgets/top_bar_backdrop.dart';
 import '../../widgets/user_avatar.dart';
 
 /// Material 3 profile screen.
@@ -121,10 +122,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           controller: _scrollController,
           slivers: [
                 SliverAppBar(
-                  backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+                  backgroundColor: Colors.transparent,
                   surfaceTintColor: Colors.transparent,
                   elevation: 0,
                   scrolledUnderElevation: 0,
+                  centerTitle: false,
+                  titleSpacing: 16,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  flexibleSpace: TopBarBackdrop(
+                    blurTintColor: colorScheme.surface,
+                    blendColor: colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                  ),
                   title: Text('@${user.username}'),
                   pinned: true,
                   automaticallyImplyLeading: false,

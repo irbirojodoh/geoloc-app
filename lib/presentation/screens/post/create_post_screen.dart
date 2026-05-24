@@ -11,6 +11,7 @@ import '../../providers/create_post_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../../core/cache/image_cache_manager.dart';
 import '../../../data/models/user.dart';
+import '../../widgets/top_bar_backdrop.dart';
 
 /// Create post screen.
 class CreatePostScreen extends ConsumerStatefulWidget {
@@ -245,10 +246,25 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
     final textTheme = Theme.of(context).textTheme;
 
     return AppBar(
-      backgroundColor: cs.surface.withValues(alpha: 0.88),
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleSpacing: 16,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(20),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      flexibleSpace: TopBarBackdrop(
+        blurTintColor: cs.surface,
+        blendColor: cs.surface,
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(20),
+        ),
+      ),
       title: Text(
         'Create Post',
         style: textTheme.titleLarge?.copyWith(

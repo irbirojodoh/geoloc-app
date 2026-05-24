@@ -39,11 +39,19 @@ void main() async {
   final container = ProviderContainer();
   final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
   if (isMobile) {
-    await Firebase.initializeApp();
+    var firebaseReady = false;
+    try {
+      await Firebase.initializeApp();
+      firebaseReady = true;
+    } catch (e) {
+      debugPrint('Firebase unavailable on this build target; push features disabled. ($e)');
+    }
 
-    // Initialize push notification channels/listeners only on mobile.
-    final pushService = container.read(pushNotificationServiceProvider);
-    await pushService.initialize();
+    if (firebaseReady) {
+      // Initialize push notification channels/listeners only when Firebase is available.
+      final pushService = container.read(pushNotificationServiceProvider);
+      await pushService.initialize();
+    }
   }
 
   runApp(UncontrolledProviderScope(container: container, child: const GeolocApp()));

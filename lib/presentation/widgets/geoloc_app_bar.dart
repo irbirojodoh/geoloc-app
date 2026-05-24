@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/app_spacing.dart';
+import 'top_bar_backdrop.dart';
 
 /// App-wide top-bar replacing the per-screen inline `Container + Row` pattern
 /// that was duplicated across feed/post-detail/notifications/edit-profile/etc.
@@ -17,7 +18,7 @@ import '../../core/theme/app_spacing.dart';
 /// - Inserts top safe-area padding (so callers don't manually add
 ///   `MediaQuery.padding.top`).
 /// - Draws a 0.5-pt outline divider at the bottom for separation.
-/// - Centers a string [title] or arbitrary [titleWidget] (e.g. [Wordmark]).
+/// - Left-aligns a string [title] or arbitrary [titleWidget].
 /// - [leading] / [trailing] should typically be [IconSquareButton]s.
 class GeolocAppBar extends StatelessWidget implements PreferredSizeWidget {
   const GeolocAppBar({
@@ -53,53 +54,70 @@ class GeolocAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final topPadding = MediaQuery.paddingOf(context).top;
+    const bottomRadius = Radius.circular(20);
 
-    return Container(
-      color: cs.surface,
-      padding: EdgeInsets.only(top: topPadding),
-      child: Container(
-        height: kBarHeight,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm,
-        ),
-        decoration: showBottomDivider
-            ? BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: cs.outline, width: 0.5),
-                ),
-              )
-            : null,
-        child: Row(
-          children: [
-            SizedBox(
-              width: AppTapTarget.iosMinimum,
-              child: leading,
+    return SizedBox(
+      height: topPadding + kBarHeight,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: TopBarBackdrop(
+              blurTintColor: cs.surface,
+              blendColor: cs.surface,
+              borderRadius: const BorderRadius.vertical(bottom: bottomRadius),
             ),
-            Expanded(
-              child: Center(
-                child: titleWidget ??
-                    (title != null
-                        ? Text(
-                            title!,
-                            style: GoogleFonts.ptSerif(
-                              fontSize: 17,
-                              fontStyle: FontStyle.italic,
-                              color: cs.onSurface,
-                            ),
-                          )
-                        : const SizedBox.shrink()),
+          ),
+          Positioned(
+            top: topPadding,
+            left: 0,
+            right: 0,
+            height: kBarHeight,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                border: showBottomDivider
+                    ? Border(
+                        bottom: BorderSide(color: cs.outline, width: 0.5),
+                      )
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: AppTapTarget.iosMinimum,
+                    child: leading,
+                  ),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: titleWidget ??
+                          (title != null
+                              ? Text(
+                                  title!,
+                                  style: GoogleFonts.ptSerif(
+                                    fontSize: 17,
+                                    fontStyle: FontStyle.italic,
+                                    color: cs.onSurface,
+                                  ),
+                                )
+                              : const SizedBox.shrink()),
+                    ),
+                  ),
+                  SizedBox(
+                    width: AppTapTarget.iosMinimum,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: trailing,
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(
-              width: AppTapTarget.iosMinimum,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: trailing,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

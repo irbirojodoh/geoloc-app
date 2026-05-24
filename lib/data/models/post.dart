@@ -89,7 +89,13 @@ class Post {
       distanceKm: (json['distance_km'] as num?)?.toDouble(),
       createdAt: DateTime.parse(json['created_at'] as String),
       likeCount: json['like_count'] as int? ?? 0,
-      commentCount: json['comment_count'] as int? ?? 0,
+      // Backend payloads have not been consistent here; accept common variants.
+      commentCount:
+          json['comment_count'] as int? ??
+          json['comments_count'] as int? ??
+          json['comments'] as int? ??
+          json['commentCount'] as int? ??
+          0,
       isLiked: json['is_liked'] as bool? ?? false,
       author: author,
     );

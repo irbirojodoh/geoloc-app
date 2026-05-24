@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Geoloc</string>
+	<string>Geoloc App</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Geoloc</string>
+	<string>geoloc_app</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -24,33 +24,8 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLName</key>
-			<string>app.geoloc</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>geoloc</string>
-			</array>
-		</dict>
-	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>Geoloc needs camera access to take photos for posts</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Geoloc needs your location to notify you about nearby posts</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Geoloc needs your location to notify you about nearby posts</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Geoloc needs your location to show posts near you</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Geoloc needs microphone access to record videos for posts</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Geoloc needs photo library access to select images for posts</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -65,7 +40,7 @@
 					<key>UISceneConfigurationName</key>
 					<string>flutter</string>
 					<key>UISceneDelegateClassName</key>
-					<string>FlutterSceneDelegate</string>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
 					<key>UISceneStoryboardFile</key>
 					<string>Main</string>
 				</dict>
@@ -74,11 +49,6 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>remote-notification</string>
-	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -96,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Geoloc App uses your location to show nearby posts and local activity.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Geoloc App uses your location to personalize nearby content and notifications.</string>
 </dict>
 </plist>

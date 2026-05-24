@@ -9,6 +9,7 @@ import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/user_avatar.dart';
 import '../../widgets/states/error_state.dart';
+import '../../widgets/top_bar_backdrop.dart';
 
 /// Material 3 post detail screen.
 class PostDetailScreen extends ConsumerStatefulWidget {
@@ -93,11 +94,27 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-                SliverAppBar.medium(
-                  backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
                   surfaceTintColor: Colors.transparent,
                   elevation: 0,
                   scrolledUnderElevation: 0,
+                  pinned: true,
+                  centerTitle: false,
+                  titleSpacing: 16,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  flexibleSpace: TopBarBackdrop(
+                    blurTintColor: colorScheme.surface,
+                    blendColor: colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                  ),
                   leading: IconButton(
                     tooltip: 'Back',
                     onPressed: () => context.pop(),
@@ -299,9 +316,11 @@ class _CommentTile extends ConsumerWidget {
     final leftInset = 16.0 * comment.depth;
 
     return Padding(
-      padding: EdgeInsets.only(left: leftInset, top: 8, bottom: 8),
+      padding: EdgeInsets.only(left: leftInset, top: 3, bottom: 3),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
         leading: UserAvatar(
           imageUrl: c.effectiveProfilePictureUrl,
           name: c.effectiveUsername,
@@ -311,12 +330,12 @@ class _CommentTile extends ConsumerWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               c.content,
               style: textTheme.bodyMedium,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               timeago.format(c.createdAt, locale: 'en_short'),
               style: textTheme.labelSmall?.copyWith(

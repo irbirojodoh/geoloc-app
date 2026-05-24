@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/routes.dart';
+import '../../../data/models/post.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../widgets/loading_shimmer.dart';
@@ -11,6 +12,7 @@ import '../../widgets/post_overflow_menu_button.dart';
 import '../../widgets/states/empty_state.dart';
 import '../../widgets/states/error_state.dart';
 import '../../widgets/states/location_permission_prompt.dart';
+import '../../widgets/top_bar_backdrop.dart';
 
 /// Material 3 feed screen.
 class FeedScreen extends ConsumerStatefulWidget {
@@ -126,11 +128,27 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-                SliverAppBar.medium(
-                  backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
                   surfaceTintColor: Colors.transparent,
                   elevation: 0,
                   scrolledUnderElevation: 0,
+                  pinned: true,
+                  centerTitle: false,
+                  titleSpacing: 16,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  flexibleSpace: TopBarBackdrop(
+                    blurTintColor: colorScheme.surface,
+                    blendColor: colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                  ),
                   title: Text(
                     'Home',
                     style: textTheme.headlineMedium?.copyWith(
@@ -160,14 +178,22 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                           onTap: () {
                             // Home(0) -> Post detail(0.5): slide from right.
                             setShellNavTransitionDirection(1);
-                            context.push('/post/${post.id}');
+                            context.push('/post/${post.id}').then((value) {
+                              if (value is Post) {
+                                ref.read(feedStateProvider.notifier).updatePost(value);
+                              }
+                            });
                           },
                           onLike: () => ref
                               .read(feedStateProvider.notifier)
                               .toggleLike(post.id),
                           onComment: () {
                             setShellNavTransitionDirection(1);
-                            context.push('/post/${post.id}');
+                            context.push('/post/${post.id}').then((value) {
+                              if (value is Post) {
+                                ref.read(feedStateProvider.notifier).updatePost(value);
+                              }
+                            });
                           },
                           onUserTap: () => context.push('/profile/${post.userId}'),
                         ),

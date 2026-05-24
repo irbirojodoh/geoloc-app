@@ -5,8 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/routes.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/geoloc_app_bar.dart';
-import '../../widgets/icon_square_button.dart';
+import '../../widgets/top_bar_backdrop.dart';
 
 /// Account & privacy entry point — blocked/muted lists and account deletion.
 class SettingsScreen extends ConsumerWidget {
@@ -15,62 +14,100 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Column(
-        children: [
-          GeolocAppBar(
-            title: 'Settings',
-            leading: IconSquareButton(
-              icon: Icons.arrow_back,
-              semanticLabel: 'Back',
-              onTap: () => context.pop(),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            pinned: true,
+            centerTitle: false,
+            titleSpacing: 16,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
             ),
-          ),
-          Expanded(
-            child: ListView(
-              children: [
-          ListTile(
-            title: Text('Blocked Users', style: context.bodyMedium),
-            subtitle: Text(
-              'Manage people you blocked.',
-              style: context.caption,
+            clipBehavior: Clip.antiAlias,
+            flexibleSpace: TopBarBackdrop(
+              blurTintColor: cs.surface,
+              blendColor: cs.surface,
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(20),
+              ),
             ),
-            trailing: Icon(Icons.chevron_right, color: cs.primary),
-            onTap: () => context.push(RoutePaths.settingsBlocked),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: Text('Muted Users', style: context.bodyMedium),
-            subtitle: Text(
-              'Manage muted feeds.',
-              style: context.caption,
+            leading: IconButton(
+              tooltip: 'Back',
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.arrow_back),
             ),
-            trailing: Icon(Icons.chevron_right, color: cs.primary),
-            onTap: () => context.push(RoutePaths.settingsMuted),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 32, 16, 8),
-            child: Text(
-              'DANGER ZONE',
-              style: context.sectionLabel.copyWith(color: cs.error),
-            ),
-          ),
-          ListTile(
             title: Text(
-              'Delete account',
-              style: context.errorText,
+              'Account & privacy',
+              style: textTheme.titleLarge?.copyWith(
+                color: cs.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            subtitle: Text(
-              'Permanent. Your data will be anonymized.',
-              style: context.caption,
-            ),
-            trailing: Icon(Icons.delete_forever_outlined, color: cs.error),
-            onTap: () => _startDeleteFlow(context, ref),
           ),
-        ],
-      ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                Card(
+                  margin: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: cs.outlineVariant),
+                  ),
+                  child: Column(
+                    children: [
+                      _SettingsNavRow(
+                        icon: Icons.block_outlined,
+                        title: 'Blocked users',
+                        subtitle: 'Manage people you blocked',
+                        onTap: () => context.push(RoutePaths.settingsBlocked),
+                      ),
+                      Divider(height: 1, color: cs.outlineVariant),
+                      _SettingsNavRow(
+                        icon: Icons.volume_off_outlined,
+                        title: 'Muted users',
+                        subtitle: 'Manage muted feeds',
+                        onTap: () => context.push(RoutePaths.settingsMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    'Danger zone',
+                    style: textTheme.labelLarge?.copyWith(
+                      color: cs.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Card(
+                  margin: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: cs.error.withValues(alpha: 0.35)),
+                  ),
+                  child: _SettingsNavRow(
+                    icon: Icons.delete_forever_outlined,
+                    title: 'Delete account',
+                    subtitle: 'Permanent. Your data will be anonymized.',
+                    titleColor: cs.error,
+                    iconColor: cs.error,
+                    onTap: () => _startDeleteFlow(context, ref),
+                  ),
+                ),
+              ]),
+            ),
           ),
         ],
       ),
@@ -78,35 +115,31 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _startDeleteFlow(BuildContext context, WidgetRef ref) async {
+    final cs = Theme.of(context).colorScheme;
     final proceed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
-        final cs = Theme.of(ctx).colorScheme;
         return AlertDialog(
           backgroundColor: cs.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
           title: Text(
             'Delete your account?',
             style: context.textTheme.headlineSmall,
           ),
           content: Text(
             'This action is irreversible. All data will be anonymized.',
-            style: context.postContent,
+            style: context.bodyMedium,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text(
-                'KEEP ACCOUNT',
-                style: TextStyle(color: cs.primary),
-              ),
+              child: Text('Keep account', style: TextStyle(color: cs.primary)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text(
-                'CONTINUE',
-                style: TextStyle(color: cs.error),
-              ),
+              child: Text('Continue', style: TextStyle(color: cs.error)),
             ),
           ],
         );
@@ -120,6 +153,78 @@ class SettingsScreen extends ConsumerWidget {
       builder: (dlgCtx) => _DeleteAccountPasswordDialog(
         notifier: ref.read(authStateProvider.notifier),
         rootMessenger: ScaffoldMessenger.maybeOf(context),
+      ),
+    );
+  }
+}
+
+class _SettingsNavRow extends StatelessWidget {
+  const _SettingsNavRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.titleColor,
+    this.iconColor,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final Color? titleColor;
+  final Color? iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: iconColor ?? cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: textTheme.titleSmall?.copyWith(
+                      color: titleColor ?? cs.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: cs.onSurfaceVariant, size: 22),
+          ],
+        ),
       ),
     );
   }
@@ -184,7 +289,7 @@ class _DeleteAccountPasswordDialogState
           return AlertDialog(
             backgroundColor: ncs.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(28),
             ),
             title: Text(
               'Contact support',
@@ -193,7 +298,7 @@ class _DeleteAccountPasswordDialogState
             content: Text(
               'OAuth accounts cannot be deleted via password from this app. '
               'Please contact Geoloc support so they can help you securely.',
-              style: context.postContent,
+              style: context.bodyMedium,
             ),
             actions: [
               TextButton(
@@ -209,44 +314,55 @@ class _DeleteAccountPasswordDialogState
     }
   }
 
+  InputDecoration _passwordDecoration(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide.none,
+    );
+
+    return InputDecoration(
+      labelText: 'Current password',
+      filled: true,
+      fillColor: cs.surfaceContainerHighest,
+      border: border,
+      enabledBorder: border,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: cs.primary, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      suffixIcon: IconButton(
+        icon: Icon(
+          _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          color: cs.onSurfaceVariant,
+        ),
+        onPressed: _busy ? null : () => setState(() => _obscure = !_obscure),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
     return AlertDialog(
       backgroundColor: cs.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       title: Text(
         'Confirm with password',
         style: context.textTheme.headlineSmall,
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _pwd,
-            autofocus: true,
-            obscureText: _obscure,
-            enabled: !_busy,
-            style: context.bodyMedium,
-            decoration: InputDecoration(
-              labelText: 'Current password',
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscure
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  color: cs.onSurfaceVariant,
-                ),
-                onPressed:
-                    _busy ? null : () => setState(() => _obscure = !_obscure),
-              ),
-            ),
-            onSubmitted: (_) {
-              if (!_busy) _submit();
-            },
-          ),
-        ],
+      content: TextField(
+        controller: _pwd,
+        autofocus: true,
+        obscureText: _obscure,
+        enabled: !_busy,
+        style: context.bodyMedium,
+        decoration: _passwordDecoration(context),
+        onSubmitted: (_) {
+          if (!_busy) _submit();
+        },
       ),
       actions: [
         TextButton(
@@ -261,13 +377,10 @@ class _DeleteAccountPasswordDialogState
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 1.5,
-                    color: cs.primary,
+                    color: cs.error,
                   ),
                 )
-              : Text(
-                  'DELETE',
-                  style: TextStyle(color: cs.error),
-                ),
+              : Text('Delete', style: TextStyle(color: cs.error)),
         ),
       ],
     );

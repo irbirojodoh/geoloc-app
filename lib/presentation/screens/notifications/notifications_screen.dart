@@ -8,6 +8,7 @@ import '../../../data/models/notification.dart';
 import '../../providers/notifications_provider.dart';
 import '../../widgets/states/empty_state.dart';
 import '../../widgets/states/error_state.dart';
+import '../../widgets/top_bar_backdrop.dart';
 
 /// Notifications screen.
 class NotificationsScreen extends ConsumerStatefulWidget {
@@ -70,11 +71,27 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-                SliverAppBar.medium(
-                  backgroundColor: colorScheme.surface.withValues(alpha: 0.88),
+                SliverAppBar(
+                  backgroundColor: Colors.transparent,
                   surfaceTintColor: Colors.transparent,
                   elevation: 0,
                   scrolledUnderElevation: 0,
+                  pinned: true,
+                  centerTitle: false,
+                  titleSpacing: 16,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  flexibleSpace: TopBarBackdrop(
+                    blurTintColor: colorScheme.surface,
+                    blendColor: colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(20),
+                    ),
+                  ),
                   title: Text(
                     'Notifications',
                     style: textTheme.headlineMedium?.copyWith(

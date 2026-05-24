@@ -14,7 +14,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
   // make sure you call `initializeApp` before using other Firebase services.
   await Firebase.initializeApp();
-  debugPrint("Handling a background message: ${message.messageId}");
+  debugPrint('Handling a background message: ${message.messageId}');
 }
 
 /// Provider for PushNotificationService
@@ -25,12 +25,23 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) 
 /// Push notification service for Firebase Cloud Messaging
 class PushNotificationService {
   final ApiClient _apiClient;
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   PushNotificationService(this._apiClient);
 
+  FirebaseMessaging? _messagingOrNull() {
+    try {
+      if (Firebase.apps.isEmpty) return null;
+      return FirebaseMessaging.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Initialize push notifications
   Future<void> initialize() async {
+    final messaging = _messagingOrNull();
+    if (messaging == null) return;
+
     // Request permission on app start
     await requestPermission();
 
@@ -38,7 +49,7 @@ class PushNotificationService {
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Handle initial message (app launched from terminated state via notification)
-    RemoteMessage? initialMessage = await _messaging.getInitialMessage();
+    RemoteMessage? initialMessage = await messaging.getInitialMessage();
     if (initialMessage != null) {
       _handleMessage(initialMessage);
     }
@@ -67,7 +78,10 @@ class PushNotificationService {
 
   /// Request notification permission
   Future<bool> requestPermission() async {
-    NotificationSettings settings = await _messaging.requestPermission(
+    final messaging = _messagingOrNull();
+    if (messaging == null) return false;
+
+    NotificationSettings settings = await messaging.requestPermission(
       alert: true,
       announcement: false,
       badge: true,
@@ -87,7 +101,9 @@ class PushNotificationService {
   /// Get FCM device token
   Future<String?> getToken() async {
     try {
-      return await _messaging.getToken();
+      final messaging = _messagingOrNull();
+      if (messaging == null) return null;
+      return await messaging.getToken();
     } catch (e) {
       if (kDebugMode) debugPrint('Failed to get FCM token: $e');
       return null;

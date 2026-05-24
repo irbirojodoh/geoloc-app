@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "790753354879",
+    "project_id": "geoloc-1574d",
+    "storage_bucket": "geoloc-1574d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:790753354879:android:78a54be0c57dbdb48d8b4a",
+        "android_client_info": {
+          "package_name": "com.irphotoarts.geoloc_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0cOJ3Rcq_AhPAFklibHEOYy4dMyGKWTw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

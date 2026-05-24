@@ -185,6 +185,7 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
             data['data'] as List<dynamic>? ??
             data['comments'] as List<dynamic>? ??
             [];
+        final totalCount = (data['total_count'] as num?)?.toInt();
         final commentsList = rawList
             .map((e) => Comment.fromJson(e as Map<String, dynamic>))
             .toList();
@@ -198,6 +199,9 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
           commentsNextCursor: hasMore ? next : null,
           clearCommentsNextCursor: !hasMore,
           isLoadingMoreComments: false,
+          post: (state.post != null && totalCount != null)
+              ? state.post!.copyWith(commentCount: totalCount)
+              : state.post,
         );
       }
     } catch (e) {
@@ -325,7 +329,11 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
   Future<bool> submitComment(String content) async {
     if (content.trim().isEmpty) return false;
 
-    state = state.copyWith(isSubmittingComment: true);
+    final previousCount = state.post?.commentCount ?? 0;
+    state = state.copyWith(
+      isSubmittingComment: true,
+      post: state.post?.copyWith(commentCount: previousCount + 1),
+    );
 
     try {
       final response = await _apiClient.post(
@@ -335,20 +343,19 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         await loadComments();
-        if (state.post != null) {
-          state = state.copyWith(
-            post: state.post!.copyWith(
-              commentCount: state.post!.commentCount + 1,
-            ),
-          );
-        }
         state = state.copyWith(isSubmittingComment: false);
         return true;
       }
-      state = state.copyWith(isSubmittingComment: false);
+      state = state.copyWith(
+        isSubmittingComment: false,
+        post: state.post?.copyWith(commentCount: previousCount),
+      );
       return false;
     } catch (e) {
-      state = state.copyWith(isSubmittingComment: false);
+      state = state.copyWith(
+        isSubmittingComment: false,
+        post: state.post?.copyWith(commentCount: previousCount),
+      );
       return false;
     }
   }
@@ -357,7 +364,11 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
   Future<bool> submitReply(String parentCommentId, String content) async {
     if (content.trim().isEmpty) return false;
 
-    state = state.copyWith(isSubmittingComment: true);
+    final previousCount = state.post?.commentCount ?? 0;
+    state = state.copyWith(
+      isSubmittingComment: true,
+      post: state.post?.copyWith(commentCount: previousCount + 1),
+    );
 
     try {
       final response = await _apiClient.post(
@@ -367,20 +378,19 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         await loadComments();
-        if (state.post != null) {
-          state = state.copyWith(
-            post: state.post!.copyWith(
-              commentCount: state.post!.commentCount + 1,
-            ),
-          );
-        }
         state = state.copyWith(isSubmittingComment: false);
         return true;
       }
-      state = state.copyWith(isSubmittingComment: false);
+      state = state.copyWith(
+        isSubmittingComment: false,
+        post: state.post?.copyWith(commentCount: previousCount),
+      );
       return false;
     } catch (e) {
-      state = state.copyWith(isSubmittingComment: false);
+      state = state.copyWith(
+        isSubmittingComment: false,
+        post: state.post?.copyWith(commentCount: previousCount),
+      );
       return false;
     }
   }
