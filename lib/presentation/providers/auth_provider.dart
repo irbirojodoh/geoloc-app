@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -7,6 +8,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/errors/failures.dart';
 import '../../../data/models/user.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/dm_service.dart';
 
 /// Auth state
 class AuthState {
@@ -56,7 +58,10 @@ class AuthState {
 
 /// Auth state notifier provider
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(ref.watch(authServiceProvider));
+  return AuthNotifier(
+    ref.watch(authServiceProvider),
+    ref.watch(dmServiceProvider),
+  );
 });
 
 /// Current user provider (convenience)
@@ -67,8 +72,9 @@ final currentUserProvider = Provider<User?>((ref) {
 /// Auth notifier for managing authentication state
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _authService;
+  final DmService _dmService;
 
-  AuthNotifier(this._authService) : super(AuthState.initial()) {
+  AuthNotifier(this._authService, this._dmService) : super(AuthState.initial()) {
     _initializeAuth();
   }
 
@@ -81,6 +87,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final user = await _authService.getCurrentUser();
         if (user != null) {
           state = AuthState.authenticated(user);
+          unawaited(_dmService.ensureKeysUploaded());
           return;
         }
       }
@@ -108,6 +115,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         fullName: fullName,
       );
       state = AuthState.authenticated(user);
+      unawaited(_dmService.ensureKeysUploaded());
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -122,6 +130,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _authService.login(email: email, password: password);
       state = AuthState.authenticated(user);
+      unawaited(_dmService.ensureKeysUploaded());
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -164,6 +173,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         authResponse.user,
         isNewUser: authResponse.isNewUser,
       );
+      unawaited(_dmService.ensureKeysUploaded());
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -227,6 +237,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         authResponse.user,
         isNewUser: authResponse.isNewUser,
       );
+      unawaited(_dmService.ensureKeysUploaded());
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -236,6 +247,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Logout
   Future<void> logout() async {
+    await _dmService.clearLocalData();
     await _authService.logout();
     state = AuthState.unauthenticated();
   }

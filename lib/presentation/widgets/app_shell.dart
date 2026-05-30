@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,7 +7,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../config/routes.dart';
 import '../providers/auth_provider.dart';
+import '../providers/dm_provider.dart';
 import '../providers/notifications_provider.dart';
+import '../../data/models/sse_event.dart';
 import 'animated_scroll_gradient_background.dart';
 
 const _navVisibilityQueryKey = 'fromNav';
@@ -20,9 +23,13 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen(notificationStreamProvider, (previous, next) {
-      if (next.hasValue && next.value != null) {
-        final notification = next.value!;
+    ref.watch(dmSseHandlerProvider);
+
+    ref.listen(sseStreamProvider, (previous, next) {
+      if (!next.hasValue) return;
+      final event = next.value;
+      if (event is NotificationSseEvent) {
+        final notification = event.notification;
         ref.read(notificationsProvider.notifier).addNotification(notification);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -38,8 +45,15 @@ class AppShell extends ConsumerWidget {
       }
     });
 
+    ref.listen(authStateProvider, (previous, next) {
+      if (next.isAuthenticated && previous?.isAuthenticated != true) {
+        unawaited(ref.read(dmInboxProvider.notifier).loadInbox());
+      }
+    });
+
     final user = ref.watch(currentUserProvider);
     final unreadCount = ref.watch(unreadCountProvider);
+    final dmUnreadCount = ref.watch(dmUnreadCountProvider);
     final selectedIndex = _calculateSelectedIndex(context);
     final routerState = GoRouterState.of(context);
     final location = routerState.uri.path;
@@ -49,6 +63,7 @@ class AppShell extends ConsumerWidget {
         !location.startsWith(RoutePaths.editProfile);
     final isMainNavRoute = location.startsWith(RoutePaths.feed) ||
         location.startsWith(RoutePaths.search) ||
+        location.startsWith(RoutePaths.messages) ||
         location.startsWith(RoutePaths.notifications) ||
         isProfileDetailRoute;
     final isHomeRoute = location.startsWith(RoutePaths.feed);
@@ -86,13 +101,15 @@ class AppShell extends ConsumerWidget {
       ((createGlowCenterY / screenSize.height) * 2) - 1,
     );
     final bottomGradientHeight = navBarHeight + navBottomMargin + bottomSafeInset;
-    const navLabels = <String>['Home', 'Search', 'Notifications', 'Profile'];
+    const navLabels = <String>['Home', 'Explore', 'Messages', 'Alerts', 'Profile'];
     const navIcons = <IconData>[
       Icons.home_rounded,
       Icons.search_rounded,
+      Icons.chat_bubble_rounded,
       Icons.notifications_rounded,
       Icons.person_rounded,
     ];
+    const tabCount = 5;
     final createButtonLayerLink = LayerLink();
 
     final scaffold = Scaffold(
@@ -170,11 +187,9 @@ class AppShell extends ConsumerWidget {
                     // render nothing to avoid assertion errors.
                     final totalWidth = constraints.maxWidth;
                     if (totalWidth <= 0) return const SizedBox.shrink();
-                    // Dynamic slot count:
-                    // - Home route: 4 tabs + create action
-                    // - Other routes: 4 tabs only
+                    // Home route: 5 tabs + create action; other routes: 5 tabs only
                     final navTrackWidth = totalWidth;
-                    final slotCount = showCreateButton ? 5 : 4;
+                    final slotCount = showCreateButton ? tabCount + 1 : tabCount;
                     final createSlotWidth = showCreateButton ? 44.0 : 0.0;
 
                     // Selected slot = 38 %, unselected slots share the rest.
@@ -188,7 +203,7 @@ class AppShell extends ConsumerWidget {
                     double widthFor(int i) =>
                         selectedIndex == i ? selectedWidth : unselectedWidth;
 
-                    final widths = List<double>.generate(4, widthFor);
+                    final widths = List<double>.generate(tabCount, widthFor);
                     final selectedLeft = widths
                         .take(selectedIndex)
                         .fold<double>(0.0, (s, w) => s + w);
@@ -206,8 +221,12 @@ class AppShell extends ConsumerWidget {
                       Directionality.of(context),
                     );
 
-                    final hasSelectedBadge =
-                        selectedIndex == 2 && unreadCount > 0;
+                    final badgeCountForTab = selectedIndex == 2
+                        ? dmUnreadCount
+                        : selectedIndex == 3
+                            ? unreadCount
+                            : 0;
+                    final hasSelectedBadge = badgeCountForTab > 0;
 
                     // Pill width: icon(22) + gap(7) + label + badge(10) + h-padding(24)
                     final desiredHighlightWidth =
@@ -288,7 +307,7 @@ class AppShell extends ConsumerWidget {
                                 selectedColor: selectedContentColor,
                                 inactiveColor: inactiveColor,
                                 badgeBackgroundColor: colorScheme.error,
-                                badgeCount: unreadCount,
+                                badgeCount: dmUnreadCount,
                                 onTap: () => _onItemTapped(
                                   2,
                                   currentIndex: selectedIndex,
@@ -306,9 +325,27 @@ class AppShell extends ConsumerWidget {
                                 selectedColor: selectedContentColor,
                                 inactiveColor: inactiveColor,
                                 badgeBackgroundColor: colorScheme.error,
-                                badgeCount: 0,
+                                badgeCount: unreadCount,
                                 onTap: () => _onItemTapped(
                                   3,
+                                  currentIndex: selectedIndex,
+                                  context: context,
+                                  userId: user?.id,
+                                ),
+                              ),
+                            ),
+                            _FixedNavSlot(
+                              width: widthFor(4),
+                              child: _CapsuleNavItem(
+                                isSelected: selectedIndex == 4,
+                                label: navLabels[4],
+                                icon: navIcons[4],
+                                selectedColor: selectedContentColor,
+                                inactiveColor: inactiveColor,
+                                badgeBackgroundColor: colorScheme.error,
+                                badgeCount: 0,
+                                onTap: () => _onItemTapped(
+                                  4,
                                   currentIndex: selectedIndex,
                                   context: context,
                                   userId: user?.id,
@@ -407,8 +444,9 @@ class AppShell extends ConsumerWidget {
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith(RoutePaths.feed)) return 0;
     if (location.startsWith(RoutePaths.search)) return 1;
-    if (location.startsWith(RoutePaths.notifications)) return 2;
-    if (location.startsWith('/profile')) return 3;
+    if (location.startsWith(RoutePaths.messages)) return 2;
+    if (location.startsWith(RoutePaths.notifications)) return 3;
+    if (location.startsWith('/profile')) return 4;
     return 0;
   }
 
@@ -418,10 +456,7 @@ class AppShell extends ConsumerWidget {
     required BuildContext context,
     required String? userId,
   }) {
-    // Directionality rule:
-    // Home=0, Search=1, Notifications=2, Profile=3
-    // target > current => incoming from right (outgoing left)
-    // target < current => incoming from left (outgoing right)
+    // Home=0, Search=1, Messages=2, Notifications=3, Profile=4
     final direction = index > currentIndex
         ? 1
         : index < currentIndex
@@ -437,9 +472,12 @@ class AppShell extends ConsumerWidget {
         context.go('${RoutePaths.search}?$navQuery');
         break;
       case 2:
-        context.go('${RoutePaths.notifications}?$navQuery');
+        context.go('${RoutePaths.messages}?$navQuery');
         break;
       case 3:
+        context.go('${RoutePaths.notifications}?$navQuery');
+        break;
+      case 4:
         if (userId != null && userId.isNotEmpty) {
           context.go('/profile/$userId?$navQuery');
         } else {

@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../../config/routes.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import '../../../core/errors/dm_exception.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/dm_provider.dart';
+import '../../providers/moderation_lists_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
@@ -65,6 +68,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     super.dispose();
   }
 
+  Future<void> _openMessage(BuildContext context, String peerUserId) async {
+    try {
+      final conversation = await ref
+          .read(dmInboxProvider.notifier)
+          .openConversationWith(peerUserId);
+      if (!context.mounted || conversation == null) return;
+      setShellNavTransitionDirection(1);
+      context.push(
+        RoutePaths.chatPath(conversation.conversationId, peerUserId),
+      );
+    } on DmException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open chat: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profileState = ref.watch(profileProvider(widget.userId));
@@ -106,6 +132,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final hasCoverImage = coverImageUrl != null && coverImageUrl.isNotEmpty;
 
     final activePosts = _activeTabIndex == 0 ? profileState.posts : likedPosts;
+    final blockedUsers = ref.watch(blockedUsersListProvider).valueOrNull ?? [];
+    final isBlocked =
+        blockedUsers.any((blockedUser) => blockedUser.id == widget.userId);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -171,6 +200,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     onToggleFollow: () => ref
                         .read(profileProvider(widget.userId).notifier)
                         .toggleFollow(),
+                    isBlocked: isBlocked,
+                    onMessage: isBlocked
+                        ? null
+                        : () => _openMessage(context, widget.userId),
                   ),
                 ),
                 SliverPersistentHeader(
@@ -276,6 +309,8 @@ class _ProfileHeaderSection extends StatelessWidget {
     required this.isFollowLoading,
     required this.onEditProfile,
     required this.onToggleFollow,
+    this.isBlocked = false,
+    this.onMessage,
   });
 
   final bool hasCoverImage;
@@ -293,6 +328,8 @@ class _ProfileHeaderSection extends StatelessWidget {
   final bool isFollowLoading;
   final VoidCallback onEditProfile;
   final VoidCallback onToggleFollow;
+  final bool isBlocked;
+  final VoidCallback? onMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -412,14 +449,37 @@ class _ProfileHeaderSection extends StatelessWidget {
                           onPressed: onEditProfile,
                           child: const Text('Edit profile'),
                         )
-                      : isFollowing
+                      : isBlocked
                           ? OutlinedButton(
-                              onPressed: isFollowLoading ? null : onToggleFollow,
-                              child: const Text('Following'),
+                              onPressed: null,
+                              child: const Text('Message unavailable'),
                             )
-                          : FilledButton(
-                              onPressed: isFollowLoading ? null : onToggleFollow,
-                              child: const Text('Follow'),
+                          : Row(
+                              children: [
+                                if (onMessage != null)
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: onMessage,
+                                      child: const Text('Message'),
+                                    ),
+                                  ),
+                                if (onMessage != null) const SizedBox(width: 8),
+                                Expanded(
+                                  child: isFollowing
+                                      ? OutlinedButton(
+                                          onPressed: isFollowLoading
+                                              ? null
+                                              : onToggleFollow,
+                                          child: const Text('Following'),
+                                        )
+                                      : FilledButton(
+                                          onPressed: isFollowLoading
+                                              ? null
+                                              : onToggleFollow,
+                                          child: const Text('Follow'),
+                                        ),
+                                ),
+                              ],
                             ),
                 ),
               ],

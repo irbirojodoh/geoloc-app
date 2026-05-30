@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../config/routes.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/dm_backup_dialogs.dart';
 import '../../widgets/top_bar_backdrop.dart';
 
 /// Account & privacy entry point — blocked/muted lists and account deletion.
@@ -69,6 +70,13 @@ class SettingsScreen extends ConsumerWidget {
                         title: 'Blocked users',
                         subtitle: 'Manage people you blocked',
                         onTap: () => context.push(RoutePaths.settingsBlocked),
+                      ),
+                      Divider(height: 1, color: cs.outlineVariant),
+                      _SettingsNavRow(
+                        icon: Icons.backup_outlined,
+                        title: 'Message backup',
+                        subtitle: 'Restore encrypted messages on new devices',
+                        onTap: () => showDmCreateBackupDialog(context, ref),
                       ),
                       Divider(height: 1, color: cs.outlineVariant),
                       _SettingsNavRow(

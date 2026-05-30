@@ -207,4 +207,47 @@ class ApiEndpoints {
 
   /// DELETE - Unregister push token
   static const String unregisterDevice = _devicesBase;
+
+  // ==================== Direct Message Endpoints (Protected) ====================
+
+  static const String _dmBase = '$_apiBase/dm';
+
+  /// PUT - Upload or rotate caller's public key
+  static const String uploadDmKey = '$_dmBase/keys';
+
+  /// PUT / GET - Passphrase-wrapped identity backup (caller only)
+  static const String dmKeyBackup = '$_dmBase/keys/backup';
+
+  /// GET - Fetch another user's public key (?key_version=N optional)
+  static String getDmKey(String userId) => '$_dmBase/keys/$userId';
+
+  /// GET - List all public key versions for a user
+  static String getDmKeyVersions(String userId) =>
+      '$_dmBase/keys/$userId/versions';
+
+  /// POST - Start or retrieve 1:1 conversation
+  static const String createDmConversation = '$_dmBase/conversations';
+
+  /// GET - Inbox list
+  static const String getDmConversations = '$_dmBase/conversations';
+
+  /// DELETE - Remove conversation from your inbox only
+  static String deleteDmConversation(String conversationId) =>
+      '$_dmBase/conversations/$conversationId';
+
+  /// GET - Message history
+  static String getDmMessages(String conversationId) =>
+      '$_dmBase/conversations/$conversationId/messages';
+
+  /// POST - Send encrypted message
+  static String sendDmMessage(String conversationId) =>
+      '$_dmBase/conversations/$conversationId/messages';
+
+  /// DELETE - Soft-delete own message
+  static String deleteDmMessage(String messageId) =>
+      '$_dmBase/messages/$messageId';
+
+  /// PUT - Update read receipt
+  static String markDmConversationRead(String conversationId) =>
+      '$_dmBase/conversations/$conversationId/read';
 }

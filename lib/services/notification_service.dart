@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
 import '../data/models/notification.dart';
+import '../data/models/sse_event.dart';
 import '../data/models/user.dart';
 
 /// Provider for NotificationService
@@ -110,13 +111,16 @@ class NotificationService {
     return 0;
   }
 
-  /// Connect to SSE stream
-  Stream<AppNotification> getNotificationStream() async* {
+  /// Connect to SSE stream — yields notification and DM events.
+  Stream<SseEvent> getSseStream() async* {
     final response = await _apiClient.dio.get<ResponseBody>(
       ApiEndpoints.getNotificationStream,
       options: Options(
         responseType: ResponseType.stream,
         headers: {'Accept': 'text/event-stream'},
+        // Long-lived stream; server heartbeats may be ~30s apart.
+        // Must be Duration.zero — null keeps the 30s BaseOptions timeout.
+        receiveTimeout: Duration.zero,
       ),
     );
 
@@ -130,14 +134,35 @@ class NotificationService {
         .where((line) => line.startsWith('data:'))
         .map((line) => line.substring(5).trim())
         .where((data) => data.isNotEmpty)
-        .map((data) {
-      try {
-        final Map<String, dynamic> json = jsonDecode(data) as Map<String, dynamic>;
-        return AppNotification.fromJson(json);
-      } catch (_) {
-        return null;
+        .map(_parseSsePayload)
+        .where((event) => event != null)
+        .cast<SseEvent>();
+  }
+
+  /// Legacy stream for app notifications only.
+  Stream<AppNotification> getNotificationStream() async* {
+    await for (final event in getSseStream()) {
+      if (event is NotificationSseEvent) {
+        yield event.notification;
       }
-    }).where((notification) => notification != null).cast<AppNotification>();
+    }
+  }
+
+  SseEvent? _parseSsePayload(String data) {
+    try {
+      final json = jsonDecode(data) as Map<String, dynamic>;
+      if (json['status'] == 'connected') return null;
+
+      final type = json['type'] as String?;
+      if (type != null && type.startsWith('dm_')) {
+        return DmSseEvent(json: json, type: type);
+      }
+
+      if (json['id'] != null && type != null) {
+        return NotificationSseEvent(AppNotification.fromJson(json));
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<List<AppNotification>> _attachActors(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/notification.dart';
+import '../../data/models/sse_event.dart';
 import '../../services/notification_service.dart';
 
 /// Notifications state
@@ -61,19 +62,18 @@ final unreadCountProvider = Provider<int>((ref) {
   return ref.watch(notificationsProvider).unreadCount;
 });
 
-/// Stream provider for real-time SSE notifications with exponential backoff
-final notificationStreamProvider = StreamProvider<AppNotification>((ref) async* {
+/// Stream provider for real-time SSE (notifications + DMs) with backoff.
+final sseStreamProvider = StreamProvider<SseEvent>((ref) async* {
   final service = ref.watch(notificationServiceProvider);
   int retryCount = 0;
-  
+
   while (true) {
     try {
-      yield* service.getNotificationStream();
-      // Stream completed normally (e.g. server closed connection), retry shortly
+      yield* service.getSseStream();
       await Future.delayed(const Duration(seconds: 2));
     } catch (e) {
       retryCount++;
-      final backoffSeconds = 2 << (retryCount < 6 ? retryCount : 6); // max 128s
+      final backoffSeconds = 2 << (retryCount < 6 ? retryCount : 6);
       await Future.delayed(Duration(seconds: backoffSeconds));
     }
   }

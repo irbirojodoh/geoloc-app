@@ -35,6 +35,15 @@ class AppConfig {
   static const String refreshTokenExpiryKey = 'refresh_token_expiry';
   static const String currentUserKey = 'current_user';
 
+  /// DM E2EE secure storage keys (never log or upload private key)
+  static const String dmPrivateKeyKey = 'dm_private_key';
+  static const String dmPublicKeyVersionKey = 'dm_public_key_version';
+  static const String dmBackupVersionKey = 'dm_backup_version';
+
+  /// Hive box names for DM local cache
+  static const String dmConversationsBox = 'dm_conversations';
+  static const String dmMessagesBox = 'dm_messages';
+
   /// Location Configuration
   static const double defaultFeedRadiusKm = 5.0;
   static const int geohashPrecision = 5; // ~5km precision

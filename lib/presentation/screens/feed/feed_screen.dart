@@ -150,7 +150,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                     ),
                   ),
                   title: Text(
-                    'Home',
+                    'Near you',
                     style: textTheme.headlineMedium?.copyWith(
                       color: colorScheme.onSurface,
                     ),

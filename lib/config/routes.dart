@@ -17,6 +17,8 @@ import '../presentation/screens/post/post_detail_screen.dart';
 import '../presentation/screens/settings/blocked_users_screen.dart';
 import '../presentation/screens/settings/muted_users_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
+import '../presentation/screens/messages/inbox_screen.dart';
+import '../presentation/screens/messages/chat_screen.dart';
 import '../presentation/providers/auth_provider.dart';
 import '../presentation/widgets/app_shell.dart';
 import '../presentation/widgets/wordmark.dart';
@@ -42,6 +44,11 @@ class RoutePaths {
   static const String settings = '/settings';
   static const String settingsBlocked = '/settings/blocked';
   static const String settingsMuted = '/settings/muted';
+  static const String messages = '/messages';
+  static const String dmChat = '/messages/chat/:id';
+
+  static String chatPath(String conversationId, String peerUserId) =>
+      '/messages/chat/$conversationId?peerUserId=$peerUserId';
 }
 
 int _shellNavDirection = 1;
@@ -226,6 +233,27 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RoutePaths.settingsMuted,
             builder: (context, state) => const MutedUsersScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.messages,
+            pageBuilder: (context, state) => _buildShellRootPage(
+              state: state,
+              child: const InboxScreen(),
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.dmChat,
+            pageBuilder: (context, state) {
+              final conversationId = state.pathParameters['id']!;
+              final peerUserId = state.uri.queryParameters['peerUserId'] ?? '';
+              return _buildDetailSlidePage(
+                state: state,
+                child: ChatScreen(
+                  conversationId: conversationId,
+                  peerUserId: peerUserId,
+                ),
+              );
+            },
           ),
         ],
       ),
