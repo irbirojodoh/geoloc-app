@@ -93,11 +93,6 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showNewMessageSheet(context, ref),
-        icon: const Icon(Icons.edit_outlined),
-        label: const Text('New'),
-      ),
       body: RefreshIndicator(
         color: colorScheme.primary,
         backgroundColor:
@@ -367,6 +362,7 @@ class _ConversationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final hasUnread = conversation.unreadCount > 0;
@@ -378,120 +374,149 @@ class _ConversationTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: hasUnread
-            ? colorScheme.primaryContainer.withValues(alpha: 0.35)
-            : colorScheme.surfaceContainerLow,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    UserAvatar(
-                      imageUrl: peer?.profilePictureUrl,
-                      name: peer?.username ?? '?',
-                      size: 52,
-                      showBorder: hasUnread,
-                    ),
-                    if (hasUnread)
-                      Positioned(
-                        right: -2,
-                        top: -2,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: colorScheme.surface,
-                              width: 2,
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: hasUnread
+                    ? [
+                        colorScheme.primaryContainer.withValues(
+                          alpha: brightness == Brightness.dark ? 0.62 : 0.82,
+                        ),
+                        colorScheme.surfaceContainerHigh.withValues(alpha: 0.85),
+                      ]
+                    : [
+                        colorScheme.surfaceContainerLow,
+                        colorScheme.surfaceContainer.withValues(alpha: 0.92),
+                      ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: hasUnread
+                    ? colorScheme.primary.withValues(alpha: 0.35)
+                    : colorScheme.outlineVariant.withValues(alpha: 0.6),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 9,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      UserAvatar(
+                        imageUrl: peer?.profilePictureUrl,
+                        name: peer?.username ?? '?',
+                        size: 52,
+                        showBorder: hasUnread,
+                      ),
+                      if (hasUnread)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: colorScheme.surface,
+                                width: 2,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.titleSmall?.copyWith(
-                                fontWeight:
-                                    hasUnread ? FontWeight.w800 : FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            _formatTime(conversation.lastMessageAt),
-                            style: textTheme.labelSmall?.copyWith(
-                              color: hasUnread
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurfaceVariant,
-                              fontWeight:
-                                  hasUnread ? FontWeight.w700 : FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              preview,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: hasUnread
-                                    ? colorScheme.onSurface
-                                    : colorScheme.onSurfaceVariant,
-                                fontWeight:
-                                    hasUnread ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                          if (hasUnread) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
                               child: Text(
-                                conversation.unreadCount > 99
-                                    ? '99+'
-                                    : '${conversation.unreadCount}',
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onPrimary,
-                                  fontWeight: FontWeight.w700,
+                                displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.titleSmall?.copyWith(
+                                  color: colorScheme.onSurface,
+                                  fontWeight:
+                                      hasUnread ? FontWeight.w800 : FontWeight.w600,
                                 ),
                               ),
                             ),
+                            Text(
+                              _formatTime(conversation.lastMessageAt),
+                              style: textTheme.labelSmall?.copyWith(
+                                color: hasUnread
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurfaceVariant,
+                                fontWeight:
+                                    hasUnread ? FontWeight.w700 : FontWeight.w500,
+                              ),
+                            ),
                           ],
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                preview,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontWeight:
+                                      hasUnread ? FontWeight.w600 : FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                            if (hasUnread) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  conversation.unreadCount > 99
+                                      ? '99+'
+                                      : '${conversation.unreadCount}',
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: colorScheme.onPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

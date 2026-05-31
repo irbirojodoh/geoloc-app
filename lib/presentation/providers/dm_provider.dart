@@ -423,6 +423,7 @@ class DmChatNotifier extends StateNotifier<DmChatState> {
   final String? Function() currentUserId;
 
   Timer? _readDebounce;
+  final Set<String> _inFlightMessageIds = {};
 
   Future<void> initialize() async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -526,8 +527,12 @@ class DmChatNotifier extends StateNotifier<DmChatState> {
         ),
       );
 
+      final alreadyShown =
+          state.messages.any((m) => m.messageId == sent.messageId);
       state = state.copyWith(
-        messages: _sortMessages([...state.messages, sent]),
+        messages: alreadyShown
+            ? state.messages
+            : _sortMessages([...state.messages, sent]),
         isSending: false,
       );
       _scheduleMarkRead();
@@ -574,21 +579,31 @@ class DmChatNotifier extends StateNotifier<DmChatState> {
     if (json['conversation_id'] != state.conversationId) return;
 
     final message = DmMessage.fromSseJson(json);
-    if (state.messages.any((m) => m.messageId == message.messageId)) return;
-
     final userId = currentUserId();
     if (userId == null) return;
 
-    final decrypted = await _dmService.decryptIncomingMessage(
-      message: message,
-      currentUserId: userId,
-      peerUserId: state.peerUserId,
-    );
+    // Own sends are appended in sendMessage(); SSE echo would duplicate.
+    if (message.senderId == userId) return;
+    if (state.messages.any((m) => m.messageId == message.messageId)) return;
+    if (_inFlightMessageIds.contains(message.messageId)) return;
 
-    state = state.copyWith(
-      messages: _sortMessages([...state.messages, decrypted]),
-    );
-    _scheduleMarkRead();
+    _inFlightMessageIds.add(message.messageId);
+    try {
+      final decrypted = await _dmService.decryptIncomingMessage(
+        message: message,
+        currentUserId: userId,
+        peerUserId: state.peerUserId,
+      );
+
+      if (state.messages.any((m) => m.messageId == message.messageId)) return;
+
+      state = state.copyWith(
+        messages: _sortMessages([...state.messages, decrypted]),
+      );
+      _scheduleMarkRead();
+    } finally {
+      _inFlightMessageIds.remove(message.messageId);
+    }
   }
 
   void _scheduleMarkRead() {
@@ -638,29 +653,37 @@ final dmSseHandlerProvider = Provider<void>((ref) {
 
     ref.read(dmInboxProvider.notifier).handleSseEvent(event);
 
+    final convId = event.json['conversation_id'] as String?;
+    if (convId == null) return;
+
+    final currentUserId = ref.read(currentUserProvider)?.id;
+    if (currentUserId == null) return;
+
+    String? peerUserId;
     final inbox = ref.read(dmInboxProvider);
     for (final conv in inbox.conversations) {
-      if (event.type == 'dm_new_message' &&
-          event.json['conversation_id'] == conv.conversationId) {
-        ref
-            .read(
-              dmChatProvider((
-                conversationId: conv.conversationId,
-                peerUserId: conv.otherUserId,
-              )).notifier,
-            )
-            .handleSseEvent(event);
-      } else if (event.type == 'dm_read_receipt' &&
-          event.json['conversation_id'] == conv.conversationId) {
-        ref
-            .read(
-              dmChatProvider((
-                conversationId: conv.conversationId,
-                peerUserId: conv.otherUserId,
-              )).notifier,
-            )
-            .handleSseEvent(event);
+      if (conv.conversationId == convId) {
+        peerUserId = conv.otherUserId;
+        break;
       }
     }
+
+    if (peerUserId == null && event.type == 'dm_new_message') {
+      final senderId = event.json['sender_id'] as String?;
+      if (senderId != null && senderId != currentUserId) {
+        peerUserId = senderId;
+      }
+    }
+
+    if (peerUserId == null) return;
+
+    ref
+        .read(
+          dmChatProvider((
+            conversationId: convId,
+            peerUserId: peerUserId,
+          )).notifier,
+        )
+        .handleSseEvent(event);
   });
 });

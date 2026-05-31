@@ -11,6 +11,7 @@ import '../providers/dm_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../../data/models/sse_event.dart';
 import 'animated_scroll_gradient_background.dart';
+import 'new_message_sheet.dart';
 
 const _navVisibilityQueryKey = 'fromNav';
 const _navDirectionQueryKey = 'navDir';
@@ -61,6 +62,7 @@ class AppShell extends ConsumerWidget {
         routerState.uri.queryParameters[_navVisibilityQueryKey] == '1';
     final isProfileDetailRoute = location.startsWith('/profile/') &&
         !location.startsWith(RoutePaths.editProfile);
+    final isMessagesInboxRoute = location == RoutePaths.messages;
     final isMainNavRoute = location.startsWith(RoutePaths.feed) ||
         location.startsWith(RoutePaths.search) ||
         location.startsWith(RoutePaths.messages) ||
@@ -89,6 +91,7 @@ class AppShell extends ConsumerWidget {
     );
     const navBarHeight = 75.0;
     const navBottomMargin = 10.0;
+    const messagesFabBottomGap = 14.0;
     final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
     final screenSize = MediaQuery.sizeOf(context);
     const createGlowCenterFromRight = 44.0;
@@ -406,6 +409,20 @@ class AppShell extends ConsumerWidget {
     return Stack(
       children: [
         scaffold,
+        if (showNavigationBar && isMessagesInboxRoute)
+          Positioned(
+            right: 16,
+            bottom: bottomSafeInset +
+                navBottomMargin +
+                navBarHeight +
+                messagesFabBottomGap,
+            child: FloatingActionButton.extended(
+              heroTag: 'messages_new_fab',
+              onPressed: () => showNewMessageSheet(context, ref),
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('New'),
+            ),
+          ),
         if (showNavigationBar)
           Positioned.fill(
             child: IgnorePointer(

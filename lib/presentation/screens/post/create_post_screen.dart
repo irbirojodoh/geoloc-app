@@ -11,6 +11,7 @@ import '../../providers/create_post_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../../core/cache/image_cache_manager.dart';
 import '../../../data/models/user.dart';
+import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/top_bar_backdrop.dart';
 
 /// Create post screen.
@@ -114,18 +115,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    showModalBottomSheet<void>(
+    showAppBottomSheet<void>(
       context: context,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) => Padding(
-        padding: EdgeInsets.only(
+        padding: const EdgeInsets.only(
           left: 16,
           right: 16,
           top: 16,
-          bottom: MediaQuery.of(context).padding.bottom + 12,
+          bottom: 12,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

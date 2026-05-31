@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/cache/image_cache_manager.dart';
 import '../../providers/edit_profile_provider.dart';
+import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/top_bar_backdrop.dart';
 import '../../widgets/user_avatar.dart';
 
@@ -112,18 +113,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   void _showImagePickerSheet({required bool isProfileImage}) {
     final cs = Theme.of(context).colorScheme;
-    showModalBottomSheet<void>(
+    showAppBottomSheet<void>(
       context: context,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) => Padding(
-        padding: EdgeInsets.only(
+        padding: const EdgeInsets.only(
           left: 16,
           right: 16,
           top: 16,
-          bottom: MediaQuery.of(context).padding.bottom + 12,
+          bottom: 12,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

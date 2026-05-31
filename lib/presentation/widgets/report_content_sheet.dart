@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/theme_extensions.dart';
 
 import '../../services/moderation_service.dart';
+import 'app_bottom_sheet.dart';
 
 const _reportReasons = <({String apiValue, String label})>[
   (apiValue: 'spam', label: 'Spam'),
@@ -22,7 +23,7 @@ Future<bool> showReportContentSheet({
   String selectedReason = _reportReasons.first.apiValue;
   final descriptionCtrl = TextEditingController();
 
-  final success = await showModalBottomSheet<bool>(
+  final success = await showAppBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Theme.of(context).colorScheme.surface,
@@ -31,17 +32,15 @@ Future<bool> showReportContentSheet({
     ),
     builder: (ctx) {
       final cs = Theme.of(ctx).colorScheme;
-      final bottom = MediaQuery.of(ctx).viewInsets.bottom +
-          MediaQuery.paddingOf(ctx).bottom;
 
       return StatefulBuilder(
         builder: (context, setSheetState) {
           return Padding(
-            padding: EdgeInsets.only(
+            padding: const EdgeInsets.only(
               left: 20,
               right: 20,
               top: 20,
-              bottom: bottom + 16,
+              bottom: 16,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

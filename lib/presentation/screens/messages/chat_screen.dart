@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:timeago/timeago.dart' as timeago;
+import 'package:flutter/services.dart';
 
 import '../../../data/models/dm_message.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dm_provider.dart';
-import '../../providers/notifications_provider.dart';
-import '../../../data/models/sse_event.dart';
+import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/top_bar_backdrop.dart';
 import '../../widgets/user_avatar.dart';
 
@@ -71,14 +70,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(dmSseHandlerProvider);
-
-    ref.listen(sseStreamProvider, (previous, next) {
-      if (!next.hasValue) return;
-      final event = next.value;
-      if (event is DmSseEvent) {
-        ref.read(dmChatProvider(_chatKey).notifier).handleSseEvent(event);
-      }
-    });
 
     final state = ref.watch(dmChatProvider(_chatKey));
     final inboxState = ref.watch(dmInboxProvider);
@@ -158,35 +149,77 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               actions: const [SizedBox.shrink()],
             ),
           Expanded(
-            child: state.isLoading && state.messages.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : state.messages.isEmpty
-                    ? const Center(child: Text('Say hello 👋'))
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                        itemCount: state.messages.length,
-                        itemBuilder: (context, index) {
-                          final message = state.messages[index];
-                          final isMine = message.senderId == currentUserId;
-                          final isReadByPeer = state.lastReadByPeerId != null &&
-                              _isMessageReadByPeer(
-                                message.messageId,
-                                state.lastReadByPeerId!,
-                                state.messages,
-                              );
-                          return _MessageBubble(
-                            message: message,
-                            isMine: isMine,
-                            isReadByPeer: isMine && isReadByPeer,
-                            onDelete: isMine && !message.isDeleted
-                                ? () => ref
-                                    .read(dmChatProvider(_chatKey).notifier)
-                                    .deleteMessage(message.messageId)
-                                : null,
-                          );
-                        },
-                      ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    colorScheme.surface.withValues(alpha: 0.16),
+                    colorScheme.surfaceContainerLowest.withValues(alpha: 0.06),
+                  ],
+                ),
+              ),
+              child: state.isLoading && state.messages.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : state.messages.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.mark_chat_unread_outlined,
+                                size: 28,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'Start the conversation',
+                                style: textTheme.titleMedium?.copyWith(
+                                  color: colorScheme.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Messages are end-to-end encrypted',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                          itemCount: state.messages.length,
+                          itemBuilder: (context, index) {
+                            final message = state.messages[index];
+                            final isMine = message.senderId == currentUserId;
+                            final isReadByPeer = state.lastReadByPeerId != null &&
+                                _isMessageReadByPeer(
+                                  message.messageId,
+                                  state.lastReadByPeerId!,
+                                  state.messages,
+                                );
+                            return _BubbleEntrance(
+                              key: ValueKey(message.messageId),
+                              isMine: isMine,
+                              child: _MessageBubble(
+                                message: message,
+                                isMine: isMine,
+                                isReadByPeer: isMine && isReadByPeer,
+                                onDelete: isMine && !message.isDeleted
+                                    ? () => ref
+                                        .read(dmChatProvider(_chatKey).notifier)
+                                        .deleteMessage(message.messageId)
+                                    : null,
+                              ),
+                            );
+                          },
+                        ),
+            ),
           ),
           _Composer(
             controller: _composerController,
@@ -228,10 +261,39 @@ class _MessageBubble extends StatelessWidget {
   final bool isReadByPeer;
   final VoidCallback? onDelete;
 
+  String _formatSentAt(BuildContext context, DateTime sentAt) {
+    final local = sentAt.toLocal();
+    final now = DateTime.now();
+    final sameDay = now.year == local.year &&
+        now.month == local.month &&
+        now.day == local.day;
+    final sameYear = now.year == local.year;
+    final time = MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(local),
+    );
+    if (sameDay) return time;
+    if (sameYear) return '${local.month}/${local.day} $time';
+    return '${local.year}/${local.month}/${local.day} $time';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final mineBase = Color.alphaBlend(
+      colorScheme.primary.withValues(alpha: brightness == Brightness.dark ? 0.24 : 0.12),
+      colorScheme.primaryContainer,
+    );
+    final otherBase = colorScheme.surfaceContainerHighest;
+    final bubbleColor = message.decryptFailed
+        ? colorScheme.errorContainer
+        : (isMine ? mineBase : otherBase);
+    final bubbleBrightness = ThemeData.estimateBrightnessForColor(bubbleColor);
+    final bubbleTextColor = bubbleBrightness == Brightness.dark
+        ? Colors.white
+        : colorScheme.onSurface;
+    final bubbleMetaColor = bubbleTextColor.withValues(alpha: 0.74);
 
     Widget content;
     if (message.isDeleted) {
@@ -239,16 +301,26 @@ class _MessageBubble extends StatelessWidget {
         'Message deleted',
         style: textTheme.bodyMedium?.copyWith(
           fontStyle: FontStyle.italic,
-          color: colorScheme.onSurfaceVariant,
+          color: bubbleMetaColor,
         ),
       );
     } else if (message.decryptFailed) {
       content = Text(
-        'Unable to decrypt message. Ask the sender to resend, or re-open the chat after both users have opened the app.',
-        style: textTheme.bodyMedium?.copyWith(color: colorScheme.error),
+        'Unable to decrypt this message. Ask the sender to resend.',
+        style: textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onErrorContainer,
+          fontWeight: FontWeight.w500,
+        ),
       );
     } else {
-      content = Text(message.plaintext ?? '…');
+      content = Text(
+        message.plaintext ?? '…',
+        style: textTheme.bodyMedium?.copyWith(
+          color: bubbleTextColor,
+          fontWeight: FontWeight.w500,
+          height: 1.32,
+        ),
+      );
     }
 
     final bubble = Align(
@@ -260,9 +332,18 @@ class _MessageBubble extends StatelessWidget {
           maxWidth: MediaQuery.sizeOf(context).width * 0.78,
         ),
         decoration: BoxDecoration(
-          color: isMine
-              ? colorScheme.primary
-              : colorScheme.surfaceContainerHighest,
+          color: bubbleColor,
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.55),
+            width: 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -275,7 +356,7 @@ class _MessageBubble extends StatelessWidget {
           children: [
             DefaultTextStyle(
               style: textTheme.bodyMedium!.copyWith(
-                color: isMine ? colorScheme.onPrimary : colorScheme.onSurface,
+                color: bubbleTextColor,
               ),
               child: content,
             ),
@@ -284,11 +365,9 @@ class _MessageBubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  timeago.format(message.sentAt, locale: 'en_short'),
+                  _formatSentAt(context, message.sentAt),
                   style: textTheme.labelSmall?.copyWith(
-                    color: isMine
-                        ? colorScheme.onPrimary.withValues(alpha: 0.75)
-                        : colorScheme.onSurfaceVariant,
+                    color: bubbleMetaColor,
                   ),
                 ),
                 if (isMine && isReadByPeer) ...[
@@ -296,7 +375,7 @@ class _MessageBubble extends StatelessWidget {
                   Icon(
                     Icons.done_all,
                     size: 14,
-                    color: colorScheme.onPrimary.withValues(alpha: 0.85),
+                    color: bubbleMetaColor,
                   ),
                 ],
               ],
@@ -308,28 +387,110 @@ class _MessageBubble extends StatelessWidget {
 
     if (onDelete == null) return bubble;
 
-    return GestureDetector(
-      onLongPress: () {
-        showModalBottomSheet<void>(
-          context: context,
-          builder: (ctx) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.delete_outline),
-                  title: const Text('Delete message'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    onDelete!();
-                  },
-                ),
-              ],
+    return _PressScale(
+      child: GestureDetector(
+        onLongPress: () {
+          HapticFeedback.lightImpact();
+          showAppBottomSheet<void>(
+            context: context,
+            builder: (ctx) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline),
+                    title: const Text('Delete message'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      onDelete!();
+                    },
+                  ),
+                ],
+              ),
             ),
+          );
+        },
+        child: bubble,
+      ),
+    );
+  }
+}
+
+class _BubbleEntrance extends StatefulWidget {
+  const _BubbleEntrance({
+    super.key,
+    required this.child,
+    required this.isMine,
+  });
+
+  final Widget child;
+  final bool isMine;
+
+  @override
+  State<_BubbleEntrance> createState() => _BubbleEntranceState();
+}
+
+class _BubbleEntranceState extends State<_BubbleEntrance>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  )..forward();
+  late final Animation<double> _curve = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final startDx = widget.isMine ? 0.05 : -0.05;
+    return AnimatedBuilder(
+      animation: _curve,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _curve.value,
+          child: Transform.translate(
+            offset: Offset((1 - _curve.value) * startDx * 260, (1 - _curve.value) * 8),
+            child: child,
           ),
         );
       },
-      child: bubble,
+      child: widget.child,
+    );
+  }
+}
+
+class _PressScale extends StatefulWidget {
+  const _PressScale({required this.child});
+  final Widget child;
+
+  @override
+  State<_PressScale> createState() => _PressScaleState();
+}
+
+class _PressScaleState extends State<_PressScale> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      onLongPressStart: (_) => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.985 : 1,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
     );
   }
 }
@@ -347,6 +508,7 @@ class _Composer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
     return SafeArea(
       top: false,
@@ -363,11 +525,27 @@ class _Composer extends StatelessWidget {
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   hintText: enabled ? 'Message…' : 'Messaging unavailable',
+                  hintStyle: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                   filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest,
+                  fillColor: colorScheme.surfaceContainerHigh,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary.withValues(alpha: 0.9),
+                      width: 1.3,
+                    ),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -378,9 +556,13 @@ class _Composer extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            IconButton.filled(
+            IconButton.filledTonal(
               onPressed: enabled ? onSend : null,
-              icon: const Icon(Icons.send_rounded),
+              style: IconButton.styleFrom(
+                backgroundColor: colorScheme.primaryContainer,
+                foregroundColor: colorScheme.onPrimaryContainer,
+              ),
+              icon: const Icon(Icons.send_rounded, size: 22),
             ),
           ],
         ),
