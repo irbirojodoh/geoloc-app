@@ -12,8 +12,8 @@ class TopBarBackdrop extends StatelessWidget {
     required this.blendColor,
     this.borderRadius = BorderRadius.zero,
     this.blurSigma = 16,
-    this.blurTintOpacity = 0.70,
-    this.blendOpacity = 0.20,
+    this.blurTintOpacity = 0.1,
+    this.blendOpacity = 0.05,
     this.blendMode = BlendMode.multiply,
   });
 

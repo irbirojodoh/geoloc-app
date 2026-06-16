@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -742,36 +743,36 @@ class DmService {
       return message;
     }
 
-    try {
-      final isOwnMessage = message.senderId == currentUserId;
+    final isOwnMessage = message.senderId == currentUserId;
+    DmPublicKey? remoteKey;
+    String? remoteKeyUserId;
+    int? remoteKeyVersion;
 
+    try {
       // key_version on the wire is the recipient's version at send time.
       // sender_key_version is the sender's key version at encrypt time.
       // - Incoming: fetch sender public key at sender_key_version.
       // - Own sent: fetch recipient public key at key_version.
-      final DmPublicKey remoteKey;
-      final String cachePeerId;
-      final int cacheVersion;
       if (isOwnMessage) {
+        remoteKeyUserId = peerUserId;
+        remoteKeyVersion = message.keyVersion;
         remoteKey = await fetchPeerPublicKey(
           peerUserId,
           keyVersion: message.keyVersion,
         );
-        cachePeerId = peerUserId;
-        cacheVersion = message.keyVersion;
       } else {
+        remoteKeyUserId = message.senderId;
+        remoteKeyVersion = message.senderKeyVersion;
         remoteKey = await fetchPeerPublicKey(
           message.senderId,
           keyVersion: message.senderKeyVersion,
         );
-        cachePeerId = message.senderId;
-        cacheVersion = message.senderKeyVersion;
       }
 
       final aesKey = await _deriveAesKey(
-        peerUserId: cachePeerId,
+        peerUserId: remoteKeyUserId,
         peerPublicKeyBase64: remoteKey.publicKeyBase64,
-        keyVersion: cacheVersion,
+        keyVersion: remoteKeyVersion,
       );
       final plaintext = await _crypto.decrypt(
         ciphertextBase64: message.ciphertextBase64,
@@ -779,9 +780,73 @@ class DmService {
         aesKey: aesKey,
       );
       return message.copyWith(plaintext: plaintext, decryptFailed: false);
-    } catch (_) {
+    } catch (e, st) {
+      await _logDecryptFailure(
+        message: message,
+        currentUserId: currentUserId,
+        peerUserId: peerUserId,
+        isOwnMessage: isOwnMessage,
+        remoteKeyUserId: remoteKeyUserId,
+        remoteKeyVersion: remoteKeyVersion,
+        remoteKeyVersionOnServer: remoteKey?.keyVersion,
+        hadCachedPlaintext: message.plaintext != null,
+        wasRetry: message.decryptFailed,
+        error: e,
+        stackTrace: st,
+      );
       return message.copyWith(decryptFailed: true);
     }
+  }
+
+  /// Debug-only decrypt failure log. Never logs private keys, passphrases, or plaintext.
+  Future<void> _logDecryptFailure({
+    required DmMessage message,
+    required String currentUserId,
+    required String peerUserId,
+    required bool isOwnMessage,
+    required Object error,
+    required StackTrace stackTrace,
+    String? remoteKeyUserId,
+    int? remoteKeyVersion,
+    int? remoteKeyVersionOnServer,
+    bool hadCachedPlaintext = false,
+    bool wasRetry = false,
+  }) async {
+    if (!kDebugMode) return;
+
+    final hasLocalKey = await hasLocalIdentity();
+    final localKeyVersion = await getLocalKeyVersion();
+    final errorLabel = switch (error) {
+      DmException(:final code) => 'DmException($code)',
+      SecretBoxAuthenticationError() => 'SecretBoxAuthenticationError',
+      FormatException(:final message) => 'FormatException($message)',
+      _ => error.runtimeType.toString(),
+    };
+    final dmMessage = error is DmException ? error.message : null;
+
+    debugPrint('🔐 DM decrypt failed');
+    debugPrint('   message_id: ${message.messageId}');
+    debugPrint('   conversation_id: ${message.conversationId}');
+    debugPrint('   sender_id: ${message.senderId}');
+    debugPrint('   current_user_id: $currentUserId');
+    debugPrint('   peer_user_id: $peerUserId');
+    debugPrint('   is_own_message: $isOwnMessage');
+    debugPrint('   message.key_version (recipient): ${message.keyVersion}');
+    debugPrint('   message.sender_key_version: ${message.senderKeyVersion}');
+    debugPrint('   remote_key_user_id: ${remoteKeyUserId ?? 'unknown'}');
+    debugPrint('   remote_key_version_requested: ${remoteKeyVersion ?? 'unknown'}');
+    debugPrint(
+      '   remote_key_version_from_server: ${remoteKeyVersionOnServer ?? 'not_fetched'}',
+    );
+    debugPrint('   local_identity_present: $hasLocalKey');
+    debugPrint('   local_key_version: ${localKeyVersion ?? 'none'}');
+    debugPrint('   had_cached_plaintext: $hadCachedPlaintext');
+    debugPrint('   was_retry_after_prior_failure: $wasRetry');
+    debugPrint('   error: $errorLabel');
+    if (dmMessage != null) {
+      debugPrint('   error_message: $dmMessage');
+    }
+    debugPrint('   stack: $stackTrace');
   }
 
   Future<DmPublicKey> _getPeerKey(String userId, {int? version}) async {

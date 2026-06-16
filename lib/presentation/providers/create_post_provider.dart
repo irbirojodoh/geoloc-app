@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../services/upload_service.dart';
 import 'location_provider.dart';
 
 const int kCreatePostMaxContentLength = 300;
@@ -16,8 +17,10 @@ class CreatePostState {
   final bool isSubmitting;
   final bool isSuccess;
   final String? error;
-  final String? locationName; // e.g., "Kukusan, Depok"
+  final String? locationName;
   final bool isLoadingAddress;
+  final int? uploadingMediaIndex;
+  final double uploadProgress;
 
   const CreatePostState({
     this.content = '',
@@ -27,6 +30,8 @@ class CreatePostState {
     this.error,
     this.locationName,
     this.isLoadingAddress = false,
+    this.uploadingMediaIndex,
+    this.uploadProgress = 0,
   });
 
   CreatePostState copyWith({
@@ -37,6 +42,9 @@ class CreatePostState {
     String? error,
     String? locationName,
     bool? isLoadingAddress,
+    int? uploadingMediaIndex,
+    double? uploadProgress,
+    bool clearUploadProgress = false,
   }) {
     return CreatePostState(
       content: content ?? this.content,
@@ -46,20 +54,26 @@ class CreatePostState {
       error: error,
       locationName: locationName ?? this.locationName,
       isLoadingAddress: isLoadingAddress ?? this.isLoadingAddress,
+      uploadingMediaIndex: clearUploadProgress
+          ? null
+          : (uploadingMediaIndex ?? this.uploadingMediaIndex),
+      uploadProgress: clearUploadProgress
+          ? 0
+          : (uploadProgress ?? this.uploadProgress),
     );
   }
 
-  /// Check if post can be submitted
   bool get canSubmit => content.trim().isNotEmpty && !isSubmitting;
 }
 
 /// Create post notifier
 class CreatePostNotifier extends StateNotifier<CreatePostState> {
   final ApiClient _apiClient;
+  final UploadService _uploadService;
   final Ref _ref;
   final ImagePicker _imagePicker = ImagePicker();
 
-  CreatePostNotifier(this._apiClient, this._ref)
+  CreatePostNotifier(this._apiClient, this._uploadService, this._ref)
     : super(const CreatePostState());
 
   /// Update post content
@@ -87,7 +101,6 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
         final locationName = data['location_name'] as String?;
         final address = data['address'] as Map<String, dynamic>?;
 
-        // Format: "Village, City" or just location_name
         String displayName;
         if (address != null) {
           final village =
@@ -118,6 +131,15 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
     }
   }
 
+  String? _validatePickedFile(File file) {
+    try {
+      _uploadService.validateImageFile(file);
+      return null;
+    } on UploadException catch (e) {
+      return e.message;
+    }
+  }
+
   /// Pick image from gallery
   Future<void> pickImageFromGallery() async {
     final remainingSlots = kCreatePostMaxMediaCount - state.mediaFiles.length;
@@ -135,16 +157,36 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
         imageQuality: 85,
       );
 
-      if (images.isNotEmpty) {
-        final selectedFiles = images.map((xFile) => File(xFile.path)).toList();
-        final limitedFiles = selectedFiles.take(remainingSlots).toList();
-        state = state.copyWith(
-          mediaFiles: [...state.mediaFiles, ...limitedFiles],
-          error: selectedFiles.length > limitedFiles.length
-              ? 'Only $kCreatePostMaxMediaCount images are allowed'
-              : null,
-        );
+      if (images.isEmpty) return;
+
+      final validFiles = <File>[];
+      String? validationError;
+
+      for (final xFile in images) {
+        if (validFiles.length >= remainingSlots) break;
+        final file = File(xFile.path);
+        final error = _validatePickedFile(file);
+        if (error != null) {
+          validationError = error;
+          continue;
+        }
+        validFiles.add(file);
       }
+
+      if (validFiles.isEmpty) {
+        state = state.copyWith(
+          error: validationError ?? 'No valid images selected',
+        );
+        return;
+      }
+
+      state = state.copyWith(
+        mediaFiles: [...state.mediaFiles, ...validFiles],
+        error: validationError ??
+            (images.length > validFiles.length
+                ? 'Only $kCreatePostMaxMediaCount images are allowed'
+                : null),
+      );
     } catch (e) {
       state = state.copyWith(error: 'Failed to pick images');
     }
@@ -168,8 +210,15 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
       );
 
       if (image != null) {
+        final file = File(image.path);
+        final validationError = _validatePickedFile(file);
+        if (validationError != null) {
+          state = state.copyWith(error: validationError);
+          return;
+        }
+
         state = state.copyWith(
-          mediaFiles: [...state.mediaFiles, File(image.path)],
+          mediaFiles: [...state.mediaFiles, file],
           error: null,
         );
       }
@@ -197,43 +246,48 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
       return false;
     }
 
-    // Get current location
     final locationState = _ref.read(locationStateProvider);
     if (!locationState.hasLocation) {
       state = state.copyWith(error: 'Location is required to create a post');
       return false;
     }
 
-    state = state.copyWith(isSubmitting: true, error: null);
+    state = state.copyWith(
+      isSubmitting: true,
+      error: null,
+      clearUploadProgress: true,
+    );
 
     try {
-      // Upload media files first if any
-      List<String> mediaUrls = [];
-      for (final file in state.mediaFiles) {
-        final uploadResponse = await _apiClient.uploadFile(
-          ApiEndpoints.uploadPostMedia,
-          filePath: file.path,
-          fieldName: 'file',
+      final mediaKeys = <String>[];
+
+      for (var i = 0; i < state.mediaFiles.length; i++) {
+        final file = state.mediaFiles[i];
+        state = state.copyWith(
+          uploadingMediaIndex: i,
+          uploadProgress: 0,
         );
 
-        if (uploadResponse.statusCode == 200 ||
-            uploadResponse.statusCode == 201) {
-          final data = uploadResponse.data as Map<String, dynamic>;
-          final url = data['url'] as String? ?? data['media_url'] as String?;
-          if (url != null) {
-            mediaUrls.add(url);
-          }
-        }
+        final result = await _uploadService.uploadPostMedia(
+          file,
+          onSendProgress: (sent, total) {
+            if (total > 0) {
+              state = state.copyWith(uploadProgress: sent / total);
+            }
+          },
+        );
+        mediaKeys.add(result.key);
       }
 
-      // Create post
+      state = state.copyWith(clearUploadProgress: true);
+
       final response = await _apiClient.post(
         ApiEndpoints.createPost,
         data: {
           'content': state.content.trim(),
           'latitude': locationState.latitude,
           'longitude': locationState.longitude,
-          if (mediaUrls.isNotEmpty) 'media_urls': mediaUrls,
+          if (mediaKeys.isNotEmpty) 'media_keys': mediaKeys,
         },
       );
 
@@ -247,9 +301,17 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
         );
         return false;
       }
+    } on UploadException catch (e) {
+      state = state.copyWith(
+        isSubmitting: false,
+        clearUploadProgress: true,
+        error: e.message,
+      );
+      return false;
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
+        clearUploadProgress: true,
         error: e.toString().replaceAll('Exception: ', ''),
       );
       return false;
@@ -268,5 +330,6 @@ final createPostProvider =
       ref,
     ) {
       final apiClient = ref.read(apiClientProvider);
-      return CreatePostNotifier(apiClient, ref);
+      final uploadService = ref.read(uploadServiceProvider);
+      return CreatePostNotifier(apiClient, uploadService, ref);
     });

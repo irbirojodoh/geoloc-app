@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/routes.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/auth_network_image.dart';
 
 import '../../../core/errors/dm_exception.dart';
 import '../../providers/auth_provider.dart';
@@ -348,7 +348,7 @@ class _ProfileHeaderSection extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 if (hasCoverImage)
-                  CachedNetworkImage(
+                  AuthNetworkImage(
                     imageUrl: coverImageUrl!,
                     fit: BoxFit.cover,
                     errorWidget: (context, url, error) => Container(

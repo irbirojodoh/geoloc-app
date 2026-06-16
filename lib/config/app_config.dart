@@ -55,9 +55,11 @@ class AppConfig {
   static const Duration searchDebounce = Duration(milliseconds: 400);
   static const int maxRequestsPerMinute = 100;
 
-  /// Media Constraints
-  static const int maxAvatarSizeMB = 5;
-  static const int maxPostMediaSizeMB = 50;
+  /// Media Constraints (R2: 10MB max, images only)
+  static const int maxMediaSizeMB = 10;
+  static const int maxAvatarSizeMB = maxMediaSizeMB;
+  static const int maxPostMediaSizeMB = maxMediaSizeMB;
+  static const int maxMediaSizeBytes = maxMediaSizeMB * 1024 * 1024;
 
   /// Comment Configuration
   static const int maxCommentDepth = 3;

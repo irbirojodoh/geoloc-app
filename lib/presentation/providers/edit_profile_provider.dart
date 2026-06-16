@@ -177,7 +177,13 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
         );
 
         if (croppedFile != null) {
-          state = state.copyWith(newProfileImage: File(croppedFile.path));
+          final file = File(croppedFile.path);
+          try {
+            _uploadService.validateImageFile(file);
+            state = state.copyWith(newProfileImage: file);
+          } on UploadException catch (e) {
+            state = state.copyWith(error: e.message);
+          }
         }
       }
     } catch (e) {
@@ -222,7 +228,13 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
         );
 
         if (croppedFile != null) {
-          state = state.copyWith(newCoverImage: File(croppedFile.path));
+          final file = File(croppedFile.path);
+          try {
+            _uploadService.validateImageFile(file);
+            state = state.copyWith(newCoverImage: file);
+          } on UploadException catch (e) {
+            state = state.copyWith(error: e.message);
+          }
         }
       }
     } catch (e) {
@@ -248,49 +260,46 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
     HapticFeedback.mediumImpact();
 
     try {
-      String? newProfilePictureUrl;
-      String? newCoverImageUrl;
+      String? avatarKey;
+      String? coverKey;
 
-      // Upload profile image if changed
       if (state.newProfileImage != null) {
-        newProfilePictureUrl =
+        final result =
             await _uploadService.uploadAvatar(state.newProfileImage!);
+        avatarKey = result.key;
       }
 
-      // Upload cover image if changed
       if (state.newCoverImage != null) {
-        newCoverImageUrl =
-            await _uploadService.uploadCover(state.newCoverImage!);
+        final result = await _uploadService.uploadCover(state.newCoverImage!);
+        coverKey = result.key;
       }
 
-      // Update profile via API
-      final updateData = <String, dynamic>{};
+      final hasTextChanges =
+          state.fullName != (state.originalUser?.fullName ?? '') ||
+              state.username != state.originalUser?.username ||
+              state.bio != (state.originalUser?.bio ?? '');
 
-      if (state.fullName != (state.originalUser?.fullName ?? '')) {
-        updateData['full_name'] = state.fullName;
-      }
-      if (state.username != state.originalUser?.username) {
-        updateData['username'] = state.username;
-      }
-      if (state.bio != (state.originalUser?.bio ?? '')) {
-        updateData['bio'] = state.bio;
-      }
-      if (newProfilePictureUrl != null) {
-        updateData['profile_picture_url'] = newProfilePictureUrl;
-      }
-      if (newCoverImageUrl != null) {
-        updateData['cover_image_url'] = newCoverImageUrl;
-      }
-
-      if (updateData.isNotEmpty) {
-        // Use auth service to update profile
+      if (hasTextChanges || avatarKey != null || coverKey != null) {
         await _ref.read(authStateProvider.notifier).updateProfile(
-              fullName: updateData['full_name'] as String?,
-              username: updateData['username'] as String?,
-              bio: updateData['bio'] as String?,
-              profilePictureUrl: updateData['profile_picture_url'] as String?,
-              coverImageUrl: updateData['cover_image_url'] as String?,
+              fullName: state.fullName != (state.originalUser?.fullName ?? '')
+                  ? state.fullName
+                  : null,
+              username: state.username != state.originalUser?.username
+                  ? state.username
+                  : null,
+              bio: state.bio != (state.originalUser?.bio ?? '')
+                  ? state.bio
+                  : null,
+              avatarKey: avatarKey,
+              coverKey: coverKey,
             );
+      }
+
+      // Refresh profile from API so resolved R2 URLs are current
+      final refreshedUser = await _authService.getCurrentUser();
+      if (refreshedUser != null) {
+        _ref.read(authStateProvider.notifier).updateUser(refreshedUser);
+        state = state.copyWith(originalUser: refreshedUser);
       }
 
       state = state.copyWith(
@@ -302,6 +311,9 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
 
       HapticFeedback.heavyImpact();
       return true;
+    } on UploadException catch (e) {
+      state = state.copyWith(isSaving: false, error: e.message);
+      return false;
     } catch (e) {
       state = state.copyWith(
         isSaving: false,

@@ -69,6 +69,17 @@ final currentUserProvider = Provider<User?>((ref) {
   return ref.watch(authStateProvider).user;
 });
 
+/// Access token provider (convenience)
+final accessTokenProvider = FutureProvider<String?>((ref) async {
+  // Watch authStateProvider so that if auth state changes (e.g. login/logout),
+  // the token provider will refresh.
+  final authState = ref.watch(authStateProvider);
+  if (!authState.isAuthenticated) {
+    return null;
+  }
+  return ref.read(authServiceProvider).getAccessToken();
+});
+
 /// Auth notifier for managing authentication state
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _authService;
@@ -262,17 +273,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? fullName,
     String? username,
     String? bio,
+    String? avatarKey,
+    String? coverKey,
     String? profilePictureUrl,
     String? coverImageUrl,
   }) async {
     if (state.user == null) return false;
 
     try {
-      // Build update data
       final updateData = <String, dynamic>{};
       if (fullName != null) updateData['full_name'] = fullName;
       if (username != null) updateData['username'] = username;
       if (bio != null) updateData['bio'] = bio;
+      if (avatarKey != null) updateData['avatar_key'] = avatarKey;
+      if (coverKey != null) updateData['cover_key'] = coverKey;
       if (profilePictureUrl != null) {
         updateData['profile_picture_url'] = profilePictureUrl;
       }
@@ -282,17 +296,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       if (updateData.isEmpty) return true;
 
-      // Call API to update profile
-      await _authService.updateProfile(updateData);
-
-      // Update local user state
-      final updatedUser = state.user!.copyWith(
-        fullName: fullName ?? state.user!.fullName,
-        username: username ?? state.user!.username,
-        bio: bio ?? state.user!.bio,
-        profilePictureUrl: profilePictureUrl ?? state.user!.profilePictureUrl,
-        coverImageUrl: coverImageUrl ?? state.user!.coverImageUrl,
-      );
+      final updatedUser = await _authService.updateProfile(updateData);
       state = state.copyWith(user: updatedUser);
 
       return true;

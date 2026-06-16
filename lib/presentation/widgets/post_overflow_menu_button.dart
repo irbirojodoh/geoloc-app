@@ -38,9 +38,12 @@ class PostOverflowMenuButton extends ConsumerWidget {
         color: cs.onSurfaceVariant,
       ),
       padding: EdgeInsets.zero,
+      elevation: 4,
+      surfaceTintColor: Colors.transparent,
+      color: cs.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(2),
-        side: BorderSide(color: cs.outline),
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: cs.outline.withValues(alpha: 0.5)),
       ),
       onSelected: (value) async {
         if (!context.mounted) return;
@@ -64,9 +67,19 @@ class PostOverflowMenuButton extends ConsumerWidget {
           return [
             PopupMenuItem(
               value: 'delete',
-              child: Text(
-                'Delete Post',
-                style: context.bodyMedium,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.delete_outline_rounded,
+                    size: 20,
+                    color: cs.error,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Delete Post',
+                    style: context.bodyMedium.copyWith(color: cs.error),
+                  ),
+                ],
               ),
             ),
           ];
@@ -74,15 +87,45 @@ class PostOverflowMenuButton extends ConsumerWidget {
         return [
           PopupMenuItem(
             value: 'report',
-            child: Text('Report', style: context.bodyMedium),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.flag_outlined,
+                  size: 20,
+                  color: cs.onSurface,
+                ),
+                const SizedBox(width: 12),
+                Text('Report', style: context.bodyMedium),
+              ],
+            ),
           ),
           PopupMenuItem(
             value: 'block',
-            child: Text('Block', style: context.bodyMedium),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.block_outlined,
+                  size: 20,
+                  color: cs.onSurface,
+                ),
+                const SizedBox(width: 12),
+                Text('Block', style: context.bodyMedium),
+              ],
+            ),
           ),
           PopupMenuItem(
             value: 'mute',
-            child: Text('Mute', style: context.bodyMedium),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.volume_off_outlined,
+                  size: 20,
+                  color: cs.onSurface,
+                ),
+                const SizedBox(width: 12),
+                Text('Mute', style: context.bodyMedium),
+              ],
+            ),
           ),
         ];
       },
@@ -95,8 +138,6 @@ class PostOverflowMenuButton extends ConsumerWidget {
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
         return AlertDialog(
-          backgroundColor: cs.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
           title: Text(
             'Delete post?',
             style: context.textTheme.headlineSmall,
@@ -163,8 +204,6 @@ class PostOverflowMenuButton extends ConsumerWidget {
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
         return AlertDialog(
-          backgroundColor: cs.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
           title: Text(
             'Block this user?',
             style: context.textTheme.headlineSmall,
@@ -221,8 +260,6 @@ class PostOverflowMenuButton extends ConsumerWidget {
       builder: (ctx) {
         final cs = Theme.of(ctx).colorScheme;
         return AlertDialog(
-          backgroundColor: cs.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
           title: Text(
             'Mute this user?',
             style: context.textTheme.headlineSmall,

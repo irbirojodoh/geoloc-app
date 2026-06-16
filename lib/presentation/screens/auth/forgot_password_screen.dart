@@ -39,10 +39,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         builder: (ctx) {
           final cs = Theme.of(ctx).colorScheme;
           return AlertDialog(
-            backgroundColor: cs.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(2),
-            ),
             title: Text(
               'Check your email',
               style: context.textTheme.headlineSmall,

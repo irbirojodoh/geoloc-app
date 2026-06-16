@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/routes.dart';
 import '../../../core/theme/theme_extensions.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/auth_network_image.dart';
 
 import '../../../core/cache/image_cache_manager.dart';
 import '../../providers/edit_profile_provider.dart';
@@ -331,7 +331,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             fit: BoxFit.cover,
                           )
                         else if (state.originalUser?.coverImageUrl != null)
-                          CachedNetworkImage(
+                          AuthNetworkImage(
                             imageUrl: state.originalUser!.coverImageUrl!,
                             fit: BoxFit.cover,
                             cacheManager: PostImageCacheManager.instance,

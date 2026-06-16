@@ -1,10 +1,9 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/auth_network_image.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/create_post_provider.dart';
@@ -231,7 +230,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                     createPostState: createPostState,
                   ),
                   if (createPostState.mediaFiles.isNotEmpty)
-                    _buildMediaPreview(context, createPostState.mediaFiles),
+                    _buildMediaPreview(context, createPostState),
                 ],
               ),
             ),
@@ -357,7 +356,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                             child: Builder(
                               builder: (context) {
                                 final dpr = MediaQuery.devicePixelRatioOf(context);
-                                return CachedNetworkImage(
+                                return AuthNetworkImage(
                                   imageUrl: currentUser!.profilePictureUrl!,
                                   fit: BoxFit.cover,
                                   cacheManager: AvatarCacheManager.instance,
@@ -451,8 +450,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
     );
   }
 
-  Widget _buildMediaPreview(BuildContext context, List<File> mediaFiles) {
+  Widget _buildMediaPreview(BuildContext context, CreatePostState postState) {
     final colorScheme = Theme.of(context).colorScheme;
+    final mediaFiles = postState.mediaFiles;
+    final isUploading = postState.isSubmitting;
+    final uploadingIndex = postState.uploadingMediaIndex;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Column(
@@ -464,6 +467,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
               scrollDirection: Axis.horizontal,
               itemCount: mediaFiles.length,
               itemBuilder: (context, index) {
+                final isCurrentUpload =
+                    isUploading && uploadingIndex == index;
+                final isUploaded =
+                    isUploading && uploadingIndex != null && index < uploadingIndex;
+
                 return Padding(
                   padding: EdgeInsets.only(
                     right: index < mediaFiles.length - 1 ? 8 : 0,
@@ -477,7 +485,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                           width: 120,
                           height: 120,
                           fit: BoxFit.cover,
-                          // Decode at 120pt thumbnail size, not full source.
                           cacheWidth:
                               (120 * MediaQuery.devicePixelRatioOf(context))
                                   .round(),
@@ -486,30 +493,69 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                                   .round(),
                         ),
                       ),
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: GestureDetector(
-                          onTap: () {
-                            ref
-                                .read(createPostProvider.notifier)
-                                .removeMedia(index);
-                          },
+                      if (isCurrentUpload)
+                        Positioned.fill(
                           child: Container(
-                            width: 24,
-                            height: 24,
                             decoration: BoxDecoration(
-                              color: colorScheme.scrim.withValues(alpha: 0.6),
-                              shape: BoxShape.circle,
+                              color: colorScheme.scrim.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Icon(
-                              Icons.close,
-                              size: 14,
-                              color: colorScheme.onSurface,
+                            child: Center(
+                              child: SizedBox(
+                                width: 32,
+                                height: 32,
+                                child: CircularProgressIndicator(
+                                  value: postState.uploadProgress > 0
+                                      ? postState.uploadProgress
+                                      : null,
+                                  strokeWidth: 2.5,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      if (isUploaded)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: colorScheme.scrim.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.check_circle,
+                                color: colorScheme.primary,
+                                size: 28,
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (!isUploading)
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: GestureDetector(
+                            onTap: () {
+                              ref
+                                  .read(createPostProvider.notifier)
+                                  .removeMedia(index);
+                            },
+                            child: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: colorScheme.scrim.withValues(alpha: 0.6),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.close,
+                                size: 14,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 );

@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'auth_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/cache/image_cache_manager.dart';
@@ -61,7 +61,7 @@ class UserAvatar extends StatelessWidget {
       ),
       child: imageUrl != null
           ? ClipOval(
-              child: CachedNetworkImage(
+              child: AuthNetworkImage(
                 imageUrl: imageUrl!,
                 width: size,
                 height: size,

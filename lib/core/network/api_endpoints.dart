@@ -194,10 +194,13 @@ class ApiEndpoints {
 
   // ==================== Upload Endpoints (Protected) ====================
 
-  /// POST - Upload avatar (max 5MB, multipart/form-data)
+  /// POST - Upload avatar (max 10MB, multipart/form-data)
   static const String uploadAvatar = '$_apiBase/upload/avatar';
 
-  /// POST - Upload post media (max 50MB, multipart/form-data)
+  /// POST - Upload cover image (max 10MB, multipart/form-data)
+  static const String uploadCover = '$_apiBase/upload/cover';
+
+  /// POST - Upload post media image (max 10MB, multipart/form-data)
   static const String uploadPostMedia = '$_apiBase/upload/post';
 
   // ==================== Device Endpoints (Protected) ====================

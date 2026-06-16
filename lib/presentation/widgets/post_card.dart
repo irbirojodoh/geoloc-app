@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'auth_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/cache/image_cache_manager.dart';
@@ -176,7 +176,7 @@ class PostCard extends StatelessWidget {
       final maxLogicalWidth = MediaQuery.sizeOf(context).width;
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: CachedNetworkImage(
+        child: AuthNetworkImage(
           imageUrl: post.mediaUrls.first,
           fit: BoxFit.cover,
           cacheManager: PostImageCacheManager.instance,
@@ -263,7 +263,7 @@ class PostCard extends StatelessWidget {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: CachedNetworkImage(
+      child: AuthNetworkImage(
         imageUrl: imageUrl,
         height: height,
         fit: BoxFit.cover,
