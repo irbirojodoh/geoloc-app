@@ -80,7 +80,7 @@ class AuthService {
   }
 
   /// Login with email/username and password
-  Future<User> login({required String email, required String password}) async {
+  Future<AuthResponse> login({required String email, required String password}) async {
     try {
       final response = await _apiClient.post(
         ApiEndpoints.login,
@@ -93,18 +93,25 @@ class AuthService {
         // Store tokens first
         await _storeTokens(AuthTokens.fromJson(data));
 
+        final authResponse = AuthResponse.fromJson(data);
+
         // Fetch full user profile from /api/v1/users/me
         final user = await fetchCurrentUserFromApi();
         if (user != null) {
+          await _storeCurrentUser(user);
           await _syncFcmToken();
-          return user;
+          return AuthResponse(
+            user: user,
+            tokens: authResponse.tokens,
+            isNewUser: authResponse.isNewUser,
+            keyBackup: authResponse.keyBackup,
+          );
         }
 
         // Fallback to login response user if API call fails
-        final loginUser = User.fromJson(data['user'] as Map<String, dynamic>);
-        await _storeCurrentUser(loginUser);
+        await _storeCurrentUser(authResponse.user);
         await _syncFcmToken();
-        return loginUser;
+        return authResponse;
       }
 
       throw const InvalidCredentialsFailure();

@@ -126,7 +126,7 @@ class DmService {
     }
   }
 
-  Future<void> ensureKeysUploaded() async {
+  Future<void> ensureKeysUploaded({String? password}) async {
     final status = await getIdentityStatus();
     if (status == DmIdentityStatus.restoreRequired) {
       return;
@@ -137,7 +137,7 @@ class DmService {
         await _storage.read(key: AppConfig.dmPublicKeyVersionKey);
 
     if (privateKeyB64 == null || versionStr == null) {
-      await _createAndUploadIdentity(keyVersion: 1);
+      await _createAndUploadIdentity(keyVersion: 1, password: password);
       return;
     }
 
@@ -149,14 +149,45 @@ class DmService {
       publicKeyBase64: base64Encode(publicKey.bytes),
       keyVersion: version,
     );
+
+    if (password != null) {
+      try {
+        final backup = await fetchKeyBackup();
+        // Try decrypting the backup to see if the passphrase is still valid
+        try {
+          await _crypto.decryptIdentityBackup(
+            passphrase: password,
+            ciphertextBase64: backup.ciphertextBase64,
+            nonceBase64: backup.nonceBase64,
+            kdfSaltBase64: backup.kdfSaltBase64,
+          );
+        } on SecretBoxAuthenticationError {
+          debugPrint('Server key backup password mismatch. Rotating key backup...');
+          await uploadIdentityBackup(password);
+        } catch (_) {
+          await uploadIdentityBackup(password);
+        }
+      } on DmException catch (e) {
+        if (e.code == 'backup_not_found') {
+          await uploadIdentityBackup(password);
+        } else {
+          debugPrint('Failed to query existing server backup: $e');
+        }
+      } catch (e) {
+        debugPrint('Failed to auto-upload/rotate backup: $e');
+      }
+    }
   }
 
   /// Creates a fresh identity on this device (cannot decrypt old inbound history).
-  Future<void> createNewIdentity() async {
-    await _createAndUploadIdentity(keyVersion: 1);
+  Future<void> createNewIdentity({String? password}) async {
+    await _createAndUploadIdentity(keyVersion: 1, password: password);
   }
 
-  Future<void> _createAndUploadIdentity({required int keyVersion}) async {
+  Future<void> _createAndUploadIdentity({
+    required int keyVersion,
+    String? password,
+  }) async {
     final pair = await _crypto.generateKeyPair();
     await _storeIdentity(
       privateKeyBytes: pair.privateKeyBytes,
@@ -166,6 +197,13 @@ class DmService {
       publicKeyBase64: pair.publicKeyBase64,
       keyVersion: keyVersion,
     );
+    if (password != null) {
+      try {
+        await uploadIdentityBackup(password);
+      } catch (e) {
+        debugPrint('Failed to auto-upload backup on identity generation: $e');
+      }
+    }
   }
 
   Future<void> _storeIdentity({
@@ -188,13 +226,14 @@ class DmService {
   Future<void> restoreIdentityFromBackup({
     required String passphrase,
     required String currentUserId,
+    DmKeyBackup? backup,
   }) async {
-    final backup = await fetchKeyBackup();
+    final activeBackup = backup ?? await fetchKeyBackup();
     final privateBytes = await _crypto.decryptIdentityBackup(
       passphrase: passphrase,
-      ciphertextBase64: backup.ciphertextBase64,
-      nonceBase64: backup.nonceBase64,
-      kdfSaltBase64: backup.kdfSaltBase64,
+      ciphertextBase64: activeBackup.ciphertextBase64,
+      nonceBase64: activeBackup.nonceBase64,
+      kdfSaltBase64: activeBackup.kdfSaltBase64,
     );
     final keyPair = await X25519().newKeyPairFromSeed(privateBytes);
     final publicKey = await keyPair.extractPublicKey();
@@ -220,7 +259,7 @@ class DmService {
     );
     await _storage.write(
       key: AppConfig.dmBackupVersionKey,
-      value: '${backup.backupVersion}',
+      value: '${activeBackup.backupVersion}',
     );
   }
 
@@ -255,8 +294,19 @@ class DmService {
       privateKeyBytes: privateBytes,
       passphrase: passphrase,
     );
+
+    int latestVersion = 0;
+    try {
+      final existingBackup = await fetchKeyBackup();
+      latestVersion = existingBackup.backupVersion;
+    } catch (_) {
+      // If no backup exists on the server, we start at 0
+    }
+
     final versionStr = await _storage.read(key: AppConfig.dmBackupVersionKey);
-    final backupVersion = (int.tryParse(versionStr ?? '') ?? 0) + 1;
+    final localVersion = int.tryParse(versionStr ?? '') ?? 0;
+    final backupVersion = (localVersion > latestVersion ? localVersion : latestVersion) + 1;
+
     await _apiClient.put(
       ApiEndpoints.dmKeyBackup,
       data: {

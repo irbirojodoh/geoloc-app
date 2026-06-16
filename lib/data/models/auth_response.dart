@@ -1,5 +1,6 @@
 import 'auth_tokens.dart';
 import 'user.dart';
+import 'dm_key_backup.dart';
 
 /// Unified response model for all authentication endpoints
 /// (login, register, Google token, Apple token).
@@ -10,11 +11,13 @@ class AuthResponse {
   final User user;
   final AuthTokens tokens;
   final bool isNewUser;
+  final DmKeyBackup? keyBackup;
 
   const AuthResponse({
     required this.user,
     required this.tokens,
     this.isNewUser = false,
+    this.keyBackup,
   });
 
   /// Parse the standardized backend auth response:
@@ -24,7 +27,8 @@ class AuthResponse {
   ///   "access_token": "...",
   ///   "refresh_token": "...",
   ///   "expires_in": 900,
-  ///   "is_new_user": true
+  ///   "is_new_user": true,
+  ///   "key_backup": { ... }
   /// }
   /// ```
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
@@ -32,6 +36,9 @@ class AuthResponse {
       user: User.fromJson(json['user'] as Map<String, dynamic>),
       tokens: AuthTokens.fromJson(json),
       isNewUser: json['is_new_user'] as bool? ?? false,
+      keyBackup: json['key_backup'] == null
+          ? null
+          : DmKeyBackup.fromJson(json['key_backup'] as Map<String, dynamic>),
     );
   }
 }

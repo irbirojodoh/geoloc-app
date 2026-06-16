@@ -10,12 +10,16 @@ class DmCryptoService {
 
   static const _hkdfSalt = 'geoloc-dm';
   static const _hkdfInfo = 'dm-aes-key-v1';
-  static const _backupKdfInfo = 'geoloc-dm-backup-v1';
   static const _nonceLength = 12;
   static const _macLength = 16;
   static const _kdfSaltLength = 16;
   static const x25519PublicKeyLength = 32;
 
+  final _pbkdf2 = Pbkdf2(
+    macAlgorithm: Hmac.sha256(),
+    iterations: 10000,
+    bits: 256,
+  );
   final _x25519 = X25519();
   final _hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
   final _aesGcm = AesGcm.with256bits();
@@ -124,10 +128,9 @@ class DmCryptoService {
     required String passphrase,
     required List<int> kdfSalt,
   }) async {
-    return _hkdf.deriveKey(
+    return _pbkdf2.deriveKey(
       secretKey: SecretKey(utf8.encode(passphrase)),
       nonce: kdfSalt,
-      info: utf8.encode(_backupKdfInfo),
     );
   }
 

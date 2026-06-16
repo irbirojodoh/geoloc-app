@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -126,7 +127,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         fullName: fullName,
       );
       state = AuthState.authenticated(user);
-      unawaited(_dmService.ensureKeysUploaded());
+      unawaited(_dmService.ensureKeysUploaded(password: password));
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -139,9 +140,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final user = await _authService.login(email: email, password: password);
-      state = AuthState.authenticated(user);
-      unawaited(_dmService.ensureKeysUploaded());
+      final authResponse = await _authService.login(email: email, password: password);
+      state = AuthState.authenticated(authResponse.user);
+
+      // Automatic E2E Restoration if backup exists and local key is missing
+      if (authResponse.keyBackup != null && !(await _dmService.hasLocalIdentity())) {
+        try {
+          await _dmService.restoreIdentityFromBackup(
+            passphrase: password,
+            currentUserId: authResponse.user.id,
+            backup: authResponse.keyBackup,
+          );
+        } catch (e) {
+          debugPrint('Failed to restore E2E private key on login: $e');
+        }
+      } else {
+        unawaited(_dmService.ensureKeysUploaded(password: password));
+      }
+
       return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
