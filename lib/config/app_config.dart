@@ -44,6 +44,9 @@ class AppConfig {
   static const String dmConversationsBox = 'dm_conversations';
   static const String dmMessagesBox = 'dm_messages';
 
+  /// Hive box for offline feed cache (stores keys, not presigned URLs)
+  static const String feedCacheBox = 'feed_cache';
+
   /// Location Configuration
   static const double defaultFeedRadiusKm = 5.0;
   static const int geohashPrecision = 5; // ~5km precision
@@ -60,6 +63,9 @@ class AppConfig {
   static const int maxAvatarSizeMB = maxMediaSizeMB;
   static const int maxPostMediaSizeMB = maxMediaSizeMB;
   static const int maxMediaSizeBytes = maxMediaSizeMB * 1024 * 1024;
+
+  /// How long feed data stays fresh before a background refresh on resume.
+  static const Duration feedRefreshTtl = Duration(minutes: 5);
 
   /// Comment Configuration
   static const int maxCommentDepth = 3;

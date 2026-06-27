@@ -106,11 +106,30 @@ final feedStateProvider = StateNotifierProvider<FeedNotifier, FeedState>(...);
 ```
 
 **Actions**:
-- `loadFeed(lat, lng, radiusKm)` - Initial feed load
+- `loadFeed(lat, lng, radiusKm)` - Initial feed load (shows disk cache first)
 - `loadMore()` - Pagination (infinite scroll)
-- `refresh()` - Pull-to-refresh
+- `refresh()` - Pull-to-refresh with URL-preserving merge
+- `refreshIfStale()` - Background revalidate when TTL elapsed (e.g. on resume)
 - `likePost(postId)` - Toggle like
 - `deletePost(postId)` - Remove post
+
+Feed uses `FeedCacheService` + `FeedPostMerge` so refreshes do not flash images when keys are unchanged.
+
+---
+
+### Post Detail Provider
+**File**: `lib/presentation/providers/post_detail_provider.dart`
+
+Seeds from `PostPreviewCache` for instant open; background `loadPost` merges API data.
+
+**Helper**: `openPostDetail` / `openPostDetailById` in `lib/presentation/helpers/open_post_detail.dart` — seed cache, push route, pop returns updated `Post`.
+
+---
+
+### Post Preview Cache
+**File**: `lib/presentation/providers/post_preview_cache.dart`
+
+In-memory map of post ID → `Post` from list screens (feed, profile, search). Cleared on logout.
 
 ---
 

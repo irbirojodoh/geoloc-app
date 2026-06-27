@@ -32,6 +32,8 @@ class User {
   final String? phoneNumber;
   final String? profilePictureUrl;
   final String? coverImageUrl;
+  final String? avatarKey;       // R2 object key (attach on update)
+  final String? coverKey;        // R2 object key (attach on update)
   final DateTime? lastOnline;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -49,7 +51,9 @@ class User {
 | `username` | `username` | |
 | `email` | `email` | |
 | `fullName` | `full_name` | |
-| `profilePictureUrl` | `profile_picture_url` | |
+| `profilePictureUrl` | `profile_picture_url` | Presigned GET URL from API |
+| `avatarKey` | `avatar_key` | Stable R2 key for attach/sign |
+| `coverKey` | `cover_key` | Stable R2 key for attach/sign |
 | `followersCount` | `followers_count` | Default: 0 |
 | `isFollowing` | `is_following` | Only in profile responses |
 
@@ -66,7 +70,8 @@ class Post {
   final String id;
   final String userId;
   final String content;
-  final List<String> mediaUrls;
+  final List<String> mediaUrls;   // Presigned GET URLs from API (ephemeral)
+  final List<String> mediaKeys;   // Stable R2 keys (cache + attach)
   final double? latitude;
   final double? longitude;
   final String geohash;
@@ -103,7 +108,8 @@ String get formattedLocation {
 | `id` | `id` | |
 | `userId` | `user_id` | |
 | `content` | `content` | |
-| `mediaUrls` | `media_urls` | Array of URLs |
+| `mediaUrls` | `media_urls` | Presigned GET URLs (ephemeral) |
+| `mediaKeys` | `media_keys` | Stable R2 keys for cache/attach |
 | `latitude` | `latitude` | Nullable |
 | `longitude` | `longitude` | Nullable |
 | `geohash` | `geohash` | Location hash |

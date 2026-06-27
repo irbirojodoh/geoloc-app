@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../config/routes.dart';
 import '../../../data/models/post.dart';
+import '../../helpers/open_post_detail.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../widgets/loading_shimmer.dart';
@@ -23,14 +24,23 @@ class FeedScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedScreenState extends ConsumerState<FeedScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _initializeFeed());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        ref.read(locationStateProvider).hasLocation) {
+      ref.read(feedStateProvider.notifier).refreshIfStale();
+    }
   }
 
   Future<void> _initializeFeed() async {
@@ -40,9 +50,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
       await ref.read(locationStateProvider.notifier).requestPermission();
     }
 
-    if (ref.read(locationStateProvider).hasLocation) {
-      await ref.read(feedStateProvider.notifier).loadFeed();
+    if (!ref.read(locationStateProvider).hasLocation) return;
+
+    final feedNotifier = ref.read(feedStateProvider.notifier);
+    if (ref.read(feedStateProvider).hasCachedContent) {
+      await feedNotifier.refreshIfStale();
+      return;
     }
+    await feedNotifier.loadFeed();
   }
 
   void _onScroll() {
@@ -54,6 +69,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
   }
@@ -67,7 +83,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     final textTheme = Theme.of(context).textTheme;
 
     ref.listen<LocationState>(locationStateProvider, (previous, next) {
-      if (previous?.position == null && next.position != null) {
+      if (previous?.position == null &&
+          next.position != null &&
+          !ref.read(feedStateProvider).hasCachedContent) {
         ref.read(feedStateProvider.notifier).loadFeed();
       }
     });
@@ -157,6 +175,32 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                   ),
                   actions: const [],
                 ),
+                if (feedState.isFromCache)
+                  SliverToBoxAdapter(
+                    child: MaterialBanner(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      content: Text(
+                        'Showing saved posts — connect to refresh images',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      leading: Icon(
+                        Icons.cloud_off_outlined,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () async {
+                            await ref
+                                .read(feedStateProvider.notifier)
+                                .refreshFeed();
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
                   sliver: SliverList.builder(
@@ -173,12 +217,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 2),
                         child: PostCard(
+                          key: ValueKey(post.id),
                           post: post,
                           headerTrailing: PostOverflowMenuButton(post: post),
                           onTap: () {
                             // Home(0) -> Post detail(0.5): slide from right.
                             setShellNavTransitionDirection(1);
-                            context.push('/post/${post.id}').then((value) {
+                            openPostDetail(context, ref, post).then((value) {
                               if (value is Post) {
                                 ref.read(feedStateProvider.notifier).updatePost(value);
                               }
@@ -189,7 +234,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                               .toggleLike(post.id),
                           onComment: () {
                             setShellNavTransitionDirection(1);
-                            context.push('/post/${post.id}').then((value) {
+                            openPostDetail(context, ref, post).then((value) {
                               if (value is Post) {
                                 ref.read(feedStateProvider.notifier).updatePost(value);
                               }

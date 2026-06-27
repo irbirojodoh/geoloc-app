@@ -2,9 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_config.dart';
+import '../../../core/cache/feed_post_merge.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../data/models/post.dart';
+import '../../../services/feed_cache_service.dart';
+import '../../../services/media_service.dart';
 import 'location_provider.dart';
 
 /// Feed state
@@ -16,6 +19,8 @@ class FeedState {
   final String? error;
   final double radiusKm;
   final String? cursor;
+  final bool isFromCache;
+  final DateTime? lastFetchedAt;
 
   const FeedState({
     this.posts = const [],
@@ -25,7 +30,11 @@ class FeedState {
     this.error,
     this.radiusKm = AppConfig.defaultFeedRadiusKm,
     this.cursor,
+    this.isFromCache = false,
+    this.lastFetchedAt,
   });
+
+  bool get hasCachedContent => posts.isNotEmpty;
 
   FeedState copyWith({
     List<Post>? posts,
@@ -35,15 +44,20 @@ class FeedState {
     String? error,
     double? radiusKm,
     String? cursor,
+    bool? isFromCache,
+    DateTime? lastFetchedAt,
+    bool clearError = false,
   }) {
     return FeedState(
       posts: posts ?? this.posts,
       isLoading: isLoading ?? this.isLoading,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       hasMore: hasMore ?? this.hasMore,
-      error: error,
+      error: clearError ? null : (error ?? this.error),
       radiusKm: radiusKm ?? this.radiusKm,
       cursor: cursor ?? this.cursor,
+      isFromCache: isFromCache ?? this.isFromCache,
+      lastFetchedAt: lastFetchedAt ?? this.lastFetchedAt,
     );
   }
 }
@@ -60,8 +74,11 @@ class FeedNotifier extends StateNotifier<FeedState> {
 
   FeedNotifier(this._apiClient, this._ref) : super(const FeedState());
 
-  /// Load initial feed
-  Future<void> loadFeed() async {
+  FeedCacheService get _feedCache => _ref.read(feedCacheServiceProvider);
+  MediaService get _mediaService => _ref.read(mediaServiceProvider);
+
+  /// Show cached feed instantly, then fetch fresh data in the background.
+  Future<void> loadFeed({bool force = false}) async {
     final locationState = _ref.read(locationStateProvider);
 
     if (!locationState.hasLocation) {
@@ -72,7 +89,22 @@ class FeedNotifier extends StateNotifier<FeedState> {
       return;
     }
 
-    state = state.copyWith(isLoading: true, error: null);
+    if (!force && state.hasCachedContent) {
+      await refreshIfStale();
+      return;
+    }
+
+    if (!state.hasCachedContent) {
+      await _showDiskCacheIfAvailable();
+    }
+
+    final showBackgroundRefresh = state.hasCachedContent;
+    state = state.copyWith(
+      isLoading: !showBackgroundRefresh,
+      isRefreshing: showBackgroundRefresh,
+      clearError: true,
+      isFromCache: showBackgroundRefresh ? state.isFromCache : false,
+    );
 
     try {
       final result = await _fetchPosts(
@@ -80,18 +112,39 @@ class FeedNotifier extends StateNotifier<FeedState> {
         longitude: locationState.longitude!,
       );
 
-      state = state.copyWith(
-        posts: result.posts,
-        isLoading: false,
+      final merged = FeedPostMerge.mergeFeedPage(result.posts, state.posts);
+
+      await _persistFeed(
+        posts: merged,
+        latitude: locationState.latitude!,
+        longitude: locationState.longitude!,
         hasMore: result.hasMore,
         cursor: result.nextCursor,
       );
+
+      state = state.copyWith(
+        posts: merged,
+        isLoading: false,
+        isRefreshing: false,
+        hasMore: result.hasMore,
+        cursor: result.nextCursor,
+        isFromCache: false,
+        lastFetchedAt: DateTime.now(),
+      );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: _getErrorMessage(e));
+      if (state.hasCachedContent) {
+        state = state.copyWith(
+          isLoading: false,
+          isRefreshing: false,
+          error: _getErrorMessage(e),
+        );
+        return;
+      }
+      await _loadFromCacheOrError(e, isLoading: true);
     }
   }
 
-  /// Refresh feed (pull to refresh)
+  /// Pull-to-refresh — keeps visible posts and merges updates in place.
   Future<void> refreshFeed() async {
     final locationState = _ref.read(locationStateProvider);
 
@@ -99,7 +152,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
       return;
     }
 
-    state = state.copyWith(isRefreshing: true, error: null);
+    state = state.copyWith(isRefreshing: true, clearError: true);
 
     try {
       final result = await _fetchPosts(
@@ -107,20 +160,59 @@ class FeedNotifier extends StateNotifier<FeedState> {
         longitude: locationState.longitude!,
       );
 
-      state = state.copyWith(
-        posts: result.posts,
-        isRefreshing: false,
+      final merged = FeedPostMerge.mergeFeedPage(result.posts, state.posts);
+
+      await _persistFeed(
+        posts: merged,
+        latitude: locationState.latitude!,
+        longitude: locationState.longitude!,
         hasMore: result.hasMore,
         cursor: result.nextCursor,
       );
+
+      state = state.copyWith(
+        posts: merged,
+        isRefreshing: false,
+        hasMore: result.hasMore,
+        cursor: result.nextCursor,
+        isFromCache: false,
+        lastFetchedAt: DateTime.now(),
+      );
     } catch (e) {
-      state = state.copyWith(isRefreshing: false, error: _getErrorMessage(e));
+      if (state.hasCachedContent) {
+        state = state.copyWith(
+          isRefreshing: false,
+          error: _getErrorMessage(e),
+        );
+        return;
+      }
+      await _loadFromCacheOrError(e, isRefreshing: true);
     }
+  }
+
+  /// Background refresh used on app resume — skipped when data is still fresh.
+  Future<void> refreshIfStale({
+    Duration maxAge = AppConfig.feedRefreshTtl,
+    bool force = false,
+  }) async {
+    if (!force &&
+        state.lastFetchedAt != null &&
+        DateTime.now().difference(state.lastFetchedAt!) < maxAge) {
+      return;
+    }
+
+    if (!state.hasCachedContent) {
+      await loadFeed(force: true);
+      return;
+    }
+
+    await refreshFeed();
   }
 
   /// Load more posts (pagination)
   Future<void> loadMore() async {
-    if (state.isLoading || !state.hasMore || state.cursor == null) return;
+    if (state.isLoading || state.isRefreshing || !state.hasMore) return;
+    if (state.cursor == null) return;
 
     final locationState = _ref.read(locationStateProvider);
 
@@ -137,11 +229,22 @@ class FeedNotifier extends StateNotifier<FeedState> {
         cursor: state.cursor,
       );
 
+      final mergedPosts = FeedPostMerge.appendUnique(state.posts, result.posts);
+
+      await _persistFeed(
+        posts: mergedPosts,
+        latitude: locationState.latitude!,
+        longitude: locationState.longitude!,
+        hasMore: result.hasMore,
+        cursor: result.nextCursor,
+      );
+
       state = state.copyWith(
-        posts: [...state.posts, ...result.posts],
+        posts: mergedPosts,
         isLoading: false,
         hasMore: result.hasMore,
         cursor: result.nextCursor,
+        isFromCache: false,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: _getErrorMessage(e));
@@ -152,6 +255,77 @@ class FeedNotifier extends StateNotifier<FeedState> {
   Future<void> setRadius(double radiusKm) async {
     state = state.copyWith(radiusKm: radiusKm);
     await refreshFeed();
+  }
+
+  Future<void> _showDiskCacheIfAvailable() async {
+    try {
+      final cached = await _feedCache.loadFeed();
+      if (cached == null || cached.posts.isEmpty) return;
+
+      final hydrated = await _mediaService.hydratePostsMediaUrls(cached.posts);
+      state = state.copyWith(
+        posts: hydrated,
+        hasMore: cached.hasMore,
+        cursor: cached.cursor,
+        isFromCache: true,
+      );
+    } catch (_) {
+      // Ignore cache read failures and fall back to network.
+    }
+  }
+
+  Future<void> _persistFeed({
+    required List<Post> posts,
+    required double latitude,
+    required double longitude,
+    required bool hasMore,
+    String? cursor,
+  }) async {
+    try {
+      await _feedCache.saveFeed(
+        posts: posts,
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: state.radiusKm,
+        cursor: cursor,
+        hasMore: hasMore,
+      );
+    } catch (_) {
+      // Cache write failure should not block the feed.
+    }
+  }
+
+  Future<void> _loadFromCacheOrError(
+    dynamic error, {
+    bool isLoading = false,
+    bool isRefreshing = false,
+  }) async {
+    try {
+      final cached = await _feedCache.loadFeed();
+      if (cached != null && cached.posts.isNotEmpty) {
+        final hydrated = await _mediaService.hydratePostsMediaUrls(
+          cached.posts,
+        );
+        state = state.copyWith(
+          posts: hydrated,
+          isLoading: false,
+          isRefreshing: false,
+          hasMore: cached.hasMore,
+          cursor: cached.cursor,
+          clearError: true,
+          isFromCache: true,
+        );
+        return;
+      }
+    } catch (_) {
+      // Fall through to network error.
+    }
+
+    state = state.copyWith(
+      isLoading: isLoading ? false : state.isLoading,
+      isRefreshing: isRefreshing ? false : state.isRefreshing,
+      error: _getErrorMessage(error),
+    );
   }
 
   /// Fetch posts from API with cursor-based pagination
@@ -181,6 +355,16 @@ class FeedNotifier extends StateNotifier<FeedState> {
       final posts = postsJson
           .map((json) => Post.fromJson(json as Map<String, dynamic>))
           .toList();
+
+      for (final post in posts) {
+        for (final url in post.mediaUrls) {
+          _mediaService.cache.seedFromPresignedUrl(url);
+        }
+        final avatarUrl = post.author?.profilePictureUrl;
+        if (avatarUrl != null) {
+          _mediaService.cache.seedFromPresignedUrl(avatarUrl);
+        }
+      }
 
       // Read pagination info from response
       final hasMore = data['has_more'] as bool? ?? false;
@@ -267,7 +451,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
   void updatePost(Post updatedPost) {
     final updatedPosts = state.posts.map((post) {
       if (post.id == updatedPost.id) {
-        return updatedPost;
+        return FeedPostMerge.mergePost(updatedPost, post);
       }
       return post;
     }).toList();
@@ -307,6 +491,6 @@ class FeedNotifier extends StateNotifier<FeedState> {
 
   /// Clear error
   void clearError() {
-    state = state.copyWith(error: null);
+    state = state.copyWith(clearError: true);
   }
 }

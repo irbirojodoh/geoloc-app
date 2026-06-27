@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/app_config.dart';
+import '../../core/cache/feed_post_merge.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../data/models/post.dart';
 import '../../data/models/comment.dart';
 import '../../data/models/user.dart';
+import 'post_preview_cache.dart';
 
 List<Comment> _filterCommentsWithoutUser(List<Comment> list, String userId) {
   return list
@@ -134,17 +136,21 @@ class PostDetailState {
 /// Post detail notifier
 class PostDetailNotifier extends StateNotifier<PostDetailState> {
   final ApiClient _apiClient;
+  final Ref _ref;
   final String postId;
 
-  PostDetailNotifier(this._apiClient, this.postId)
-      : super(const PostDetailState()) {
+  PostDetailNotifier(this._apiClient, this._ref, this.postId)
+      : super(PostDetailState(post: findPostForDetail(_ref, postId))) {
     loadPost();
     loadComments();
   }
 
-  /// Load post details
+  /// Load post details — uses preview data instantly, refreshes in background.
   Future<void> loadPost() async {
-    state = state.copyWith(isLoading: true, error: null);
+    final hasPreview = state.post != null;
+    if (!hasPreview) {
+      state = state.copyWith(isLoading: true, error: null);
+    }
 
     try {
       final response = await _apiClient.get('${ApiEndpoints.posts}/$postId');
@@ -158,14 +164,21 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
         var post = Post.fromJson(postJson);
         final user = User.fromJson(userJson);
 
-        post = post.copyWith(author: user);
+        post = FeedPostMerge.mergePost(
+          post.copyWith(author: user),
+          state.post,
+        );
+
+        _ref.read(postPreviewCacheProvider.notifier).seed(post);
 
         state = state.copyWith(post: post, isLoading: false);
-      } else {
+      } else if (!hasPreview) {
         state = state.copyWith(isLoading: false, error: 'Failed to load post');
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (!hasPreview) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -565,5 +578,5 @@ final postDetailProvider =
       postId,
     ) {
       final apiClient = ref.watch(apiClientProvider);
-      return PostDetailNotifier(apiClient, postId);
+      return PostDetailNotifier(apiClient, ref, postId);
     });

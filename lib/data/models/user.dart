@@ -8,6 +8,8 @@ class User {
   final String? phoneNumber;
   final String? profilePictureUrl;
   final String? coverImageUrl;
+  final String? avatarKey;
+  final String? coverKey;
   final DateTime? lastOnline;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -24,6 +26,8 @@ class User {
     this.phoneNumber,
     this.profilePictureUrl,
     this.coverImageUrl,
+    this.avatarKey,
+    this.coverKey,
     this.lastOnline,
     this.createdAt,
     this.updatedAt,
@@ -42,6 +46,8 @@ class User {
       phoneNumber: json['phone_number'] as String?,
       profilePictureUrl: json['profile_picture_url'] as String?,
       coverImageUrl: json['cover_image_url'] as String?,
+      avatarKey: json['avatar_key'] as String?,
+      coverKey: json['cover_key'] as String?,
       lastOnline: json['last_online'] != null
           ? DateTime.parse(json['last_online'] as String)
           : null,
@@ -67,6 +73,8 @@ class User {
       'phone_number': phoneNumber,
       'profile_picture_url': profilePictureUrl,
       'cover_image_url': coverImageUrl,
+      'avatar_key': avatarKey,
+      'cover_key': coverKey,
       'last_online': lastOnline?.toIso8601String(),
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
@@ -85,6 +93,8 @@ class User {
     String? phoneNumber,
     String? profilePictureUrl,
     String? coverImageUrl,
+    String? avatarKey,
+    String? coverKey,
     DateTime? lastOnline,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -101,6 +111,8 @@ class User {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      avatarKey: avatarKey ?? this.avatarKey,
+      coverKey: coverKey ?? this.coverKey,
       lastOnline: lastOnline ?? this.lastOnline,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

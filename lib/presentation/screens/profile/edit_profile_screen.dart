@@ -303,7 +303,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     const double avatarOverlap = 40;
 
     final hasCover = state.newCoverImage != null ||
-        (state.originalUser?.coverImageUrl?.trim().isNotEmpty ?? false);
+        (state.originalUser?.coverImageUrl?.trim().isNotEmpty ?? false) ||
+        state.originalUser?.coverKey != null;
 
     return Container(
       color: cs.surface,
@@ -330,9 +331,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             state.newCoverImage!,
                             fit: BoxFit.cover,
                           )
-                        else if (state.originalUser?.coverImageUrl != null)
+                        else if (state.originalUser?.coverImageUrl != null ||
+                            state.originalUser?.coverKey != null)
                           AuthNetworkImage(
-                            imageUrl: state.originalUser!.coverImageUrl!,
+                            imageUrl: state.originalUser?.coverImageUrl ?? '',
+                            mediaKey: state.originalUser?.coverKey,
                             fit: BoxFit.cover,
                             cacheManager: PostImageCacheManager.instance,
                           )
@@ -436,6 +439,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     return UserAvatar(
       imageUrl: state.originalUser?.profilePictureUrl,
+      imageKey: state.originalUser?.avatarKey,
       name: state.originalUser?.username ?? 'U',
       size: size,
     );

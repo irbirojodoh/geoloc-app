@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/routes.dart';
+import '../../helpers/open_post_detail.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../data/models/notification.dart';
@@ -172,7 +173,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                                     item.targetId!.isNotEmpty) {
                                   // Notifications(2) -> Post detail(0.5): slide from left.
                                   setShellNavTransitionDirection(-1);
-                                  context.push('/post/${item.targetId}');
+                                  openPostDetailById(
+                                    context,
+                                    ref,
+                                    item.targetId!,
+                                  );
                                 } else {
                                   context.push('/profile/${item.actorId}');
                                 }

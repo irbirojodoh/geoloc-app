@@ -53,6 +53,7 @@ class PostCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(24),
                     child: UserAvatar(
                       imageUrl: post.author?.profilePictureUrl,
+                      imageKey: post.author?.avatarKey,
                       name: authorName,
                       size: 36,
                     ),
@@ -116,7 +117,7 @@ class PostCard extends StatelessWidget {
                 post.content,
                 style: textTheme.bodyLarge,
               ),
-              if (post.mediaUrls.isNotEmpty) ...[
+              if (post.hasMedia) ...[
                 const SizedBox(height: 8),
                 _buildMedia(context),
               ],
@@ -166,43 +167,18 @@ class PostCard extends StatelessWidget {
   }
 
   Widget _buildMedia(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final imageCount = post.mediaUrls.length;
+    final imageCount = post.mediaCount;
 
     if (imageCount == 1) {
-      // For full-width single images we cap the decoded width to the screen
-      // width to avoid decoding 4K source files into memory while scrolling.
-      final dpr = MediaQuery.devicePixelRatioOf(context);
-      final maxLogicalWidth = MediaQuery.sizeOf(context).width;
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: AuthNetworkImage(
-          imageUrl: post.mediaUrls.first,
-          fit: BoxFit.cover,
-          cacheManager: PostImageCacheManager.instance,
-          memCacheWidth: (maxLogicalWidth * dpr).round(),
-          placeholder: (context, url) => Container(
-            height: 200,
-            color: cs.surface,
-            child: Center(
-              child: CircularProgressIndicator(strokeWidth: 1),
-            ),
-          ),
-          errorWidget: (context, url, error) => Container(
-            height: 200,
-            color: cs.surface,
-            child: Icon(Icons.image_outlined, size: 32, color: cs.outline),
-          ),
-        ),
-      );
+      return _buildSingleImage(context, 0);
     }
 
     if (imageCount == 2) {
       return Row(
         children: [
-          Expanded(child: _buildGridImage(context, post.mediaUrls[0], 150)),
+          Expanded(child: _buildGridImage(context, 0, 150)),
           const SizedBox(width: 4),
-          Expanded(child: _buildGridImage(context, post.mediaUrls[1], 150)),
+          Expanded(child: _buildGridImage(context, 1, 150)),
         ],
       );
     }
@@ -212,15 +188,15 @@ class PostCard extends StatelessWidget {
         children: [
           Expanded(
             flex: 2,
-            child: _buildGridImage(context, post.mediaUrls[0], 200),
+            child: _buildGridImage(context, 0, 200),
           ),
           const SizedBox(width: 4),
           Expanded(
             child: Column(
               children: [
-                _buildGridImage(context, post.mediaUrls[1], 98),
+                _buildGridImage(context, 1, 98),
                 const SizedBox(height: 4),
-                _buildGridImage(context, post.mediaUrls[2], 98),
+                _buildGridImage(context, 2, 98),
               ],
             ),
           ),
@@ -232,25 +208,20 @@ class PostCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: _buildGridImage(context, post.mediaUrls[0], 100)),
+            Expanded(child: _buildGridImage(context, 0, 100)),
             const SizedBox(width: 4),
-            Expanded(child: _buildGridImage(context, post.mediaUrls[1], 100)),
+            Expanded(child: _buildGridImage(context, 1, 100)),
           ],
         ),
         const SizedBox(height: 4),
         Row(
           children: [
-            Expanded(child: _buildGridImage(context, post.mediaUrls[2], 100)),
+            Expanded(child: _buildGridImage(context, 2, 100)),
             const SizedBox(width: 4),
             Expanded(
               child: imageCount > 4
-                  ? _buildOverflowImage(
-                      context,
-                      post.mediaUrls[3],
-                      100,
-                      imageCount - 4,
-                    )
-                  : _buildGridImage(context, post.mediaUrls[3], 100),
+                  ? _buildOverflowImage(context, 3, 100, imageCount - 4)
+                  : _buildGridImage(context, 3, 100),
             ),
           ],
         ),
@@ -258,17 +229,45 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  Widget _buildGridImage(BuildContext context, String imageUrl, double height) {
+  Widget _buildSingleImage(BuildContext context, int index) {
+    final cs = Theme.of(context).colorScheme;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final maxLogicalWidth = MediaQuery.sizeOf(context).width;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: AuthNetworkImage(
+        imageUrl: post.mediaUrlAt(index) ?? '',
+        mediaKey: post.mediaKeyAt(index),
+        fit: BoxFit.cover,
+        cacheManager: PostImageCacheManager.instance,
+        memCacheWidth: (maxLogicalWidth * dpr).round(),
+        placeholder: (context, url) => Container(
+          height: 200,
+          color: cs.surface,
+          child: Center(
+            child: CircularProgressIndicator(strokeWidth: 1),
+          ),
+        ),
+        errorWidget: (context, url, error) => Container(
+          height: 200,
+          color: cs.surface,
+          child: Icon(Icons.image_outlined, size: 32, color: cs.outline),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGridImage(BuildContext context, int index, double height) {
     final cs = Theme.of(context).colorScheme;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: AuthNetworkImage(
-        imageUrl: imageUrl,
+        imageUrl: post.mediaUrlAt(index) ?? '',
+        mediaKey: post.mediaKeyAt(index),
         height: height,
         fit: BoxFit.cover,
         cacheManager: PostImageCacheManager.instance,
-        // Decode at the cell's logical pixel height; width follows aspect.
         memCacheHeight: (height * dpr).round(),
         placeholder: (context, url) => Container(
           height: height,
@@ -288,14 +287,14 @@ class PostCard extends StatelessWidget {
 
   Widget _buildOverflowImage(
     BuildContext context,
-    String imageUrl,
+    int index,
     double height,
     int moreCount,
   ) {
     final cs = Theme.of(context).colorScheme;
     return Stack(
       children: [
-        _buildGridImage(context, imageUrl, height),
+        _buildGridImage(context, index, height),
         Positioned.fill(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),

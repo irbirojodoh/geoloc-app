@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/cache/feed_post_merge.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../data/models/post.dart';
@@ -40,6 +41,7 @@ class ProfileState {
     String? error,
     bool? hasMorePosts,
     String? postsCursor,
+    bool clearError = false,
   }) {
     return ProfileState(
       user: user ?? this.user,
@@ -48,7 +50,7 @@ class ProfileState {
       isLoadingPosts: isLoadingPosts ?? this.isLoadingPosts,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       isFollowLoading: isFollowLoading ?? this.isFollowLoading,
-      error: error,
+      error: clearError ? null : (error ?? this.error),
       hasMorePosts: hasMorePosts ?? this.hasMorePosts,
       postsCursor: postsCursor ?? this.postsCursor,
     );
@@ -63,8 +65,18 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   ProfileNotifier(this._apiClient, this.userId) : super(const ProfileState());
 
   /// Load user profile and posts
-  Future<void> loadProfile() async {
-    state = state.copyWith(isLoading: true, error: null);
+  Future<void> loadProfile({bool force = false}) async {
+    if (!force && state.user != null && state.posts.isNotEmpty) {
+      await refreshProfile();
+      return;
+    }
+
+    final showBackgroundRefresh = state.user != null || state.posts.isNotEmpty;
+    state = state.copyWith(
+      isLoading: !showBackgroundRefresh,
+      isRefreshing: showBackgroundRefresh,
+      clearError: true,
+    );
 
     try {
       // Fetch user data
@@ -78,14 +90,24 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
             userData['data'] as Map<String, dynamic>? ??
             userData;
         final user = User.fromJson(userJson);
-        state = state.copyWith(user: user);
+        state = state.copyWith(
+          user: FeedPostMerge.mergeUser(user, state.user),
+        );
       }
 
       // Fetch user posts
       await _loadPosts();
 
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoading: false, isRefreshing: false);
     } catch (e) {
+      if (state.user != null || state.posts.isNotEmpty) {
+        state = state.copyWith(
+          isLoading: false,
+          isRefreshing: false,
+          error: _getErrorMessage(e),
+        );
+        return;
+      }
       state = state.copyWith(isLoading: false, error: _getErrorMessage(e));
     }
   }
@@ -131,16 +153,15 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         final nextCursor = data['next_cursor'] as String?;
 
         if (cursor == null) {
-          // Initial load
+          final merged = FeedPostMerge.mergeFeedPage(posts, state.posts);
           state = state.copyWith(
-            posts: posts,
+            posts: merged,
             hasMorePosts: hasMore,
             postsCursor: nextCursor,
           );
         } else {
-          // Load more
           state = state.copyWith(
-            posts: [...state.posts, ...posts],
+            posts: FeedPostMerge.appendUnique(state.posts, posts),
             hasMorePosts: hasMore,
             postsCursor: nextCursor,
           );
@@ -163,7 +184,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
   /// Refresh profile and posts
   Future<void> refreshProfile() async {
-    state = state.copyWith(isRefreshing: true, error: null);
+    state = state.copyWith(isRefreshing: true, clearError: true);
 
     try {
       // Fetch user data
@@ -177,7 +198,9 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
             userData['data'] as Map<String, dynamic>? ??
             userData;
         final user = User.fromJson(userJson);
-        state = state.copyWith(user: user);
+        state = state.copyWith(
+          user: FeedPostMerge.mergeUser(user, state.user),
+        );
       }
 
       // Fetch fresh posts
@@ -226,6 +249,19 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
   String _getErrorMessage(dynamic error) {
     return error.toString().replaceAll('Exception: ', '');
+  }
+
+  /// Sync a post after returning from detail (likes, comment counts, etc.).
+  void updatePost(Post updatedPost) {
+    state = state.copyWith(
+      posts: state.posts
+          .map(
+            (post) => post.id == updatedPost.id
+                ? FeedPostMerge.mergePost(updatedPost, post)
+                : post,
+          )
+          .toList(),
+    );
   }
 }
 

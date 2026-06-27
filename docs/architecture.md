@@ -49,7 +49,8 @@ lib/
 │   ├── routes.dart           # GoRouter navigation
 │   └── theme.dart            # Material 3 theming
 ├── core/                     # Shared infrastructure
-│   ├── cache/                # Caching utilities
+│   ├── cache/                # Feed merge, image cache managers
+│   ├── media/                # R2 URL utils, content types
 │   ├── constants/            # App constants
 │   ├── errors/               # Error handling, failures
 │   ├── network/              # API client, interceptors
@@ -61,11 +62,14 @@ lib/
 ├── domain/                   # Business logic (if applicable)
 ├── presentation/             # UI layer
 │   ├── providers/            # Riverpod state management
+│   ├── helpers/              # Navigation helpers (e.g. openPostDetail)
 │   ├── screens/              # Full-page UI screens
-│   └── widgets/              # Reusable UI components
+│   └── widgets/              # Reusable UI components (AmbientGlowBackground, AuthNetworkImage)
 └── services/                 # Business services
     ├── auth_service.dart     # Authentication logic
-    ├── location_service.dart # GPS and geocoding
+    ├── upload_service.dart   # R2 upload (Pattern B + multipart fallback)
+    ├── media_service.dart    # Presigned URL sign + in-memory cache
+    ├── feed_cache_service.dart # Offline feed (Hive)
     └── push_notification_service.dart
 ```
 

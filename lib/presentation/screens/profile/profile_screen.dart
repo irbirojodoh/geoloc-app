@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/routes.dart';
+import '../../../data/models/post.dart';
+import '../../helpers/open_post_detail.dart';
 import '../../widgets/auth_network_image.dart';
 
 import '../../../core/errors/dm_exception.dart';
@@ -28,7 +30,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late final TabController _tabController;
   final ScrollController _scrollController = ScrollController();
   int _activeTabIndex = 0;
@@ -91,20 +93,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     }
   }
 
+  void _openPost(Post post) {
+    // Match feed: slide detail in from the right.
+    setShellNavTransitionDirection(1);
+    openPostDetail(context, ref, post).then((value) {
+      if (value is Post) {
+        ref.read(profileProvider(widget.userId).notifier).updatePost(value);
+      }
+    });
+  }
+
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final profileState = ref.watch(profileProvider(widget.userId));
     final currentUser = ref.watch(currentUserProvider);
     final isOwnProfile = currentUser?.id == widget.userId;
     final colorScheme = Theme.of(context).colorScheme;
 
-    if (profileState.isLoading) {
+    if (profileState.isLoading && profileState.user == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (profileState.error != null) {
+    if (profileState.error != null &&
+        profileState.user == null &&
+        profileState.posts.isEmpty) {
       return Scaffold(
         body: ErrorState(
           message: profileState.error!,
@@ -128,8 +146,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final profileImageUrl = user.profilePictureUrl?.trim();
     final coverImageUrl = user.coverImageUrl?.trim();
     final hasProfileImage =
-        profileImageUrl != null && profileImageUrl.isNotEmpty;
-    final hasCoverImage = coverImageUrl != null && coverImageUrl.isNotEmpty;
+        (profileImageUrl != null && profileImageUrl.isNotEmpty) ||
+            user.avatarKey != null;
+    final hasCoverImage =
+        (coverImageUrl != null && coverImageUrl.isNotEmpty) ||
+            user.coverKey != null;
 
     final activePosts = _activeTabIndex == 0 ? profileState.posts : likedPosts;
     final blockedUsers = ref.watch(blockedUsersListProvider).valueOrNull ?? [];
@@ -183,8 +204,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   child: _ProfileHeaderSection(
                     hasCoverImage: hasCoverImage,
                     coverImageUrl: coverImageUrl,
+                    coverImageKey: user.coverKey,
                     hasProfileImage: hasProfileImage,
                     profileImageUrl: profileImageUrl,
+                    profileImageKey: user.avatarKey,
                     username: user.username,
                     displayName: user.fullName?.isNotEmpty == true
                         ? user.fullName!
@@ -268,17 +291,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 2),
                           child: PostCard(
+                            key: ValueKey(post.id),
                             post: post,
                             headerTrailing: PostOverflowMenuButton(post: post),
-                            onTap: () {
-                              // Profile(3) -> Post detail(0.5): slide from left.
-                              setShellNavTransitionDirection(-1);
-                              context.push('/post/${post.id}');
-                            },
-                            onComment: () {
-                              setShellNavTransitionDirection(-1);
-                              context.push('/post/${post.id}');
-                            },
+                            onTap: () => _openPost(post),
+                            onComment: () => _openPost(post),
                             onUserTap: () => context.push('/profile/${post.userId}'),
                           ),
                         );
@@ -296,8 +313,10 @@ class _ProfileHeaderSection extends StatelessWidget {
   const _ProfileHeaderSection({
     required this.hasCoverImage,
     required this.coverImageUrl,
+    this.coverImageKey,
     required this.hasProfileImage,
     required this.profileImageUrl,
+    this.profileImageKey,
     required this.username,
     required this.displayName,
     required this.bio,
@@ -315,8 +334,10 @@ class _ProfileHeaderSection extends StatelessWidget {
 
   final bool hasCoverImage;
   final String? coverImageUrl;
+  final String? coverImageKey;
   final bool hasProfileImage;
   final String? profileImageUrl;
+  final String? profileImageKey;
   final String username;
   final String displayName;
   final String? bio;
@@ -349,7 +370,8 @@ class _ProfileHeaderSection extends StatelessWidget {
               children: [
                 if (hasCoverImage)
                   AuthNetworkImage(
-                    imageUrl: coverImageUrl!,
+                    imageUrl: coverImageUrl ?? '',
+                    mediaKey: coverImageKey,
                     fit: BoxFit.cover,
                     errorWidget: (context, url, error) => Container(
                       color: colorScheme.secondaryContainer,
@@ -385,6 +407,7 @@ class _ProfileHeaderSection extends StatelessWidget {
                   bottom: -40,
                   child: UserAvatar(
                     imageUrl: hasProfileImage ? profileImageUrl : null,
+                    imageKey: profileImageKey,
                     name: username,
                     size: 80,
                     showBorder: true,

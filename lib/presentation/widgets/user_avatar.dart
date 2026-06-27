@@ -7,6 +7,7 @@ import '../../core/theme/theme_extensions.dart';
 /// User avatar — old-money luxury aesthetic
 class UserAvatar extends StatelessWidget {
   final String? imageUrl;
+  final String? imageKey;
   final String name;
   final double size;
   final bool showBorder;
@@ -15,6 +16,7 @@ class UserAvatar extends StatelessWidget {
   const UserAvatar({
     super.key,
     this.imageUrl,
+    this.imageKey,
     required this.name,
     this.size = 40,
     this.showBorder = false,
@@ -49,6 +51,8 @@ class UserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hasImage =
+        (imageUrl != null && imageUrl!.trim().isNotEmpty) || imageKey != null;
 
     final avatar = Container(
       width: size,
@@ -59,15 +63,15 @@ class UserAvatar extends StatelessWidget {
             ? Border.all(color: colorScheme.primary, width: 1.5)
             : null,
       ),
-      child: imageUrl != null
+      child: hasImage
           ? ClipOval(
               child: AuthNetworkImage(
-                imageUrl: imageUrl!,
+                imageUrl: imageUrl?.trim() ?? '',
+                mediaKey: imageKey,
                 width: size,
                 height: size,
                 fit: BoxFit.cover,
                 cacheManager: AvatarCacheManager.instance,
-                // Decode at the rendered logical pixel size to keep memory low.
                 memCacheWidth:
                     (size * MediaQuery.devicePixelRatioOf(context)).round(),
                 memCacheHeight:

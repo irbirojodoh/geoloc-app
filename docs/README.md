@@ -11,6 +11,7 @@ Complete documentation for the Geoloc Flutter application.
 | [State Management](./state_management.md) | Riverpod providers and state |
 | [Data Models](./data_models.md) | Domain models and API contracts |
 | [Services](./services.md) | Business logic and API integration |
+| [Media & Caching](./media_and_caching.md) | R2 media, feed cache, post preview, ambient UI |
 | [Flutter Guide](./flutter_guide.md) | Learning guide for Flutter beginners |
 
 ## Quick Start

@@ -10,7 +10,7 @@ import '../providers/auth_provider.dart';
 import '../providers/dm_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../../data/models/sse_event.dart';
-import 'animated_scroll_gradient_background.dart';
+import 'ambient_glow_background.dart';
 import 'new_message_sheet.dart';
 
 const _navVisibilityQueryKey = 'fromNav';
@@ -120,7 +120,7 @@ class AppShell extends ConsumerWidget {
       body: Stack(
         children: [
           const Positioned.fill(
-            child: AnimatedScrollGradientBackground(opacity: 0.18),
+            child: AmbientGlowBackground(),
           ),
           child,
           if (showNavigationBar)

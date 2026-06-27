@@ -117,7 +117,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   ),
                   leading: IconButton(
                     tooltip: 'Back',
-                    onPressed: () => context.pop(),
+                    onPressed: () => context.pop(postDetailState.post),
                     icon: const Icon(Icons.arrow_back),
                   ),
                   title: Text(

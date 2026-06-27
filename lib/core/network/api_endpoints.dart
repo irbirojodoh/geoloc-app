@@ -203,6 +203,19 @@ class ApiEndpoints {
   /// POST - Upload post media image (max 10MB, multipart/form-data)
   static const String uploadPostMedia = '$_apiBase/upload/post';
 
+  // ==================== Media Endpoints (Protected) ====================
+
+  /// GET - Resolve an R2 object key to a presigned GET URL
+  /// Query params: key
+  static const String mediaSign = '$_apiBase/media/sign';
+
+  /// POST - Request a presigned PUT URL for direct R2 upload (Pattern B)
+  static const String mediaUploadUrl = '$_apiBase/media/upload-url';
+
+  /// DELETE - Delete an owned R2 object
+  /// Query params: key
+  static const String mediaDeleteObject = '$_apiBase/media/object';
+
   // ==================== Device Endpoints (Protected) ====================
 
   /// POST - Register push token

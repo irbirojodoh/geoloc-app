@@ -7,6 +7,7 @@ class Post {
   final String userId;
   final String content;
   final List<String> mediaUrls;
+  final List<String> mediaKeys;
   final double? latitude;
   final double? longitude;
   final String geohash;
@@ -24,6 +25,7 @@ class Post {
     required this.userId,
     required this.content,
     this.mediaUrls = const [],
+    this.mediaKeys = const [],
     this.latitude,
     this.longitude,
     this.geohash = '',
@@ -36,6 +38,18 @@ class Post {
     this.isLiked = false,
     this.author,
   });
+
+  /// Number of media items (prefers resolved URLs, falls back to keys).
+  int get mediaCount =>
+      mediaUrls.isNotEmpty ? mediaUrls.length : mediaKeys.length;
+
+  bool get hasMedia => mediaCount > 0;
+
+  String? mediaUrlAt(int index) =>
+      index < mediaUrls.length ? mediaUrls[index] : null;
+
+  String? mediaKeyAt(int index) =>
+      index < mediaKeys.length ? mediaKeys[index] : null;
 
   /// Get formatted location string (e.g., "Pondok Cina, Depok")
   String get formattedLocation {
@@ -62,6 +76,7 @@ class Post {
         username: json['username'] as String,
         email: '', // Not provided in feed response
         profilePictureUrl: json['profile_picture_url'] as String?,
+        avatarKey: json['avatar_key'] as String?,
         createdAt: DateTime.now(),
       );
     }
@@ -78,6 +93,11 @@ class Post {
       content: json['content'] as String,
       mediaUrls:
           (json['media_urls'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      mediaKeys:
+          (json['media_keys'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -101,12 +121,30 @@ class Post {
     );
   }
 
+  /// JSON for offline cache — omits ephemeral presigned URLs.
+  Map<String, dynamic> toCacheJson() {
+    final json = toJson();
+    json.remove('media_urls');
+    if (json['author'] is Map<String, dynamic>) {
+      final authorJson = Map<String, dynamic>.from(
+        json['author'] as Map<String, dynamic>,
+      );
+      authorJson.remove('profile_picture_url');
+      authorJson.remove('cover_image_url');
+      json['author'] = authorJson;
+    }
+    return json;
+  }
+
+  factory Post.fromCacheJson(Map<String, dynamic> json) => Post.fromJson(json);
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'user_id': userId,
       'content': content,
       'media_urls': mediaUrls,
+      'media_keys': mediaKeys,
       'latitude': latitude,
       'longitude': longitude,
       'geohash': geohash,
@@ -126,6 +164,7 @@ class Post {
     String? userId,
     String? content,
     List<String>? mediaUrls,
+    List<String>? mediaKeys,
     double? latitude,
     double? longitude,
     String? geohash,
@@ -143,6 +182,7 @@ class Post {
       userId: userId ?? this.userId,
       content: content ?? this.content,
       mediaUrls: mediaUrls ?? this.mediaUrls,
+      mediaKeys: mediaKeys ?? this.mediaKeys,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       geohash: geohash ?? this.geohash,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../config/routes.dart';
+import '../../helpers/open_post_detail.dart';
 import '../../providers/search_provider.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
@@ -299,7 +300,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               onTap: () {
                 // Search(1) -> Post detail(0.5): slide from left.
                 setShellNavTransitionDirection(-1);
-                context.push('/post/${post.id}');
+                openPostDetail(context, ref, post);
               },
               onUserTap: () => context.push('/profile/${post.userId}'),
             ),

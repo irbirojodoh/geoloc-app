@@ -7,9 +7,14 @@ Services handle business logic, API communication, and external integrations.
 | Service | File | Description |
 |---------|------|-------------|
 | AuthService | `auth_service.dart` | Authentication and user management |
+| UploadService | `upload_service.dart` | R2 upload (presigned PUT + multipart fallback) |
+| MediaService | `media_service.dart` | Presigned GET sign, URL cache, post hydration |
+| FeedCacheService | `feed_cache_service.dart` | Offline feed persistence (Hive) |
 | LocationService | `location_service.dart` | GPS and geocoding |
 | NotificationService | `notification_service.dart` | Fetching notification history and SSE stream |
 | PushNotificationService | `push_notification_service.dart` | Firebase push notifications |
+
+See also: [Media & Caching](./media_and_caching.md)
 
 ---
 
@@ -114,6 +119,41 @@ Future<User> updateProfile({
   return User.fromJson(response.data);
 }
 ```
+
+---
+
+## Upload Service
+
+**File**: `lib/services/upload_service.dart`
+
+Uploads images to R2 for avatar, cover, and post media.
+
+**Pattern B (primary):** `POST /api/v1/media/upload-url` → PUT bytes to presigned URL with a plain Dio client (no JWT). Returns `UploadResult` with `key`.
+
+**Pattern A (fallback):** Multipart `POST /api/v1/upload/{avatar|cover|post}`.
+
+Validation: max 10 MB; JPEG, PNG, GIF, WebP. Attach returned **`key`** on profile/post mutations — not presigned URLs.
+
+---
+
+## Media Service
+
+**File**: `lib/services/media_service.dart`
+
+- `GET /api/v1/media/sign?key=...` — fresh presigned GET URL
+- In-memory `MediaUrlCache` (session TTL)
+- `hydratePostsMediaUrls` — fill missing URLs for cached posts with keys only
+- `deleteObject(key)` — `DELETE /api/v1/media/object`
+
+Used by `AuthNetworkImage` on 403 expiry and offline feed hydration.
+
+---
+
+## Feed Cache Service
+
+**File**: `lib/services/feed_cache_service.dart`
+
+Hive box `feed_cache`. Stores posts via `Post.toCacheJson()` (keys + metadata, no presigned URLs). Read on cold start; merge with network refresh via `FeedPostMerge`.
 
 ---
 
@@ -408,3 +448,11 @@ class AuthInterceptor extends Interceptor {
 |--------|----------|-------------|
 | GET | `/search/users` | Search users |
 | GET | `/search/posts` | Search posts |
+
+### Media (R2)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/media/upload-url` | Get presigned PUT URL + key |
+| GET | `/api/v1/media/sign` | Get presigned GET URL for key |
+| DELETE | `/api/v1/media/object` | Delete object by key |
+| POST | `/api/v1/upload/{avatar\|cover\|post}` | Multipart fallback upload |
