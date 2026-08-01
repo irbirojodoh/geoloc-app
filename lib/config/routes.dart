@@ -192,11 +192,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Edit profile must come BEFORE /profile/:id to avoid "edit" being parsed as userId
           GoRoute(
             path: RoutePaths.editProfile,
-            builder: (context, state) => const EditProfileScreen(),
+            pageBuilder: (context, state) => _buildShellRootPage(
+              state: state,
+              child: const EditProfileScreen(),
+            ),
           ),
           GoRoute(
             path: RoutePaths.onboarding,
-            builder: (context, state) => const EditProfileScreen(),
+            pageBuilder: (context, state) => _buildShellRootPage(
+              state: state,
+              child: const EditProfileScreen(),
+            ),
           ),
           GoRoute(
             path: RoutePaths.profile,

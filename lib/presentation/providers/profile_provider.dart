@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/cache/feed_post_merge.dart';
@@ -6,6 +5,7 @@ import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
 import '../../data/models/post.dart';
 import '../../data/models/user.dart';
+import '../../../core/logging/app_logger.dart';
 
 /// Profile state
 class ProfileState {
@@ -168,7 +168,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         }
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('Posts loading failed: $e');
+      AppLogger.debug('Posts loading failed: $e');
       state = state.copyWith(isLoadingPosts: false);
     }
   }
@@ -266,11 +266,11 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 }
 
 /// Profile provider family - creates a provider for each userId
-final profileProvider =
-    StateNotifierProvider.family<ProfileNotifier, ProfileState, String>((
-      ref,
-      userId,
-    ) {
-      final apiClient = ref.read(apiClientProvider);
-      return ProfileNotifier(apiClient, userId);
-    });
+final profileProvider = StateNotifierProvider.autoDispose
+    .family<ProfileNotifier, ProfileState, String>((
+  ref,
+  userId,
+) {
+  final apiClient = ref.read(apiClientProvider);
+  return ProfileNotifier(apiClient, userId);
+});

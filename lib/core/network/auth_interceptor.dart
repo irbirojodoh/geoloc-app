@@ -1,11 +1,11 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/app_config.dart';
 import '../../services/secure_storage.dart';
 import '../../presentation/providers/auth_provider.dart';
 import 'api_endpoints.dart';
+import '../logging/app_logger.dart';
 
 /// Interceptor for handling JWT authentication
 ///
@@ -17,6 +17,7 @@ class AuthInterceptor extends Interceptor {
   final Ref _ref;
 
   bool _isRefreshing = false;
+  bool _isLoggingOut = false;
   final List<RequestOptions> _pendingRequests = [];
 
   AuthInterceptor(this._ref, this._dio);
@@ -79,6 +80,14 @@ class AuthInterceptor extends Interceptor {
     if (err.response?.statusCode == 401) {
       // Unauthorized - try to refresh token
       final options = err.requestOptions;
+
+      // A logout is already in progress (e.g. the device-unregister call
+      // fired from AuthService.logout). Do NOT try to refresh or re-trigger
+      // logout, otherwise a 401 here loops back into onError forever.
+      if (_isLoggingOut) {
+        handler.next(err);
+        return;
+      }
 
       // Skip if this is the refresh endpoint itself
       if (options.path == ApiEndpoints.refreshToken) {
@@ -211,10 +220,12 @@ class AuthInterceptor extends Interceptor {
   /// We deliberately use [Ref.read] here (not watch): the interceptor lives
   /// for the lifetime of the app and must not subscribe to auth changes.
   Future<void> _handleLogout() async {
+    if (_isLoggingOut) return;
+    _isLoggingOut = true;
     try {
       await _ref.read(authStateProvider.notifier).logout();
     } catch (e) {
-      if (kDebugMode) debugPrint('Logout via auth notifier failed: $e');
+      AppLogger.debug('Logout via auth notifier failed: $e');
       // Best-effort fallback: clear tokens directly so the app at least
       // can't keep using a dead session.
       await _storage.delete(key: AppConfig.accessTokenKey);
@@ -222,6 +233,8 @@ class AuthInterceptor extends Interceptor {
       await _storage.delete(key: AppConfig.accessTokenExpiryKey);
       await _storage.delete(key: AppConfig.refreshTokenExpiryKey);
       await _storage.delete(key: AppConfig.currentUserKey);
+    } finally {
+      _isLoggingOut = false;
     }
   }
 }

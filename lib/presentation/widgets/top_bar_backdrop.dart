@@ -1,20 +1,23 @@
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Shared top-bar visual treatment:
-/// - background blur over scrolling content
-/// - multiply tint to blend with content behind
+/// Shared top-bar visual treatment.
+///
+/// On mobile, uses a semi-opaque tint by default (cheap). Soft blur is opt-in
+/// via [enableBlur] for platforms/devices that can afford it.
 class TopBarBackdrop extends StatelessWidget {
   const TopBarBackdrop({
     super.key,
     required this.blurTintColor,
     required this.blendColor,
     this.borderRadius = BorderRadius.zero,
-    this.blurSigma = 16,
-    this.blurTintOpacity = 0.1,
-    this.blendOpacity = 0.05,
+    this.blurSigma = 8,
+    this.blurTintOpacity = 0.86,
+    this.blendOpacity = 0.04,
     this.blendMode = BlendMode.multiply,
+    this.enableBlur = false,
   });
 
   /// Color tint applied on top of the blur layer.
@@ -37,24 +40,33 @@ class TopBarBackdrop extends StatelessWidget {
   /// Blend mode of the blend layer (default: multiply).
   final BlendMode blendMode;
 
+  /// When true, applies [BackdropFilter] (expensive during scroll).
+  final bool enableBlur;
+
   @override
   Widget build(BuildContext context) {
+    final useBlur = enableBlur && !kIsWeb;
+
     return ClipRRect(
       borderRadius: borderRadius,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Layer 1: blur + soft tint
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-            child: DecoratedBox(
+          if (useBlur)
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: blurTintColor.withValues(alpha: blurTintOpacity * 0.55),
+                ),
+              ),
+            )
+          else
+            DecoratedBox(
               decoration: BoxDecoration(
                 color: blurTintColor.withValues(alpha: blurTintOpacity),
               ),
             ),
-          ),
-
-          // Layer 2: separate blend layer (multiply by default)
           CustomPaint(
             painter: _BlendLayerPainter(
               color: blendColor.withValues(alpha: blendOpacity),
@@ -89,4 +101,3 @@ class _BlendLayerPainter extends CustomPainter {
     return oldDelegate.color != color || oldDelegate.blendMode != blendMode;
   }
 }
-

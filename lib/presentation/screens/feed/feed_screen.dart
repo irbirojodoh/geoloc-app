@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../config/routes.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../../data/models/post.dart';
 import '../../helpers/open_post_detail.dart';
 import '../../providers/feed_provider.dart';
@@ -202,7 +203,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                     ),
                   ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      96,
+                    ),
                   sliver: SliverList.builder(
                     itemCount:
                         feedState.posts.length + (feedState.hasMore ? 1 : 0),

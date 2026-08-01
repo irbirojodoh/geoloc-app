@@ -27,12 +27,13 @@ class AmbientGlowBackground extends StatefulWidget {
 }
 
 class _AmbientGlowBackgroundState extends State<AmbientGlowBackground>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _driftController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _driftController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 56),
@@ -40,7 +41,21 @@ class _AmbientGlowBackgroundState extends State<AmbientGlowBackground>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (!_driftController.isAnimating) _driftController.repeat();
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _driftController.stop();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _driftController.dispose();
     super.dispose();
   }

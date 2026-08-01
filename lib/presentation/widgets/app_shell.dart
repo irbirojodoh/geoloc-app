@@ -89,7 +89,8 @@ class AppShell extends ConsumerWidget {
             )
           : BorderSide.none,
     );
-    const navBarHeight = 75.0;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final navBarHeight = 75.0 * textScale.clamp(1.0, 1.35);
     const navBottomMargin = 10.0;
     const messagesFabBottomGap = 14.0;
     final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
@@ -190,207 +191,158 @@ class AppShell extends ConsumerWidget {
                     // render nothing to avoid assertion errors.
                     final totalWidth = constraints.maxWidth;
                     if (totalWidth <= 0) return const SizedBox.shrink();
-                    // Home route: 5 tabs + create action; other routes: 5 tabs only
-                    final navTrackWidth = totalWidth;
-                    final slotCount = showCreateButton ? tabCount + 1 : tabCount;
-                    final createSlotWidth = showCreateButton ? 44.0 : 0.0;
 
-                    // Selected slot = 38 %, unselected slots share the rest.
-                    // Use max(0, …) on unselectedWidth so it never goes negative
-                    // even if the spring overshoots and temporarily reports a
-                    // larger selectedWidth during an in-progress animation.
-                    final selectedWidth = (navTrackWidth * 0.38).clamp(0.0, navTrackWidth);
-                    final remaining = (navTrackWidth - selectedWidth).clamp(0.0, navTrackWidth);
-                    final unselectedWidth = remaining / (slotCount - 1);
+                    return TweenAnimationBuilder<double>(
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeInOutCubic,
+                      tween: Tween<double>(
+                        end: showCreateButton ? 44.0 : 0.0,
+                      ),
+                      builder: (context, animatedCreateWidth, _) {
+                        final createWidth =
+                            animatedCreateWidth.clamp(0.0, 44.0);
+                        final navTrackWidth =
+                            (totalWidth - createWidth).clamp(0.0, totalWidth);
 
-                    double widthFor(int i) =>
-                        selectedIndex == i ? selectedWidth : unselectedWidth;
+                        // Selected tab = 38% of tab track; other tabs share the rest.
+                        final selectedWidth =
+                            (navTrackWidth * 0.38).clamp(0.0, navTrackWidth);
+                        final remaining = (navTrackWidth - selectedWidth)
+                            .clamp(0.0, navTrackWidth);
+                        final unselectedWidth = tabCount > 1
+                            ? remaining / (tabCount - 1)
+                            : remaining;
 
-                    final widths = List<double>.generate(tabCount, widthFor);
-                    final selectedLeft = widths
-                        .take(selectedIndex)
-                        .fold<double>(0.0, (s, w) => s + w);
+                        double widthFor(int i) => selectedIndex == i
+                            ? selectedWidth
+                            : unselectedWidth;
 
-                    final labelStyle = TextStyle(
-                      color: selectedContentColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      letterSpacing: 0.1,
-                    );
+                        final widths =
+                            List<double>.generate(tabCount, widthFor);
+                        final selectedLeft = widths
+                            .take(selectedIndex)
+                            .fold<double>(0.0, (s, w) => s + w);
 
-                    final selectedLabelWidth = _measureTextWidth(
-                      navLabels[selectedIndex],
-                      labelStyle,
-                      Directionality.of(context),
-                    );
+                        final labelStyle = TextStyle(
+                          color: selectedContentColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          letterSpacing: 0.1,
+                        );
 
-                    final badgeCountForTab = selectedIndex == 2
-                        ? dmUnreadCount
-                        : selectedIndex == 3
-                            ? unreadCount
-                            : 0;
-                    final hasSelectedBadge = badgeCountForTab > 0;
+                        final selectedLabelWidth = _measureTextWidth(
+                          navLabels[selectedIndex],
+                          labelStyle,
+                          Directionality.of(context),
+                        );
 
-                    // Pill width: icon(22) + gap(7) + label + badge(10) + h-padding(24)
-                    final desiredHighlightWidth =
-                        24.0 + 22.0 + 7.0 + selectedLabelWidth +
-                        (hasSelectedBadge ? 10.0 : 0.0);
+                        final badgeCountForTab = selectedIndex == 2
+                            ? dmUnreadCount
+                            : selectedIndex == 3
+                                ? unreadCount
+                                : 0;
+                        final hasSelectedBadge = badgeCountForTab > 0;
 
-                    final selectedSlotWidth = widths[selectedIndex];
-                    // Ensure the clamp range is always valid (min <= max).
-                    final clampMax = (selectedSlotWidth - 8.0).clamp(48.0, double.infinity);
-                    final highlightWidth =
-                        desiredHighlightWidth.clamp(48.0, clampMax);
+                        // Pill width: icon(22) + gap(7) + label + badge(10) + h-padding(24)
+                        final desiredHighlightWidth = 24.0 +
+                            22.0 +
+                            7.0 +
+                            selectedLabelWidth +
+                            (hasSelectedBadge ? 10.0 : 0.0);
 
-                    final highlightLeft = (selectedLeft +
-                            (selectedSlotWidth - highlightWidth) / 2)
-                        .clamp(0.0, (totalWidth - highlightWidth).clamp(0.0, double.infinity));
+                        final selectedSlotWidth = widths[selectedIndex];
+                        final clampMax = (selectedSlotWidth - 8.0)
+                            .clamp(48.0, double.infinity);
+                        final highlightWidth =
+                            desiredHighlightWidth.clamp(48.0, clampMax);
 
-                    return Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.center,
-                      children: [
-                        // Animated highlight pill
-                        AnimatedPositioned(
-                          duration: const Duration(milliseconds: 1500),
-                          curve: const _SpringCurve(),
-                          left: highlightLeft,
-                          // Vertically centred in 75 px bar: (75 - 46) / 2 = 14.5
-                          top: 14.5,
-                          width: highlightWidth,
-                          height: 46,
-                          child: _GlowPill(color: activeColor),
-                        ),
+                        final highlightLeft = (selectedLeft +
+                                (selectedSlotWidth - highlightWidth) / 2)
+                            .clamp(
+                          0.0,
+                          (totalWidth - highlightWidth)
+                              .clamp(0.0, double.infinity),
+                        );
 
-                        // Nav items row with inline center create button.
-                        Row(
+                        final createProgress = createWidth / 44.0;
+
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.center,
                           children: [
-                            _FixedNavSlot(
-                              width: widthFor(0),
-                              child: _CapsuleNavItem(
-                                isSelected: selectedIndex == 0,
-                                label: navLabels[0],
-                                icon: navIcons[0],
-                                selectedColor: selectedContentColor,
-                                inactiveColor: inactiveColor,
-                                badgeBackgroundColor: colorScheme.error,
-                                badgeCount: 0,
-                                onTap: () => _onItemTapped(
-                                  0,
-                                  currentIndex: selectedIndex,
-                                  context: context,
-                                  userId: user?.id,
-                                ),
-                              ),
+                            AnimatedPositioned(
+                              duration: const Duration(milliseconds: 1500),
+                              curve: const _SpringCurve(),
+                              left: highlightLeft,
+                              top: 14.5,
+                              width: highlightWidth,
+                              height: 46,
+                              child: _GlowPill(color: activeColor),
                             ),
-                            _FixedNavSlot(
-                              width: widthFor(1),
-                              child: _CapsuleNavItem(
-                                isSelected: selectedIndex == 1,
-                                label: navLabels[1],
-                                icon: navIcons[1],
-                                selectedColor: selectedContentColor,
-                                inactiveColor: inactiveColor,
-                                badgeBackgroundColor: colorScheme.error,
-                                badgeCount: 0,
-                                onTap: () => _onItemTapped(
-                                  1,
-                                  currentIndex: selectedIndex,
-                                  context: context,
-                                  userId: user?.id,
-                                ),
-                              ),
-                            ),
-                            _FixedNavSlot(
-                              width: widthFor(2),
-                              child: _CapsuleNavItem(
-                                isSelected: selectedIndex == 2,
-                                label: navLabels[2],
-                                icon: navIcons[2],
-                                selectedColor: selectedContentColor,
-                                inactiveColor: inactiveColor,
-                                badgeBackgroundColor: colorScheme.error,
-                                badgeCount: dmUnreadCount,
-                                onTap: () => _onItemTapped(
-                                  2,
-                                  currentIndex: selectedIndex,
-                                  context: context,
-                                  userId: user?.id,
-                                ),
-                              ),
-                            ),
-                            _FixedNavSlot(
-                              width: widthFor(3),
-                              child: _CapsuleNavItem(
-                                isSelected: selectedIndex == 3,
-                                label: navLabels[3],
-                                icon: navIcons[3],
-                                selectedColor: selectedContentColor,
-                                inactiveColor: inactiveColor,
-                                badgeBackgroundColor: colorScheme.error,
-                                badgeCount: unreadCount,
-                                onTap: () => _onItemTapped(
-                                  3,
-                                  currentIndex: selectedIndex,
-                                  context: context,
-                                  userId: user?.id,
-                                ),
-                              ),
-                            ),
-                            _FixedNavSlot(
-                              width: widthFor(4),
-                              child: _CapsuleNavItem(
-                                isSelected: selectedIndex == 4,
-                                label: navLabels[4],
-                                icon: navIcons[4],
-                                selectedColor: selectedContentColor,
-                                inactiveColor: inactiveColor,
-                                badgeBackgroundColor: colorScheme.error,
-                                badgeCount: 0,
-                                onTap: () => _onItemTapped(
-                                  4,
-                                  currentIndex: selectedIndex,
-                                  context: context,
-                                  userId: user?.id,
-                                ),
-                              ),
-                            ),
-                            _FixedNavSlot(
-                              width: createSlotWidth,
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 260),
-                                switchInCurve: Curves.easeOutCubic,
-                                switchOutCurve: Curves.easeInCubic,
-                                transitionBuilder: (child, animation) =>
-                                    FadeTransition(
-                                      opacity: animation,
-                                      child: ScaleTransition(
-                                        scale: animation,
-                                        child: child,
+                            ClipRect(
+                              child: Row(
+                                children: [
+                                  for (var i = 0; i < tabCount; i++)
+                                    _FixedNavSlot(
+                                      width: widthFor(i),
+                                      child: _CapsuleNavItem(
+                                        isSelected: selectedIndex == i,
+                                        label: navLabels[i],
+                                        icon: navIcons[i],
+                                        selectedColor: selectedContentColor,
+                                        inactiveColor: inactiveColor,
+                                        badgeBackgroundColor:
+                                            colorScheme.error,
+                                        badgeCount: i == 2
+                                            ? dmUnreadCount
+                                            : i == 3
+                                                ? unreadCount
+                                                : 0,
+                                        onTap: () => _onItemTapped(
+                                          i,
+                                          currentIndex: selectedIndex,
+                                          context: context,
+                                          userId: user?.id,
+                                        ),
                                       ),
                                     ),
-                                child: showCreateButton
-                                    ? _CreateNavItem(
-                                        key: const ValueKey('create-visible'),
-                                        onTap: () {
-                                          // Create post is treated as virtual index 5.
-                                          setShellNavTransitionDirection(1);
-                                          context.push(RoutePaths.createPost);
-                                        },
-                                        backgroundColor: activeColor,
-                                        iconColor: selectedContentColor,
-                                        layerLink: createButtonLayerLink,
-                                      )
-                                    : const SizedBox(
-                                        key: ValueKey('create-hidden'),
-                                        width: 1,
-                                        height: 1,
-                                      ),
+                                  SizedBox(
+                                    width: createWidth,
+                                    child: createProgress <= 0.01
+                                        ? null
+                                        : Opacity(
+                                            opacity: createProgress
+                                                .clamp(0.0, 1.0),
+                                            child: Transform.scale(
+                                              scale: 0.65 +
+                                                  (0.35 * createProgress),
+                                              child: _CreateNavItem(
+                                                key: const ValueKey(
+                                                  'create-visible',
+                                                ),
+                                                onTap: () {
+                                                  setShellNavTransitionDirection(
+                                                    1,
+                                                  );
+                                                  context.push(
+                                                    RoutePaths.createPost,
+                                                  );
+                                                },
+                                                backgroundColor: activeColor,
+                                                iconColor:
+                                                    selectedContentColor,
+                                                layerLink:
+                                                    createButtonLayerLink,
+                                              ),
+                                            ),
+                                          ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                        ),
-                      ],
+                        );
+                      },
                     );
                         },
                       ),
@@ -668,7 +620,7 @@ Widget build(BuildContext context) {
               else
                 iconWidget,
 
-              // Label - use Flexible to prevent overflow
+              // Label - Flexible + ellipsis so tight selected slots don't overflow.
               if (widget.isSelected)
                 Flexible(
                   child: Padding(
@@ -739,6 +691,9 @@ class _SlideFadeLabelState extends State<_SlideFadeLabel>
         position: _slide,
         child: Text(
           widget.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
           style: TextStyle(
             color: widget.color,
             fontWeight: FontWeight.w700,
@@ -750,12 +705,6 @@ class _SlideFadeLabelState extends State<_SlideFadeLabel>
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Slot uses Expanded+flex so widths always sum to exactly the Row's width.
-// Fixed pixel widths caused overflow when the spring curve temporarily
-// reported values that didn't sum correctly during animation frames.
-// ---------------------------------------------------------------------------
 
 class _CreatePostAttentionGlow extends StatefulWidget {
   const _CreatePostAttentionGlow({
@@ -772,12 +721,13 @@ class _CreatePostAttentionGlow extends StatefulWidget {
 }
 
 class _CreatePostAttentionGlowState extends State<_CreatePostAttentionGlow>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 6000),
@@ -785,7 +735,21 @@ class _CreatePostAttentionGlowState extends State<_CreatePostAttentionGlow>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (!_controller.isAnimating) _controller.repeat();
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _controller.stop();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
   }
@@ -880,11 +844,12 @@ class _FixedNavSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeInOutCubic,
+    // Use SizedBox (not AnimatedContainer): independently animating slot
+    // widths can briefly sum above the track and trigger Row overflow.
+    // The selection pill already animates via AnimatedPositioned.
+    return SizedBox(
       width: width,
-      child: child,
+      child: ClipRect(child: child),
     );
   }
 }

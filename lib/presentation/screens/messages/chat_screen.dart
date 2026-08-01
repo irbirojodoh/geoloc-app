@@ -5,9 +5,11 @@ import 'package:flutter/services.dart';
 import '../../../data/models/dm_message.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/dm_provider.dart';
-import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/top_bar_backdrop.dart';
 import '../../widgets/user_avatar.dart';
+
+const Color _sentBubbleBlue = Color(0xFF2563EB);
+const Duration _messageGroupTimeGap = Duration(minutes: 5);
 
 /// Encrypted 1:1 chat thread.
 class ChatScreen extends ConsumerStatefulWidget {
@@ -27,43 +29,53 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _composerController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  int _lastMessageCount = 0;
+  String? _lastMessageId;
+  bool _stickToBottom = true;
 
-  DmChatKey get _chatKey => (
-        conversationId: widget.conversationId,
-        peerUserId: widget.peerUserId,
-      );
+  DmChatKey get _chatKey =>
+      (conversationId: widget.conversationId, peerUserId: widget.peerUserId);
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_maybeLoadOlder);
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(dmChatProvider(_chatKey).notifier).initialize();
     });
   }
 
-  void _maybeLoadOlder() {
+  void _onScroll() {
     if (!_scrollController.hasClients) return;
-    if (_scrollController.position.pixels <= 80) {
+    final position = _scrollController.position;
+    // Stay sticky near the bottom; otherwise user is reading history.
+    _stickToBottom = position.pixels >= position.maxScrollExtent - 120;
+    if (position.pixels <= 80) {
       ref.read(dmChatProvider(_chatKey).notifier).loadOlder();
     }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
     _composerController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      );
+      final target = _scrollController.position.maxScrollExtent;
+      if (animate) {
+        _scrollController.animateTo(
+          target,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scrollController.jumpTo(target);
+      }
     });
   }
 
@@ -72,14 +84,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.watch(dmSseHandlerProvider);
 
     final state = ref.watch(dmChatProvider(_chatKey));
-    final inboxState = ref.watch(dmInboxProvider);
-    final keysReady = inboxState.keysReady;
-    final currentUserId = ref.watch(currentUserProvider)?.id;
+    final keysReady = ref.watch(dmInboxProvider.select((s) => s.keysReady));
+    final keysError = ref.watch(dmInboxProvider.select((s) => s.keysError));
+    final currentUserId = ref.watch(currentUserProvider.select((u) => u?.id));
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    if (state.messages.isNotEmpty) {
-      _scrollToBottom();
+    ref.listen<DmChatState>(dmChatProvider(_chatKey), (previous, next) {
+      final prevCount = previous?.messages.length ?? _lastMessageCount;
+      final nextCount = next.messages.length;
+      final nextLastId = next.messages.isEmpty
+          ? null
+          : next.messages.last.messageId;
+      final countIncreased = nextCount > prevCount;
+      final appended =
+          nextLastId != null && nextLastId != _lastMessageId && countIncreased;
+
+      if (countIncreased && (_stickToBottom || prevCount == 0 || appended)) {
+        _scrollToBottom(animate: prevCount > 0);
+      }
+      _lastMessageCount = nextCount;
+      _lastMessageId = nextLastId;
+    });
+
+    // First paint after local/cache hydrate (listen does not fire for current).
+    if (_lastMessageCount == 0 && state.messages.isNotEmpty) {
+      _lastMessageCount = state.messages.length;
+      _lastMessageId = state.messages.last.messageId;
+      _scrollToBottom(animate: false);
     }
 
     final peerName = state.peerUser?.fullName?.isNotEmpty == true
@@ -125,9 +157,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               content: Text(state.error!),
               actions: [
                 TextButton(
-                  onPressed: () => ref
-                      .read(dmChatProvider(_chatKey).notifier)
-                      .initialize(),
+                  onPressed: () =>
+                      ref.read(dmChatProvider(_chatKey).notifier).initialize(),
                   child: const Text('Retry'),
                 ),
               ],
@@ -135,7 +166,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (!keysReady)
             MaterialBanner(
               content: Text(
-                inboxState.keysError ??
+                keysError ??
                     'Set up encryption on this device before sending messages',
               ),
               actions: const [SizedBox.shrink()],
@@ -163,62 +194,78 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: state.isLoading && state.messages.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : state.messages.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.mark_chat_unread_outlined,
-                                size: 28,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Start the conversation',
-                                style: textTheme.titleMedium?.copyWith(
-                                  color: colorScheme.onSurface,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Messages are end-to-end encrypted',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.mark_chat_unread_outlined,
+                            size: 28,
+                            color: colorScheme.onSurfaceVariant,
                           ),
-                        )
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                          itemCount: state.messages.length,
-                          itemBuilder: (context, index) {
-                            final message = state.messages[index];
-                            final isMine = message.senderId == currentUserId;
-                            final isReadByPeer = state.lastReadByPeerId != null &&
-                                _isMessageReadByPeer(
-                                  message.messageId,
-                                  state.lastReadByPeerId!,
-                                  state.messages,
-                                );
-                            return _BubbleEntrance(
-                              key: ValueKey(message.messageId),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Start the conversation',
+                            style: textTheme.titleMedium?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Messages are end-to-end encrypted',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                      itemCount: state.messages.length,
+                      itemBuilder: (context, index) {
+                        final message = state.messages[index];
+                        final isMine = message.senderId == currentUserId;
+                        final previousMessage = index > 0
+                            ? state.messages[index - 1]
+                            : null;
+                        final isSameGroup =
+                            previousMessage != null &&
+                            previousMessage.senderId == message.senderId &&
+                            message.sentAt
+                                    .difference(previousMessage.sentAt)
+                                    .abs() <=
+                                _messageGroupTimeGap;
+                        final isReadByPeer =
+                            state.lastReadByPeerId != null &&
+                            _isMessageReadByPeer(
+                              message.messageId,
+                              state.lastReadByPeerId!,
+                              state.messages,
+                            );
+                        return _BubbleEntrance(
+                          key: ValueKey(message.messageId),
+                          isMine: isMine,
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              top: index == 0 ? 0 : (isSameGroup ? 4 : 16),
+                            ),
+                            child: _MessageBubble(
+                              message: message,
                               isMine: isMine,
-                              child: _MessageBubble(
-                                message: message,
-                                isMine: isMine,
-                                isReadByPeer: isMine && isReadByPeer,
-                                onDelete: isMine && !message.isDeleted
-                                    ? () => ref
+                              isReadByPeer: isMine && isReadByPeer,
+                              onDelete: isMine && !message.isDeleted
+                                  ? () => ref
                                         .read(dmChatProvider(_chatKey).notifier)
                                         .deleteMessage(message.messageId)
-                                    : null,
-                              ),
-                            );
-                          },
-                        ),
+                                  : null,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ),
           _Composer(
@@ -227,6 +274,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onSend: () {
               final text = _composerController.text;
               _composerController.clear();
+              _stickToBottom = true;
               ref.read(dmChatProvider(_chatKey).notifier).sendMessage(text);
             },
           ),
@@ -264,13 +312,14 @@ class _MessageBubble extends StatelessWidget {
   String _formatSentAt(BuildContext context, DateTime sentAt) {
     final local = sentAt.toLocal();
     final now = DateTime.now();
-    final sameDay = now.year == local.year &&
+    final sameDay =
+        now.year == local.year &&
         now.month == local.month &&
         now.day == local.day;
     final sameYear = now.year == local.year;
-    final time = MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(local),
-    );
+    final time = MaterialLocalizations.of(
+      context,
+    ).formatTimeOfDay(TimeOfDay.fromDateTime(local));
     if (sameDay) return time;
     if (sameYear) return '${local.month}/${local.day} $time';
     return '${local.year}/${local.month}/${local.day} $time';
@@ -278,27 +327,23 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final mineBase = Color.alphaBlend(
-      colorScheme.primary.withValues(alpha: brightness == Brightness.dark ? 0.24 : 0.12),
-      colorScheme.primaryContainer,
-    );
     final otherBase = colorScheme.surfaceContainerHighest;
     final bubbleColor = message.decryptFailed
         ? colorScheme.errorContainer
-        : (isMine ? mineBase : otherBase);
+        : (isMine ? _sentBubbleBlue : otherBase);
     final bubbleBrightness = ThemeData.estimateBrightnessForColor(bubbleColor);
     final bubbleTextColor = bubbleBrightness == Brightness.dark
         ? Colors.white
         : colorScheme.onSurface;
-    final bubbleMetaColor = bubbleTextColor.withValues(alpha: 0.74);
+    final bubbleMetaColor = bubbleTextColor.withValues(alpha: 0.6);
 
     Widget content;
     if (message.isDeleted) {
       content = Text(
         'Message deleted',
+        textAlign: TextAlign.left,
         style: textTheme.bodyMedium?.copyWith(
           fontStyle: FontStyle.italic,
           color: bubbleMetaColor,
@@ -307,6 +352,7 @@ class _MessageBubble extends StatelessWidget {
     } else if (message.decryptFailed) {
       content = Text(
         'Unable to decrypt this message. Ask the sender to resend.',
+        textAlign: TextAlign.left,
         style: textTheme.bodyMedium?.copyWith(
           color: colorScheme.onErrorContainer,
           fontWeight: FontWeight.w500,
@@ -315,6 +361,7 @@ class _MessageBubble extends StatelessWidget {
     } else {
       content = Text(
         message.plaintext ?? '…',
+        textAlign: TextAlign.left,
         style: textTheme.bodyMedium?.copyWith(
           color: bubbleTextColor,
           fontWeight: FontWeight.w500,
@@ -326,7 +373,6 @@ class _MessageBubble extends StatelessWidget {
     final bubble = Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.sizeOf(context).width * 0.78,
@@ -351,36 +397,36 @@ class _MessageBubble extends StatelessWidget {
             bottomRight: Radius.circular(isMine ? 4 : 16),
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            DefaultTextStyle(
-              style: textTheme.bodyMedium!.copyWith(
-                color: bubbleTextColor,
+        child: IntrinsicWidth(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DefaultTextStyle(
+                style: textTheme.bodyMedium!.copyWith(color: bubbleTextColor),
+                textAlign: TextAlign.left,
+                child: content,
               ),
-              child: content,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _formatSentAt(context, message.sentAt),
-                  style: textTheme.labelSmall?.copyWith(
-                    color: bubbleMetaColor,
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatSentAt(context, message.sentAt),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: bubbleMetaColor,
+                      fontSize: 11,
+                    ),
                   ),
-                ),
-                if (isMine && isReadByPeer) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.done_all,
-                    size: 14,
-                    color: bubbleMetaColor,
-                  ),
+                  if (isMine && isReadByPeer) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.done_all, size: 14, color: bubbleMetaColor),
+                  ],
                 ],
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -389,26 +435,48 @@ class _MessageBubble extends StatelessWidget {
 
     return _PressScale(
       child: GestureDetector(
-        onLongPress: () {
+        onLongPressStart: (details) async {
           HapticFeedback.lightImpact();
-          showAppBottomSheet<void>(
-            context: context,
-            builder: (ctx) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.delete_outline),
-                    title: const Text('Delete message'),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      onDelete!();
-                    },
-                  ),
-                ],
-              ),
-            ),
+          final overlay =
+              Overlay.of(context).context.findRenderObject()! as RenderBox;
+          final touchRect = Rect.fromCenter(
+            center: details.globalPosition,
+            width: 1,
+            height: 1,
           );
+          final selected = await showMenu<bool>(
+            context: context,
+            position: RelativeRect.fromRect(
+              touchRect,
+              Offset.zero & overlay.size,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            items: [
+              PopupMenuItem<bool>(
+                value: true,
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Delete message',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+          if (selected == true && context.mounted) {
+            onDelete!();
+          }
         },
         child: bubble,
       ),
@@ -417,11 +485,7 @@ class _MessageBubble extends StatelessWidget {
 }
 
 class _BubbleEntrance extends StatefulWidget {
-  const _BubbleEntrance({
-    super.key,
-    required this.child,
-    required this.isMine,
-  });
+  const _BubbleEntrance({super.key, required this.child, required this.isMine});
 
   final Widget child;
   final bool isMine;
@@ -456,7 +520,10 @@ class _BubbleEntranceState extends State<_BubbleEntrance>
         return Opacity(
           opacity: _curve.value,
           child: Transform.translate(
-            offset: Offset((1 - _curve.value) * startDx * 260, (1 - _curve.value) * 8),
+            offset: Offset(
+              (1 - _curve.value) * startDx * 260,
+              (1 - _curve.value) * 8,
+            ),
             child: child,
           ),
         );
@@ -522,6 +589,8 @@ class _Composer extends StatelessWidget {
                 enabled: enabled,
                 minLines: 1,
                 maxLines: 4,
+                textAlignVertical: TextAlignVertical.center,
+                style: textTheme.bodyMedium,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   hintText: enabled ? 'Message…' : 'Messaging unavailable',
@@ -549,18 +618,26 @@ class _Composer extends StatelessWidget {
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 10,
+                    vertical: 12,
                   ),
                 ),
                 onSubmitted: enabled ? (_) => onSend() : null,
               ),
             ),
-            const SizedBox(width: 8),
-            IconButton.filledTonal(
+            const SizedBox(width: 12),
+            IconButton.filled(
               onPressed: enabled ? onSend : null,
               style: IconButton.styleFrom(
-                backgroundColor: colorScheme.primaryContainer,
-                foregroundColor: colorScheme.onPrimaryContainer,
+                backgroundColor: _sentBubbleBlue,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: _sentBubbleBlue.withValues(
+                  alpha: 0.38,
+                ),
+                disabledForegroundColor: Colors.white.withValues(alpha: 0.7),
+                fixedSize: const Size.square(48),
+                minimumSize: const Size.square(48),
+                padding: EdgeInsets.zero,
+                alignment: Alignment.center,
               ),
               icon: const Icon(Icons.send_rounded, size: 22),
             ),

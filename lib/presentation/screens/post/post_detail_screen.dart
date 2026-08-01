@@ -141,52 +141,71 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           : const CircularProgressIndicator(),
                     ),
                   )
-                else
+                else ...[
+                  // Post + comments header (fixed, small)
+                  // ignore for performance: comments themselves are lazy below.
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        PostCard(
-                          post: postDetailState.post!,
-                          headerTrailing: PostOverflowMenuButton(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          PostCard(
                             post: postDetailState.post!,
-                            viewingPostDetailId: widget.postId,
-                          ),
-                          onLike: () => ref
-                              .read(postDetailProvider(widget.postId).notifier)
-                              .togglePostLike(),
-                          onUserTap: () =>
-                              context.push('/profile/${postDetailState.post!.userId}'),
-                        ),
-                        const SizedBox(height: 16),
-                        Divider(color: colorScheme.outlineVariant),
-                        const SizedBox(height: 8),
-                        Text('Comments', style: textTheme.labelLarge),
-                        const SizedBox(height: 8),
-                        if (comments.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 24),
-                            child: Text(
-                              'No comments yet',
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                            headerTrailing: PostOverflowMenuButton(
+                              post: postDetailState.post!,
+                              viewingPostDetailId: widget.postId,
+                            ),
+                            onLike: () => ref
+                                .read(
+                                  postDetailProvider(widget.postId).notifier,
+                                )
+                                .togglePostLike(),
+                            onUserTap: () => context.push(
+                              '/profile/${postDetailState.post!.userId}',
                             ),
                           ),
-                        ...comments.map(
-                          (comment) => _CommentTile(
-                            comment: comment,
-                            postId: widget.postId,
-                          ),
-                        ),
-                        if (postDetailState.isLoadingMoreComments)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Center(child: CircularProgressIndicator()),
-                          ),
-                      ]),
+                          const SizedBox(height: 16),
+                          Divider(color: colorScheme.outlineVariant),
+                          const SizedBox(height: 8),
+                          Text('Comments', style: textTheme.labelLarge),
+                          const SizedBox(height: 8),
+                          if (comments.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Text(
+                                'No comments yet',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 100),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index < comments.length) {
+                            return _CommentTile(
+                              comment: comments[index],
+                              postId: widget.postId,
+                            );
+                          }
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        },
+                        childCount: comments.length +
+                            (postDetailState.isLoadingMoreComments ? 1 : 0),
+                      ),
+                    ),
+                  ),
+                ],
           ],
         ),
       ),

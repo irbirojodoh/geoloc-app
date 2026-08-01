@@ -92,7 +92,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Keep Editing',
-              style: TextStyle(color: cs.primary),
+              style: TextStyle(color: cs.onSurface),
             ),
           ),
           TextButton(
@@ -254,13 +254,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.5,
-                      color: cs.onPrimary,
+                      color: cs.surface,
                     ),
                   )
-                : Text(
-                    'Save',
-                    style: textTheme.labelLarge,
-                  ),
+                : const Text('Save'),
           ),
         ),
       ],
@@ -287,7 +284,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'OK',
-              style: TextStyle(color: cs.primary),
+              style: TextStyle(color: cs.onSurface),
             ),
           ),
         ],
@@ -338,6 +335,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             mediaKey: state.originalUser?.coverKey,
                             fit: BoxFit.cover,
                             cacheManager: PostImageCacheManager.instance,
+                            memCacheWidth:
+                                (MediaQuery.sizeOf(context).width *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
+                            memCacheHeight:
+                                (200 * MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
                           )
                         else
                           Center(
@@ -517,7 +521,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       context,
                       hintText: 'Enter your username',
                       prefixText: '@',
-                      prefixStyle: context.monoCaption,
+                      prefixStyle: context.body.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                     onChanged:
                         ref.read(editProfileProvider.notifier).updateUsername,

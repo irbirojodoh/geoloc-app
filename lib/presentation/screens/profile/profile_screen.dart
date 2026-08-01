@@ -219,7 +219,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     isOwnProfile: isOwnProfile,
                     isFollowing: user.isFollowing ?? false,
                     isFollowLoading: profileState.isFollowLoading,
-                    onEditProfile: () => context.push('/profile/edit'),
+                    onEditProfile: () {
+                      setShellNavTransitionDirection(1);
+                      context.push(RoutePaths.editProfile);
+                    },
                     onToggleFollow: () => ref
                         .read(profileProvider(widget.userId).notifier)
                         .toggleFollow(),
@@ -373,6 +376,12 @@ class _ProfileHeaderSection extends StatelessWidget {
                     imageUrl: coverImageUrl ?? '',
                     mediaKey: coverImageKey,
                     fit: BoxFit.cover,
+                    memCacheWidth:
+                        (MediaQuery.sizeOf(context).width *
+                                MediaQuery.devicePixelRatioOf(context))
+                            .round(),
+                    memCacheHeight:
+                        (200 * MediaQuery.devicePixelRatioOf(context)).round(),
                     errorWidget: (context, url, error) => Container(
                       color: colorScheme.secondaryContainer,
                     ),

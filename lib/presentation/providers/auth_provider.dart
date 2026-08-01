@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -10,6 +9,7 @@ import '../../../core/errors/failures.dart';
 import '../../../data/models/user.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/dm_service.dart';
+import '../../../core/logging/app_logger.dart';
 
 /// Auth state
 class AuthState {
@@ -152,7 +152,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
             backup: authResponse.keyBackup,
           );
         } catch (e) {
-          debugPrint('Failed to restore E2E private key on login: $e');
+          AppLogger.debug('Failed to restore E2E private key on login: $e');
         }
       } else {
         unawaited(_dmService.ensureKeysUploaded(password: password));
@@ -235,24 +235,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
 
       final idToken = credential.identityToken;
-      if (idToken == null) {
+      if (idToken == null || idToken.isEmpty) {
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to get Apple identity token',
+          error: 'Apple did not return an identity token',
         );
         return false;
       }
 
       // Apple only provides the name on the FIRST sign-in ever.
-      // Capture it here and pass to the backend.
+      // Capture it here and pass to the backend; never overwrite with empty later.
       String? fullName;
       final givenName = credential.givenName;
       final familyName = credential.familyName;
-      if (givenName != null || familyName != null) {
-        fullName =
-            [givenName, familyName].where((s) => s != null && s.isNotEmpty).join(
-              ' ',
-            );
+      if ((givenName != null && givenName.isNotEmpty) ||
+          (familyName != null && familyName.isNotEmpty)) {
+        fullName = [givenName, familyName]
+            .whereType<String>()
+            .where((s) => s.isNotEmpty)
+            .join(' ');
         if (fullName.isEmpty) fullName = null;
       }
 
@@ -266,6 +267,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       unawaited(_dmService.ensureKeysUploaded());
       return true;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      // User dismissed the sheet — not an error state.
+      if (e.code == AuthorizationErrorCode.canceled) {
+        state = state.copyWith(isLoading: false, error: null);
+        return false;
+      }
+      state = state.copyWith(isLoading: false, error: e.message);
+      return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       return false;

@@ -59,22 +59,33 @@ final notificationsProvider =
 
 /// Unread count provider (for badge)
 final unreadCountProvider = Provider<int>((ref) {
-  return ref.watch(notificationsProvider).unreadCount;
+  return ref.watch(notificationsProvider.select((s) => s.unreadCount));
 });
 
 /// Stream provider for real-time SSE (notifications + DMs) with backoff.
+///
+/// Caps consecutive failures and pauses briefly between reconnects so a down
+/// server does not drain battery forever at full tilt.
 final sseStreamProvider = StreamProvider<SseEvent>((ref) async* {
   final service = ref.watch(notificationServiceProvider);
-  int retryCount = 0;
+  var retryCount = 0;
+  const maxConsecutiveFailures = 20;
 
   while (true) {
     try {
       yield* service.getSseStream();
-      await Future.delayed(const Duration(seconds: 2));
-    } catch (e) {
+      retryCount = 0;
+      await Future<void>.delayed(const Duration(seconds: 2));
+    } catch (_) {
       retryCount++;
+      if (retryCount >= maxConsecutiveFailures) {
+        // Cool down hard before another burst of reconnect attempts.
+        await Future<void>.delayed(const Duration(minutes: 2));
+        retryCount = 0;
+        continue;
+      }
       final backoffSeconds = 2 << (retryCount < 6 ? retryCount : 6);
-      await Future.delayed(Duration(seconds: backoffSeconds));
+      await Future<void>.delayed(Duration(seconds: backoffSeconds));
     }
   }
 });

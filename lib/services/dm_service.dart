@@ -19,6 +19,7 @@ import '../data/models/dm_read_receipt.dart';
 import '../data/models/user.dart';
 import 'dm_local_storage.dart';
 import 'secure_storage.dart';
+import '../core/logging/app_logger.dart';
 
 final dmCryptoServiceProvider = Provider<DmCryptoService>((ref) {
   return DmCryptoService();
@@ -162,7 +163,7 @@ class DmService {
             kdfSaltBase64: backup.kdfSaltBase64,
           );
         } on SecretBoxAuthenticationError {
-          debugPrint('Server key backup password mismatch. Rotating key backup...');
+          AppLogger.debug('Server key backup password mismatch. Rotating key backup...');
           await uploadIdentityBackup(password);
         } catch (_) {
           await uploadIdentityBackup(password);
@@ -171,10 +172,10 @@ class DmService {
         if (e.code == 'backup_not_found') {
           await uploadIdentityBackup(password);
         } else {
-          debugPrint('Failed to query existing server backup: $e');
+          AppLogger.debug('Failed to query existing server backup: $e');
         }
       } catch (e) {
-        debugPrint('Failed to auto-upload/rotate backup: $e');
+        AppLogger.debug('Failed to auto-upload/rotate backup: $e');
       }
     }
   }
@@ -201,7 +202,7 @@ class DmService {
       try {
         await uploadIdentityBackup(password);
       } catch (e) {
-        debugPrint('Failed to auto-upload backup on identity generation: $e');
+        AppLogger.debug('Failed to auto-upload backup on identity generation: $e');
       }
     }
   }
@@ -675,17 +676,14 @@ class DmService {
   }
 
   /// Fetches the latest message for rows missing a local preview.
+  /// Runs missing preview fetches concurrently (bounded) to avoid N+1 latency.
   Future<List<DmConversation>> hydrateConversationPreviews(
     List<DmConversation> conversations, {
     required String currentUserId,
   }) async {
-    final hydrated = <DmConversation>[];
-    for (final conv in conversations) {
+    Future<DmConversation> hydrateOne(DmConversation conv) async {
       final preview = conv.lastMessagePreview?.trim();
-      if (preview != null && preview.isNotEmpty) {
-        hydrated.add(conv);
-        continue;
-      }
+      if (preview != null && preview.isNotEmpty) return conv;
       try {
         final page = await getMessages(
           conversationId: conv.conversationId,
@@ -693,10 +691,7 @@ class DmService {
           peerUserId: conv.otherUserId,
           limit: 1,
         );
-        if (page.messages.isEmpty) {
-          hydrated.add(conv);
-          continue;
-        }
+        if (page.messages.isEmpty) return conv;
         final latest = page.messages.first;
         final text = latest.isDeleted
             ? 'Message deleted'
@@ -707,10 +702,18 @@ class DmService {
           lastMessageAt: latest.sentAt,
         );
         await _localStorage.upsertConversation(updated);
-        hydrated.add(updated);
+        return updated;
       } catch (_) {
-        hydrated.add(conv);
+        return conv;
       }
+    }
+
+    // Bound concurrency to avoid flooding the API / UI isolate.
+    const chunkSize = 5;
+    final hydrated = <DmConversation>[];
+    for (var i = 0; i < conversations.length; i += chunkSize) {
+      final chunk = conversations.skip(i).take(chunkSize).toList();
+      hydrated.addAll(await Future.wait(chunk.map(hydrateOne)));
     }
     return hydrated;
   }
@@ -874,29 +877,29 @@ class DmService {
     };
     final dmMessage = error is DmException ? error.message : null;
 
-    debugPrint('🔐 DM decrypt failed');
-    debugPrint('   message_id: ${message.messageId}');
-    debugPrint('   conversation_id: ${message.conversationId}');
-    debugPrint('   sender_id: ${message.senderId}');
-    debugPrint('   current_user_id: $currentUserId');
-    debugPrint('   peer_user_id: $peerUserId');
-    debugPrint('   is_own_message: $isOwnMessage');
-    debugPrint('   message.key_version (recipient): ${message.keyVersion}');
-    debugPrint('   message.sender_key_version: ${message.senderKeyVersion}');
-    debugPrint('   remote_key_user_id: ${remoteKeyUserId ?? 'unknown'}');
-    debugPrint('   remote_key_version_requested: ${remoteKeyVersion ?? 'unknown'}');
-    debugPrint(
+    AppLogger.debug('🔐 DM decrypt failed');
+    AppLogger.debug('   message_id: ${message.messageId}');
+    AppLogger.debug('   conversation_id: ${message.conversationId}');
+    AppLogger.debug('   sender_id: ${message.senderId}');
+    AppLogger.debug('   current_user_id: $currentUserId');
+    AppLogger.debug('   peer_user_id: $peerUserId');
+    AppLogger.debug('   is_own_message: $isOwnMessage');
+    AppLogger.debug('   message.key_version (recipient): ${message.keyVersion}');
+    AppLogger.debug('   message.sender_key_version: ${message.senderKeyVersion}');
+    AppLogger.debug('   remote_key_user_id: ${remoteKeyUserId ?? 'unknown'}');
+    AppLogger.debug('   remote_key_version_requested: ${remoteKeyVersion ?? 'unknown'}');
+    AppLogger.debug(
       '   remote_key_version_from_server: ${remoteKeyVersionOnServer ?? 'not_fetched'}',
     );
-    debugPrint('   local_identity_present: $hasLocalKey');
-    debugPrint('   local_key_version: ${localKeyVersion ?? 'none'}');
-    debugPrint('   had_cached_plaintext: $hadCachedPlaintext');
-    debugPrint('   was_retry_after_prior_failure: $wasRetry');
-    debugPrint('   error: $errorLabel');
+    AppLogger.debug('   local_identity_present: $hasLocalKey');
+    AppLogger.debug('   local_key_version: ${localKeyVersion ?? 'none'}');
+    AppLogger.debug('   had_cached_plaintext: $hadCachedPlaintext');
+    AppLogger.debug('   was_retry_after_prior_failure: $wasRetry');
+    AppLogger.debug('   error: $errorLabel');
     if (dmMessage != null) {
-      debugPrint('   error_message: $dmMessage');
+      AppLogger.debug('   error_message: $dmMessage');
     }
-    debugPrint('   stack: $stackTrace');
+    AppLogger.debug('   stack: $stackTrace');
   }
 
   Future<DmPublicKey> _getPeerKey(String userId, {int? version}) async {

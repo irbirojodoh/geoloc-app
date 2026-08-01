@@ -1,23 +1,38 @@
+import 'package:flutter/foundation.dart';
+
 /// App-wide configuration for Geoloc
 class AppConfig {
   AppConfig._();
 
-  /// API Configuration
-  ///
   /// Override at build time:
   /// ```
-  /// flutter run --dart-define=API_BASE_URL=https://api.geoloc.app
+  /// flutter run --dart-define=API_BASE_URL=https://geolocapi-dev.irphotoarts.cloud
+  /// flutter run --dart-define=API_BASE_URL=http://192.168.2.1:8080
   /// ```
-  /// Default is `http://localhost:8080` for local backend development.
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:8080',
-  );
+  static const String _apiBaseUrlFromEnv = String.fromEnvironment('API_BASE_URL');
+
+  /// Defaults to cloud dev API. Override with --dart-define=API_BASE_URL=...
+  static String get apiBaseUrl {
+    if (_apiBaseUrlFromEnv.isNotEmpty) return _apiBaseUrlFromEnv;
+    return 'https://geolocapi-dev.irphotoarts.cloud';
+  }
+
   static const String apiVersion = 'v1';
 
-  /// Whether the configured base URL uses HTTPS. Use to gate ATS exceptions
-  /// or reject insecure connections in production builds.
+  /// Whether the configured base URL uses HTTPS.
   static bool get isSecureBaseUrl => apiBaseUrl.startsWith('https://');
+
+  /// Fail fast in release if the API URL is not HTTPS.
+  static void assertValidForRelease() {
+    if (!kReleaseMode) return;
+    if (!isSecureBaseUrl) {
+      throw StateError(
+        'Release builds require an HTTPS API_BASE_URL. '
+        'Got: $apiBaseUrl. Pass '
+        '--dart-define=API_BASE_URL=https://api.geoloc.app',
+      );
+    }
+  }
 
   /// API Timeouts
   static const Duration connectTimeout = Duration(seconds: 30);

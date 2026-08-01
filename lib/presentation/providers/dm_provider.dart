@@ -78,7 +78,7 @@ final dmInboxProvider =
 });
 
 final dmUnreadCountProvider = Provider<int>((ref) {
-  return ref.watch(dmInboxProvider).totalUnread;
+  return ref.watch(dmInboxProvider.select((s) => s.totalUnread));
 });
 
 class DmInboxNotifier extends StateNotifier<DmInboxState> {
@@ -152,6 +152,18 @@ class DmInboxNotifier extends StateNotifier<DmInboxState> {
           .where((c) => c.conversationId != conversationId)
           .toList(),
     );
+  }
+
+  /// Clears unread for a conversation without a full inbox network refresh.
+  void markConversationReadLocally(String conversationId) {
+    final updated = state.conversations
+        .map(
+          (c) => c.conversationId == conversationId
+              ? c.copyWith(unreadCount: 0)
+              : c,
+        )
+        .toList();
+    state = state.copyWith(conversations: updated);
   }
 
   Future<void> loadInbox() async {
@@ -390,8 +402,8 @@ class DmChatState {
   }
 }
 
-final dmChatProvider =
-    StateNotifierProvider.family<DmChatNotifier, DmChatState, DmChatKey>(
+final dmChatProvider = StateNotifierProvider.autoDispose
+    .family<DmChatNotifier, DmChatState, DmChatKey>(
   (ref, key) {
     return DmChatNotifier(
       ref.watch(dmServiceProvider),
@@ -460,7 +472,7 @@ class DmChatNotifier extends StateNotifier<DmChatState> {
 
       _scheduleMarkRead();
       await _dmService.resetConversationUnread(state.conversationId);
-      await _inboxNotifier.loadInbox();
+      _inboxNotifier.markConversationReadLocally(state.conversationId);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: '$e');
     }

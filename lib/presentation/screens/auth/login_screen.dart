@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,7 +81,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final pillShape = const StadiumBorder();
     final pillOutline = OutlineInputBorder(
       borderRadius: BorderRadius.circular(999),
-      borderSide: BorderSide(color: Colors.white.withOpacity(0.25)),
+      borderSide: BorderSide(color: colorScheme.onInverseSurface.withValues(alpha: 0.25)),
     );
 
     // Showcase image: network (cached) with safe fallback so login never breaks.
@@ -96,6 +99,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             CachedNetworkImage(
               imageUrl: showcaseImageUrl,
               fit: BoxFit.cover,
+              memCacheWidth:
+                  (MediaQuery.sizeOf(context).width *
+                          MediaQuery.devicePixelRatioOf(context))
+                      .round(),
+              memCacheHeight:
+                  (MediaQuery.sizeOf(context).height *
+                          MediaQuery.devicePixelRatioOf(context))
+                      .round(),
               fadeInDuration: const Duration(milliseconds: 250),
               placeholder: (context, _) => Container(
                 color: colorScheme.surfaceContainerHighest,
@@ -161,18 +172,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         inputDecorationTheme:
                             Theme.of(context).inputDecorationTheme.copyWith(
                                   filled: true,
-                                  fillColor: Colors.white.withOpacity(0.12),
+                                  fillColor: colorScheme.onInverseSurface.withValues(alpha: 0.12),
                                   border: pillOutline,
                                   enabledBorder: pillOutline,
                                   focusedBorder: pillOutline,
                                   hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.5),
                                   ),
                                   labelStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
                                   ),
-                                  prefixIconColor: Colors.white.withOpacity(0.9),
-                                  suffixIconColor: Colors.white.withOpacity(0.9),
+                                  prefixIconColor: colorScheme.onInverseSurface.withValues(alpha: 0.9),
+                                  suffixIconColor: colorScheme.onInverseSurface.withValues(alpha: 0.9),
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 18,
                                     vertical: 14,
@@ -195,10 +206,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         outlinedButtonTheme: OutlinedButtonThemeData(
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size.fromHeight(56),
-                            foregroundColor: Colors.white.withOpacity(1),
-                            backgroundColor: Colors.white.withOpacity(0.08),
+                            foregroundColor: colorScheme.onInverseSurface.withValues(alpha: 1),
+                            backgroundColor: colorScheme.onInverseSurface.withValues(alpha: 0.08),
                             side: BorderSide(
-                              color: Colors.white.withOpacity(0.35),
+                              color: colorScheme.onInverseSurface.withValues(alpha: 0.35),
                             ),
                             shape: pillShape,
                             textStyle: textTheme.labelLarge,
@@ -213,19 +224,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           children: [
                             Row(
                               children: [
-                                Hero(
-                                  tag: 'app-logo',
-                                  child: Icon(
-                                    Icons.location_on_outlined,
-                                    color: colorScheme.primary,
-                                    size: 28,
-                                  ),
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  color: colorScheme.primary,
+                                  size: 28,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Welcome to Geoloc.',
                                   style: textTheme.titleLarge?.copyWith(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
                                   ),
                                 ),
                               ],
@@ -234,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             Text(
                               'Enter your credentials',
                               style: textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withOpacity(0.6),
+                                color: colorScheme.onInverseSurface.withValues(alpha: 0.6),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -330,7 +338,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               children: [
                                 Expanded(
                                   child: Divider(
-                                    color: Colors.white.withOpacity(0.25),
+                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.25),
                                   ),
                                 ),
                                 Padding(
@@ -339,13 +347,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   child: Text(
                                     'or sign in using',
                                     style: textTheme.bodySmall?.copyWith(
-                                      color: Colors.white.withOpacity(0.6),
+                                      color: colorScheme.onInverseSurface.withValues(alpha: 0.6),
                                     ),
                                   ),
                                 ),
                                 Expanded(
                                   child: Divider(
-                                    color: Colors.white.withOpacity(0.25),
+                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.25),
                                   ),
                                 ),
                               ],
@@ -362,16 +370,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     label: 'Google',
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _SocialAuthButton(
-                                    onPressed: authState.isLoading
-                                        ? null
-                                        : _handleAppleSignIn,
-                                    icon: Icons.apple,
-                                    label: 'Apple',
+                                if (!kIsWeb &&
+                                    (Platform.isIOS || Platform.isMacOS)) ...[
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _SocialAuthButton(
+                                      onPressed: authState.isLoading
+                                          ? null
+                                          : _handleAppleSignIn,
+                                      icon: Icons.apple,
+                                      label: 'Apple',
+                                    ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
 
@@ -388,7 +399,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     TextSpan(
                                       text: "Don't have an account? ",
                                       style: textTheme.bodyMedium?.copyWith(
-                                        color: Colors.white.withOpacity(0.6),
+                                        color: colorScheme.onInverseSurface.withValues(alpha: 0.6),
                                       ),
                                     ),
                                     TextSpan(
@@ -431,19 +442,20 @@ class _SocialAuthButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return OutlinedButton.icon(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
-        foregroundColor: Colors.white.withOpacity(1),
-        backgroundColor: Colors.white.withOpacity(0.08),
-        side: BorderSide(color: Colors.white.withOpacity(0.35)),
+        foregroundColor: colorScheme.onInverseSurface.withValues(alpha: 1),
+        backgroundColor: colorScheme.onInverseSurface.withValues(alpha: 0.08),
+        side: BorderSide(color: colorScheme.onInverseSurface.withValues(alpha: 0.35)),
       ),
       onPressed: onPressed,
       icon: Icon(icon),
       label: Text(
         label,
         style: textTheme.labelLarge?.copyWith(
-          color: Colors.white.withOpacity(0.9),
+          color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
         ),
       ),
     );

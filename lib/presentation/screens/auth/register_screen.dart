@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,7 +87,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final pillShape = const StadiumBorder();
     final pillOutline = OutlineInputBorder(
       borderRadius: BorderRadius.circular(999),
-      borderSide: BorderSide(color: Colors.white.withOpacity(0.25)),
+      borderSide: BorderSide(color: colorScheme.onInverseSurface.withValues(alpha: 0.25)),
     );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -120,18 +123,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       inputDecorationTheme:
                           Theme.of(context).inputDecorationTheme.copyWith(
                                 filled: true,
-                                fillColor: Colors.white.withOpacity(0.12),
+                                fillColor: colorScheme.onInverseSurface.withValues(alpha: 0.12),
                                 border: pillOutline,
                                 enabledBorder: pillOutline,
                                 focusedBorder: pillOutline,
                                 hintStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.5),
+                                  color: colorScheme.onInverseSurface.withValues(alpha: 0.5),
                                 ),
                                 labelStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
                                 ),
-                                prefixIconColor: Colors.white.withOpacity(0.9),
-                                suffixIconColor: Colors.white.withOpacity(0.9),
+                                prefixIconColor: colorScheme.onInverseSurface.withValues(alpha: 0.9),
+                                suffixIconColor: colorScheme.onInverseSurface.withValues(alpha: 0.9),
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 18,
                                   vertical: 14,
@@ -173,14 +176,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                     Text(
                                       'Create account',
                                       style: textTheme.titleLarge?.copyWith(
-                                        color: Colors.white.withOpacity(0.9),
+                                        color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       'Sign up to get started',
                                       style: textTheme.bodyMedium?.copyWith(
-                                        color: Colors.white.withOpacity(0.6),
+                                        color: colorScheme.onInverseSurface.withValues(alpha: 0.6),
                                       ),
                                     ),
                                   ],
@@ -346,7 +349,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             children: [
                               Expanded(
                                 child: Divider(
-                                  color: Colors.white.withOpacity(0.25),
+                                  color: colorScheme.onInverseSurface.withValues(alpha: 0.25),
                                 ),
                               ),
                               Padding(
@@ -355,13 +358,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 child: Text(
                                   'or sign up using',
                                   style: textTheme.bodySmall?.copyWith(
-                                    color: Colors.white.withOpacity(0.6),
+                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.6),
                                   ),
                                 ),
                               ),
                               Expanded(
                                 child: Divider(
-                                  color: Colors.white.withOpacity(0.25),
+                                  color: colorScheme.onInverseSurface.withValues(alpha: 0.25),
                                 ),
                               ),
                             ],
@@ -377,15 +380,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                   label: 'Google',
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _SocialAuthButton(
-                                  onPressed:
-                                      authState.isLoading ? null : _handleAppleSignUp,
-                                  icon: Icons.apple,
-                                  label: 'Apple',
+                              if (!kIsWeb &&
+                                  (Platform.isIOS || Platform.isMacOS)) ...[
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _SocialAuthButton(
+                                    onPressed: authState.isLoading
+                                        ? null
+                                        : _handleAppleSignUp,
+                                    icon: Icons.apple,
+                                    label: 'Apple',
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -393,7 +400,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             'By registering, you agree to our Terms & Privacy Policy',
                             textAlign: TextAlign.center,
                             style: textTheme.bodySmall?.copyWith(
-                              color: Colors.white.withOpacity(0.6),
+                              color: colorScheme.onInverseSurface.withValues(alpha: 0.6),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -405,7 +412,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             child: Text(
                               'Already have an account? Sign in',
                               style: textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withOpacity(0.9),
+                                color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
                               ),
                             ),
                           ),
@@ -437,19 +444,20 @@ class _SocialAuthButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return OutlinedButton.icon(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
-        foregroundColor: Colors.white.withOpacity(1),
-        backgroundColor: Colors.white.withOpacity(0.08),
-        side: BorderSide(color: Colors.white.withOpacity(0.35)),
+        foregroundColor: colorScheme.onInverseSurface.withValues(alpha: 1),
+        backgroundColor: colorScheme.onInverseSurface.withValues(alpha: 0.08),
+        side: BorderSide(color: colorScheme.onInverseSurface.withValues(alpha: 0.35)),
       ),
       onPressed: onPressed,
       icon: Icon(icon),
       label: Text(
         label,
         style: textTheme.labelLarge?.copyWith(
-          color: Colors.white.withOpacity(0.9),
+          color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
         ),
       ),
     );

@@ -1,0 +1,11 @@
+{
+  "@@locale": "en",
+  "appTitle": "Geoloc",
+  "@appTitle": {
+    "description": "Application title shown in the task switcher / window"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Generic retry action label"
+  }
+}

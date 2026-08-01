@@ -288,13 +288,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.5,
-                      color: cs.onPrimary,
+                      color: cs.surface,
                     ),
                   )
-                : Text(
-                    'Post',
-                    style: textTheme.labelLarge,
-                  ),
+                : const Text('Post'),
           ),
         ),
       ],

@@ -11,13 +11,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLUTTER_VERSION: "3.24.0"
+  # Keep aligned with pubspec SDK (^3.10) — use a recent stable.
+  FLUTTER_VERSION: "3.29.0"
+  API_BASE_URL: "https://api.geoloc.app"
 
 jobs:
   analyze-and-test:
     name: Analyze + Test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +39,7 @@ jobs:
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Static analysis
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze
 
       - name: Run tests with coverage
         run: flutter test --coverage --reporter expanded
@@ -70,13 +72,13 @@ jobs:
       - name: Build debug APK
         run: |
           flutter build apk --debug \
-            --dart-define=API_BASE_URL=https://api.example.com
+            --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
 
   build-ios:
-    name: Build iOS (no-codesign)
+    name: Build iOS release (no-codesign)
     runs-on: macos-14
     needs: analyze-and-test
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -85,7 +87,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - name: Build iOS (no codesign)
+      - name: Build iOS release (no codesign)
         run: |
-          flutter build ios --debug --no-codesign \
-            --dart-define=API_BASE_URL=https://api.example.com
+          flutter build ios --release --no-codesign \
+            --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}

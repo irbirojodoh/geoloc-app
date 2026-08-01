@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 
   # Authentication
   google_sign_in: ^6.2.2
@@ -56,6 +59,7 @@ dependencies:
   flutter_cache_manager: ^3.4.1
   shimmer: ^3.0.0
   image: ^4.9.1
+  firebase_crashlytics: ^5.2.6
 
 dev_dependencies:
   flutter_test:
@@ -64,8 +68,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
 
   # Assets folder for images, icons, etc.
   assets:
     - assets/images/
     - assets/icons/
+    # Bundled fonts for google_fonts (allowRuntimeFetching = false)
+    - google_fonts/

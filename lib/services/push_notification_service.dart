@@ -1,32 +1,46 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../config/push_navigation.dart';
+import '../core/logging/app_logger.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
+import '../firebase_options.dart';
 
 /// Background message handler for FCM
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // If you're going to use other Firebase services in the background, such as Firestore,
-  // make sure you call `initializeApp` before using other Firebase services.
-  await Firebase.initializeApp();
-  debugPrint('Handling a background message: ${message.messageId}');
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  AppLogger.debug('Handling a background message: ${message.messageId}');
 }
+
+/// Pending cold-start / background open route derived from a push payload.
+final pendingPushRouteProvider = StateProvider<String?>((ref) => null);
 
 /// Provider for PushNotificationService
 final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
-  return PushNotificationService(ref.watch(apiClientProvider));
+  return PushNotificationService(
+    ref.watch(apiClientProvider),
+    onOpened: (data) {
+      final route = routeFromPushData(data);
+      if (route != null) {
+        ref.read(pendingPushRouteProvider.notifier).state = route;
+      }
+    },
+  );
 });
 
 /// Push notification service for Firebase Cloud Messaging
 class PushNotificationService {
-  final ApiClient _apiClient;
+  PushNotificationService(this._apiClient, {this.onOpened});
 
-  PushNotificationService(this._apiClient);
+  final ApiClient _apiClient;
+  final void Function(Map<String, dynamic> data)? onOpened;
 
   FirebaseMessaging? _messagingOrNull() {
     try {
@@ -37,43 +51,42 @@ class PushNotificationService {
     }
   }
 
-  /// Initialize push notifications
-  Future<void> initialize() async {
+  /// Register listeners only — does **not** request permission.
+  Future<void> setupListeners() async {
     final messaging = _messagingOrNull();
     if (messaging == null) return;
 
-    // Request permission on app start
-    await requestPermission();
-
-    // Register background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // Handle initial message (app launched from terminated state via notification)
-    RemoteMessage? initialMessage = await messaging.getInitialMessage();
+    final initialMessage = await messaging.getInitialMessage();
     if (initialMessage != null) {
       _handleMessage(initialMessage);
     }
 
-    // Handle message when app is in background but not terminated
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
 
-    // Handle message when app is in foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      if (kDebugMode) {
-        debugPrint('Got a message whilst in the foreground!');
-        debugPrint('Message data: ${message.data}');
-      }
-      if (message.notification != null && kDebugMode) {
-        debugPrint('Message also contained a notification: ${message.notification}');
-      }
+      AppLogger.debug('Foreground FCM message: ${message.messageId}');
     });
   }
 
+  /// @Deprecated Prefer [setupListeners] + [requestPermissionAndRegister].
+  Future<void> initialize() => setupListeners();
+
   void _handleMessage(RemoteMessage message) {
-    if (kDebugMode) {
-      debugPrint('Navigating to specific screen based on message: ${message.data}');
+    AppLogger.debug('Push opened with data keys: ${message.data.keys}');
+    onOpened?.call(message.data);
+  }
+
+  /// Request notification permission and register the device token.
+  Future<bool> requestPermissionAndRegister() async {
+    final granted = await requestPermission();
+    if (!granted) return false;
+    final token = await getToken();
+    if (token != null) {
+      await registerToken(token);
     }
-    // TODO: implement navigation logic based on notification type
+    return true;
   }
 
   /// Request notification permission
@@ -81,7 +94,7 @@ class PushNotificationService {
     final messaging = _messagingOrNull();
     if (messaging == null) return false;
 
-    NotificationSettings settings = await messaging.requestPermission(
+    final settings = await messaging.requestPermission(
       alert: true,
       announcement: false,
       badge: true,
@@ -91,11 +104,11 @@ class PushNotificationService {
       sound: true,
     );
 
-    if (kDebugMode) {
-      debugPrint('User granted permission: ${settings.authorizationStatus}');
-    }
+    AppLogger.debug(
+      'User granted permission: ${settings.authorizationStatus}',
+    );
     return settings.authorizationStatus == AuthorizationStatus.authorized ||
-           settings.authorizationStatus == AuthorizationStatus.provisional;
+        settings.authorizationStatus == AuthorizationStatus.provisional;
   }
 
   /// Get FCM device token
@@ -104,8 +117,8 @@ class PushNotificationService {
       final messaging = _messagingOrNull();
       if (messaging == null) return null;
       return await messaging.getToken();
-    } catch (e) {
-      if (kDebugMode) debugPrint('Failed to get FCM token: $e');
+    } catch (e, st) {
+      AppLogger.warning('Failed to get FCM token', e, st);
       return null;
     }
   }
@@ -113,13 +126,15 @@ class PushNotificationService {
   /// Register device token with backend
   Future<void> registerToken(String token) async {
     try {
+      // Ensure permission was granted before registering (no-op if denied).
+      await requestPermission();
       final platform = Platform.isIOS ? 'ios' : 'android';
       await _apiClient.post(
         ApiEndpoints.registerDevice,
         data: {'token': token, 'platform': platform},
       );
-    } catch (e) {
-      if (kDebugMode) debugPrint('Failed to register FCM token: $e');
+    } catch (e, st) {
+      AppLogger.warning('Failed to register FCM token', e, st);
     }
   }
 
@@ -133,18 +148,30 @@ class PushNotificationService {
           data: {'token': token},
         );
       }
-    } catch (e) {
-      if (kDebugMode) debugPrint('Failed to unregister FCM token: $e');
+    } catch (e, st) {
+      AppLogger.warning('Failed to unregister FCM token', e, st);
     }
   }
 
   /// Subscribe to a topic (e.g., for location-based notifications)
   Future<void> subscribeToTopic(String topic) async {
-    // Firebase not configured yet
+    final messaging = _messagingOrNull();
+    if (messaging == null) return;
+    try {
+      await messaging.subscribeToTopic(topic);
+    } catch (e, st) {
+      AppLogger.warning('Failed to subscribe to topic $topic', e, st);
+    }
   }
 
   /// Unsubscribe from a topic
   Future<void> unsubscribeFromTopic(String topic) async {
-    // Firebase not configured yet
+    final messaging = _messagingOrNull();
+    if (messaging == null) return;
+    try {
+      await messaging.unsubscribeFromTopic(topic);
+    } catch (e, st) {
+      AppLogger.warning('Failed to unsubscribe from topic $topic', e, st);
+    }
   }
 }

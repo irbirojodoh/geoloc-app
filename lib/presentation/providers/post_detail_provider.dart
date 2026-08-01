@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/app_config.dart';
@@ -9,6 +8,7 @@ import '../../data/models/post.dart';
 import '../../data/models/comment.dart';
 import '../../data/models/user.dart';
 import 'post_preview_cache.dart';
+import '../../../core/logging/app_logger.dart';
 
 List<Comment> _filterCommentsWithoutUser(List<Comment> list, String userId) {
   return list
@@ -218,7 +218,7 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
         );
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('Error loading comments: $e');
+      AppLogger.debug('Error loading comments: $e');
     }
   }
 
@@ -271,7 +271,7 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
         state = state.copyWith(isLoadingMoreComments: false);
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('Error loading more comments: $e');
+      AppLogger.debug('Error loading more comments: $e');
       state = state.copyWith(isLoadingMoreComments: false);
     }
   }
@@ -330,7 +330,7 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
         );
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('Error loading replies: $e');
+      AppLogger.debug('Error loading replies: $e');
       state = state.copyWith(
         loadingMoreRepliesIds: Set.from(state.loadingMoreRepliesIds)
           ..remove(commentId),
@@ -449,7 +449,7 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
       }
       return false;
     } catch (e) {
-      if (kDebugMode) debugPrint('Error editing comment: $e');
+      AppLogger.debug('Error editing comment: $e');
       return false;
     }
   }
@@ -572,11 +572,11 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
 }
 
 /// Provider for specific post detail
-final postDetailProvider =
-    StateNotifierProvider.family<PostDetailNotifier, PostDetailState, String>((
-      ref,
-      postId,
-    ) {
-      final apiClient = ref.watch(apiClientProvider);
-      return PostDetailNotifier(apiClient, ref, postId);
-    });
+final postDetailProvider = StateNotifierProvider.autoDispose
+    .family<PostDetailNotifier, PostDetailState, String>((
+  ref,
+  postId,
+) {
+  final apiClient = ref.watch(apiClientProvider);
+  return PostDetailNotifier(apiClient, ref, postId);
+});

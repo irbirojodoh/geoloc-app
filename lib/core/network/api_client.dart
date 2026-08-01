@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/app_config.dart';
 import 'auth_interceptor.dart';
+import '../logging/app_logger.dart';
 
 /// Provider for the ApiClient
 final apiClientProvider = Provider<ApiClient>((ref) {
@@ -133,7 +134,7 @@ class _LoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (kDebugMode) {
-      debugPrint('🌐 REQUEST[${options.method}] => PATH: ${options.path}');
+      AppLogger.debug('🌐 REQUEST[${options.method}] => PATH: ${options.path}');
     }
     handler.next(options);
   }
@@ -141,7 +142,7 @@ class _LoggingInterceptor extends Interceptor {
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     if (kDebugMode) {
-      debugPrint(
+      AppLogger.debug(
         '✅ RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}',
       );
     }
@@ -151,12 +152,12 @@ class _LoggingInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     if (kDebugMode) {
-      debugPrint(
+      AppLogger.debug(
         '❌ ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}',
       );
-      debugPrint('   MESSAGE: ${err.message}');
+      AppLogger.debug('   MESSAGE: ${err.message}');
       if (err.response?.data != null) {
-        debugPrint('   RESPONSE BODY: ${err.response?.data}');
+        AppLogger.debug('   RESPONSE BODY: ${err.response?.data}');
       }
     }
     handler.next(err);

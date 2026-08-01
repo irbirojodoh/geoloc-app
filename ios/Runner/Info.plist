@@ -26,6 +26,18 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Geoloc App needs camera access to take photos for posts and your profile.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Geoloc App needs photo library access to choose images for posts and your profile.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Geoloc App needs permission to save photos to your library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Geoloc App needs microphone access when recording video.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Geoloc App uses your location to personalize nearby content and notifications.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Geoloc App uses your location to show nearby posts and local activity.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -49,6 +61,23 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.irphotoarts.geoloc_app.reset-password</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>geoloc</string>
+			</array>
+		</dict>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -66,9 +95,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Geoloc App uses your location to show nearby posts and local activity.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Geoloc App uses your location to personalize nearby content and notifications.</string>
 </dict>
 </plist>

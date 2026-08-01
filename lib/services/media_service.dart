@@ -116,9 +116,11 @@ class MediaService {
 
   /// Refresh presigned URLs for a list of posts loaded from offline cache.
   Future<List<Post>> hydratePostsMediaUrls(List<Post> posts) async {
+    const chunkSize = 4;
     final hydrated = <Post>[];
-    for (final post in posts) {
-      hydrated.add(await _hydratePost(post));
+    for (var i = 0; i < posts.length; i += chunkSize) {
+      final chunk = posts.skip(i).take(chunkSize).toList();
+      hydrated.addAll(await Future.wait(chunk.map(_hydratePost)));
     }
     return hydrated;
   }
@@ -129,14 +131,16 @@ class MediaService {
     if (post.mediaKeys.isNotEmpty &&
         (post.mediaUrls.isEmpty ||
             post.mediaUrls.every((url) => url.trim().isEmpty))) {
-      final urls = <String>[];
-      for (final key in post.mediaKeys) {
-        try {
-          urls.add((await signUrl(key)).url);
-        } catch (_) {
-          // Skip failed signs; widget can retry individually.
-        }
-      }
+      final signed = await Future.wait(
+        post.mediaKeys.map((key) async {
+          try {
+            return (await signUrl(key)).url;
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+      final urls = signed.whereType<String>().toList();
       if (urls.isNotEmpty) {
         updated = updated.copyWith(mediaUrls: urls);
       }

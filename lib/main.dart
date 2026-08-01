@@ -1,58 +1,66 @@
-import 'dart:io';
+import 'dart:async';
 
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app.dart';
-import 'services/push_notification_service.dart';
+import 'config/app_config.dart';
+import 'core/bootstrap/app_bootstrap.dart';
+import 'core/bootstrap/crash_reporting.dart';
+import 'core/logging/app_logger.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+Future<void> main() async {
+  await runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive for local storage
-  await Hive.initFlutter();
+    AppConfig.assertValidForRelease();
 
-  // Set preferred orientations (portrait only for now)
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  await SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.manual,
-    overlays: SystemUiOverlay.values,
-  );
+    // Prefer bundled fonts; never fetch over the network at runtime.
+    GoogleFonts.config.allowRuntimeFetching = false;
 
-  // Set system UI overlay style — warm-neutral old-money aesthetic
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark, // For Android: dark icons on warm cream bg
-      statusBarBrightness: Brightness.light, // For iOS: light status bar content
-    ),
-  );
+    // Hive is required before auth/storage providers touch disk.
+    await initLocalStorage();
 
-  // Initialize Firebase and Push Notifications
-  final container = ProviderContainer();
-  final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
-  if (isMobile) {
-    var firebaseReady = false;
-    try {
-      await Firebase.initializeApp();
-      firebaseReady = true;
-    } catch (e) {
-      debugPrint('Firebase unavailable on this build target; push features disabled. ($e)');
-    }
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    await SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.edgeToEdge,
+      overlays: SystemUiOverlay.values,
+    );
 
-    if (firebaseReady) {
-      // Initialize push notification channels/listeners only when Firebase is available.
-      final pushService = container.read(pushNotificationServiceProvider);
-      await pushService.initialize();
-    }
-  }
+    // Transparent status bar; brightness is driven by theme in GeolocApp.
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+      ),
+    );
 
-  runApp(UncontrolledProviderScope(container: container, child: const GeolocApp()));
+    // Cap decoded-image memory pressure on long feed sessions.
+    PaintingBinding.instance.imageCache.maximumSizeBytes = 80 << 20; // 80 MB
+
+    final container = ProviderContainer();
+    runApp(
+      UncontrolledProviderScope(
+        container: container,
+        child: const GeolocApp(),
+      ),
+    );
+
+    // Deferred: Firebase, Crashlytics, push listeners (no permission dialog).
+    unawaited(
+      container.read(appBootstrapProvider.future).then<void>(
+        (_) {},
+        onError: (Object e, StackTrace st) {
+          AppLogger.error('Bootstrap failed', e, st);
+        },
+      ),
+    );
+  }, (error, stack) {
+    AppLogger.error('Zone uncaught error', error, stack);
+    unawaited(recordNonFatal(error, stack, reason: 'runZonedGuarded'));
+  });
 }

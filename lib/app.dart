@@ -2,11 +2,17 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'config/deep_links.dart';
 import 'config/routes.dart';
 import 'config/theme.dart';
+import 'core/bootstrap/app_bootstrap.dart';
+import 'core/logging/app_logger.dart';
+import 'l10n/app_localizations.dart';
+import 'services/push_notification_service.dart';
 
 /// Root app widget — wires [routerProvider] + password-reset deep links.
 class GeolocApp extends ConsumerStatefulWidget {
@@ -24,7 +30,11 @@ class _GeolocAppState extends ConsumerState<GeolocApp> {
   void initState() {
     super.initState();
     _appLinks = AppLinks();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _attachDeepLinks());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Kick deferred Firebase/push bootstrap.
+      ref.read(appBootstrapProvider);
+      _attachDeepLinks();
+    });
   }
 
   Future<void> _attachDeepLinks() async {
@@ -35,13 +45,22 @@ class _GeolocAppState extends ConsumerState<GeolocApp> {
       if (initial != null) {
         navigateFromPasswordResetDeepLink(initial, router);
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning('Failed to read initial deep link', e, st);
+    }
 
     try {
-      _linkSub = _appLinks.uriLinkStream.listen((uri) {
-        navigateFromPasswordResetDeepLink(uri, router);
-      });
-    } catch (_) {}
+      _linkSub = _appLinks.uriLinkStream.listen(
+        (uri) {
+          navigateFromPasswordResetDeepLink(uri, router);
+        },
+        onError: (Object e, StackTrace st) {
+          AppLogger.warning('Deep link stream error', e, st);
+        },
+      );
+    } catch (e, st) {
+      AppLogger.warning('Failed to attach deep link stream', e, st);
+    }
   }
 
   @override
@@ -54,17 +73,48 @@ class _GeolocAppState extends ConsumerState<GeolocApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
-    return MaterialApp.router(
-      title: 'Geoloc',
-      debugShowCheckedModeBanner: false,
+    // Consume pending push navigation once bootstrap/router are ready.
+    ref.listen<String?>(pendingPushRouteProvider, (prev, next) {
+      if (next == null || next.isEmpty) return;
+      router.go(next);
+      ref.read(pendingPushRouteProvider.notifier).state = null;
+    });
 
-      // Theme configuration
+    return MaterialApp.router(
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-
-      // Router configuration
+      locale: const Locale('en'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       routerConfig: router,
+      builder: (context, child) {
+        final brightness = Theme.of(context).brightness;
+        final overlay = SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: brightness == Brightness.dark
+              ? Brightness.light
+              : Brightness.dark,
+          statusBarBrightness: brightness == Brightness.dark
+              ? Brightness.dark
+              : Brightness.light,
+          systemNavigationBarColor: Theme.of(context).colorScheme.surface,
+          systemNavigationBarIconBrightness: brightness == Brightness.dark
+              ? Brightness.light
+              : Brightness.dark,
+        );
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: overlay,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

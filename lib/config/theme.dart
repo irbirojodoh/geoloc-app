@@ -116,8 +116,14 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
+          // High-contrast fill: seed primary is a washed blue-gray that
+          // fails with white label text.
+          backgroundColor: colorScheme.onSurface,
+          foregroundColor: colorScheme.surface,
+          disabledBackgroundColor:
+              colorScheme.onSurface.withValues(alpha: 0.12),
+          disabledForegroundColor:
+              colorScheme.onSurface.withValues(alpha: 0.38),
           shape: const StadiumBorder(),
         ),
       ),
@@ -130,7 +136,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onSurface,
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
