@@ -1,12 +1,17 @@
-import 'dart:ui';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Shared top-bar visual treatment.
+import 'native_glass_card.dart';
+
+/// Shared top-bar visual treatment using the same liquid glass as the nav capsule.
 ///
-/// On mobile, uses a semi-opaque tint by default (cheap). Soft blur is opt-in
-/// via [enableBlur] for platforms/devices that can afford it.
+/// On iOS this is native Liquid Glass / ultra-thin material; elsewhere it falls
+/// back to a translucent [BackdropFilter] via [NativeGlassCard].
+///
+/// The glass is bled above the top of the bar so the glass rim/stroke is clipped
+/// off-screen. A black gradient (90% → 30% opacity) tints the visible glass.
+///
+/// Tint/blend parameters are retained for call-site compatibility but are no
+/// longer applied — glass follows system transparency settings instead.
 class TopBarBackdrop extends StatelessWidget {
   const TopBarBackdrop({
     super.key,
@@ -20,84 +25,79 @@ class TopBarBackdrop extends StatelessWidget {
     this.enableBlur = false,
   });
 
-  /// Color tint applied on top of the blur layer.
+  /// Unused; kept for existing call sites.
   final Color blurTintColor;
 
-  /// Color of the separate blend layer.
+  /// Unused; kept for existing call sites.
   final Color blendColor;
 
   final BorderRadius borderRadius;
 
-  /// Gaussian blur strength for the blur layer.
+  /// Unused; kept for existing call sites.
   final double blurSigma;
 
-  /// Opacity of the blur tint layer.
+  /// Unused; kept for existing call sites.
   final double blurTintOpacity;
 
-  /// Opacity of the blend layer.
+  /// Unused; kept for existing call sites.
   final double blendOpacity;
 
-  /// Blend mode of the blend layer (default: multiply).
+  /// Unused; kept for existing call sites.
   final BlendMode blendMode;
 
-  /// When true, applies [BackdropFilter] (expensive during scroll).
+  /// Unused; kept for existing call sites.
   final bool enableBlur;
+
+  /// Extra height above the bar so the glass top edge is clipped off-screen.
+  static const double _topBleed = 48;
 
   @override
   Widget build(BuildContext context) {
-    final useBlur = enableBlur && !kIsWeb;
+    // Keep bottom rounding from callers; force a flat top so no lip shows.
+    final effectiveRadius = BorderRadius.only(
+      bottomLeft: borderRadius.bottomLeft,
+      bottomRight: borderRadius.bottomRight,
+    );
 
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (useBlur)
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: blurTintColor.withValues(alpha: blurTintOpacity * 0.55),
-                ),
-              ),
-            )
-          else
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: blurTintColor.withValues(alpha: blurTintOpacity),
-              ),
-            ),
-          CustomPaint(
-            painter: _BlendLayerPainter(
-              color: blendColor.withValues(alpha: blendOpacity),
-              blendMode: blendMode,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Bleed above bounds; parent AppBar/Stack clips so the glass rim
+        // never appears at the top of the screen.
+        Positioned(
+          top: -_topBleed,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: ClipRRect(
+            borderRadius: effectiveRadius,
+            child: NativeGlassCard(
+              title: '',
+              subtitle: '',
+              height: null,
+              borderRadius: effectiveRadius,
             ),
           ),
-        ],
-      ),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: effectiveRadius,
+                backgroundBlendMode: BlendMode.multiply,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.95),
+                    Colors.black.withValues(alpha: 0.60),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
-  }
-}
-
-class _BlendLayerPainter extends CustomPainter {
-  const _BlendLayerPainter({
-    required this.color,
-    required this.blendMode,
-  });
-
-  final Color color;
-  final BlendMode blendMode;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..blendMode = blendMode;
-    canvas.drawRect(Offset.zero & size, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BlendLayerPainter oldDelegate) {
-    return oldDelegate.color != color || oldDelegate.blendMode != blendMode;
   }
 }

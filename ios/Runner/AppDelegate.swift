@@ -12,5 +12,9 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+    let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "SwiftUIGlassPlugin")!
+    let factory = SwiftUIGlassFactory(messenger: registrar.messenger())
+    registrar.register(factory, withId: "com.example.native_liquid_glass")
   }
 }

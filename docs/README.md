@@ -7,6 +7,7 @@ Complete documentation for the Geoloc Flutter application.
 | Document | Description |
 |----------|-------------|
 | [Architecture](./architecture.md) | App architecture, layers, and patterns |
+| [Hybrid UI](./hybrid_ui.md) | Native SwiftUI + Flutter liquid glass platform views |
 | [Screens & Navigation](./screens.md) | All screens and routing |
 | [State Management](./state_management.md) | Riverpod providers and state |
 | [Data Models](./data_models.md) | Domain models and API contracts |

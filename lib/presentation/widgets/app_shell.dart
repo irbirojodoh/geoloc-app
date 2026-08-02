@@ -11,6 +11,7 @@ import '../providers/dm_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../../data/models/sse_event.dart';
 import 'ambient_glow_background.dart';
+import 'native_glass_card.dart';
 import 'new_message_sheet.dart';
 
 const _navVisibilityQueryKey = 'fromNav';
@@ -75,20 +76,10 @@ class AppShell extends ConsumerWidget {
 
     final activeColor = colorScheme.primary;
     final selectedContentColor = colorScheme.onPrimary;
-    final capsuleColor = colorScheme.surfaceContainerHighest;
     final inactiveColor = colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
     final isLightMode = Theme.of(context).brightness == Brightness.light;
     final overlayBaseColor =
         isLightMode ? Colors.white : Colors.black;
-    final navShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(22),
-      side: isLightMode
-          ? BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.95),
-              width: 0.8,
-            )
-          : BorderSide.none,
-    );
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final navBarHeight = 75.0 * textScale.clamp(1.0, 1.35);
     const navBottomMargin = 10.0;
@@ -168,21 +159,23 @@ class AppShell extends ConsumerWidget {
                 child: Padding(
                   // Generous horizontal margin + comfortable bottom breathing room
                   padding: const EdgeInsets.fromLTRB(14, 0, 14, navBottomMargin),
-                  child: Material(
-                    elevation: isLightMode ? 24 : 20,
-                    shadowColor: isLightMode
-                        ? colorScheme.onSurface.withValues(alpha: 0.18)
-                        : colorScheme.scrim.withValues(alpha: 0.28),
-                    color: capsuleColor,
-                    shape: navShape,
-                    child: SizedBox(
-                      // Taller bar: more breathing room top/bottom
-                      height: navBarHeight,
-                      child: Padding(
-                        // Inner horizontal padding so edge items aren't flush
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Row(
-                          children: [
+                  child: SizedBox(
+                    // Taller bar: more breathing room top/bottom
+                    height: navBarHeight,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Native iOS liquid glass (BackdropFilter fallback elsewhere).
+                        NativeGlassCard(
+                          title: '',
+                          subtitle: '',
+                          height: navBarHeight,
+                        ),
+                        Padding(
+                          // Inner horizontal padding so edge items aren't flush
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(
+                            children: [
                     Expanded(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
@@ -350,10 +343,11 @@ class AppShell extends ConsumerWidget {
                           ],
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-              )
+              ),
+            )
             : const SizedBox(key: ValueKey('nav-hidden')),
       ),
     );
