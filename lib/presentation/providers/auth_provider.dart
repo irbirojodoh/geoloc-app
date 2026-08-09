@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../../../config/app_config.dart';
 import '../../../core/errors/failures.dart';
 import '../../../data/models/user.dart';
 import '../../../services/auth_service.dart';
@@ -175,7 +176,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+      final serverClientId = AppConfig.googleServerClientId;
+      final googleSignIn = GoogleSignIn(
+        scopes: const ['email', 'profile'],
+        serverClientId: serverClientId.isEmpty ? null : serverClientId,
+      );
       final account = await googleSignIn.signIn();
 
       if (account == null) {

@@ -8,14 +8,25 @@ class AppConfig {
   /// ```
   /// flutter run --dart-define=API_BASE_URL=https://geolocapi-dev.irphotoarts.cloud
   /// flutter run --dart-define=API_BASE_URL=http://192.168.2.1:8080
+  /// flutter run --dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com
   /// ```
   static const String _apiBaseUrlFromEnv = String.fromEnvironment('API_BASE_URL');
+  static const String _googleServerClientIdFromEnv =
+      String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
 
   /// Defaults to cloud dev API. Override with --dart-define=API_BASE_URL=...
   static String get apiBaseUrl {
     if (_apiBaseUrlFromEnv.isNotEmpty) return _apiBaseUrlFromEnv;
     return 'https://geolocapi-dev.irphotoarts.cloud';
   }
+
+  /// Web OAuth client ID passed as [GoogleSignIn.serverClientId].
+  ///
+  /// Required for a reliable ID token on Android. When empty, the native
+  /// platform client is used as the token audience (works on iOS once the
+  /// REVERSED_CLIENT_ID URL scheme is configured).
+  /// Must match backend env `GOOGLE_CLIENT_ID`.
+  static String get googleServerClientId => _googleServerClientIdFromEnv;
 
   static const String apiVersion = 'v1';
 
