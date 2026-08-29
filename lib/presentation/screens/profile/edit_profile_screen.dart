@@ -6,6 +6,7 @@ import '../../../core/theme/theme_extensions.dart';
 import '../../widgets/auth_network_image.dart';
 
 import '../../../core/cache/image_cache_manager.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/edit_profile_provider.dart';
 import '../../widgets/app_bottom_sheet.dart';
 import '../../widgets/top_bar_backdrop.dart';
@@ -22,14 +23,12 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _fullNameController;
-  late TextEditingController _usernameController;
   late TextEditingController _bioController;
 
   @override
   void initState() {
     super.initState();
     _fullNameController = TextEditingController();
-    _usernameController = TextEditingController();
     _bioController = TextEditingController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -40,7 +39,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _usernameController.dispose();
     _bioController.dispose();
     super.dispose();
   }
@@ -48,9 +46,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void _syncControllers(EditProfileState state) {
     if (_fullNameController.text != state.fullName) {
       _fullNameController.text = state.fullName;
-    }
-    if (_usernameController.text != state.username) {
-      _usernameController.text = state.username;
     }
     if (_bioController.text != state.bio) {
       _bioController.text = state.bio;
@@ -62,14 +57,25 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     final success = await ref.read(editProfileProvider.notifier).saveProfile();
     if (success && mounted) {
-      context.pop(true);
+      _leaveEditProfile(true);
+    }
+  }
+
+  /// After social sign-up this screen is opened with [GoRouter.go], so there
+  /// is no stack to pop — fall back to the feed.
+  void _leaveEditProfile([Object? result]) {
+    ref.read(authStateProvider.notifier).clearNewUserFlag();
+    if (context.canPop()) {
+      context.pop(result);
+    } else {
+      context.go(RoutePaths.feed);
     }
   }
 
   void _showDiscardDialog() {
     final state = ref.read(editProfileProvider);
     if (!state.hasChanges) {
-      context.pop();
+      _leaveEditProfile();
       return;
     }
 
@@ -99,7 +105,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             onPressed: () {
               Navigator.pop(context);
               ref.read(editProfileProvider.notifier).discardChanges();
-              this.context.pop();
+              _leaveEditProfile();
             },
             child: Text(
               'Discard',
@@ -514,22 +520,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const SizedBox(height: 24),
                   _buildFieldLabel('Username'),
                   const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _usernameController,
-                    style: context.body,
-                    decoration: _fieldDecoration(
-                      context,
-                      hintText: 'Enter your username',
-                      prefixText: '@',
-                      prefixStyle: context.body.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                    onChanged:
-                        ref.read(editProfileProvider.notifier).updateUsername,
-                    validator: (value) => ref
-                        .read(editProfileProvider.notifier)
-                        .validateUsername(value ?? ''),
+                  _UsernameNavRow(
+                    username: ref.watch(currentUserProvider)?.username ??
+                        state.originalUser?.username,
+                    onTap: () => context.push(RoutePaths.settingsUsername),
                   ),
                   const SizedBox(height: 24),
                   _buildFieldLabel('Bio'),
@@ -614,6 +608,45 @@ class _EditPhotoChip extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UsernameNavRow extends StatelessWidget {
+  const _UsernameNavRow({
+    required this.username,
+    required this.onTap,
+  });
+
+  final String? username;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  username != null && username!.isNotEmpty
+                      ? '@$username'
+                      : 'Set a username',
+                  style: context.body,
+                ),
+              ),
+              Icon(Icons.chevron_right, color: cs.onSurfaceVariant, size: 22),
             ],
           ),
         ),

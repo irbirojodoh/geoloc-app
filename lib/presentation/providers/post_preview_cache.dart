@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/post.dart';
+import '../../core/utils/username_rewrite.dart';
 import 'feed_provider.dart';
 
 /// In-memory cache of posts the user has already seen in list screens.
@@ -18,6 +19,14 @@ class PostPreviewCacheNotifier extends Notifier<Map<String, Post>> {
   }
 
   Post? get(String postId) => state[postId];
+
+  void rewriteAuthorUsername(String userId, String newUsername) {
+    if (state.isEmpty) return;
+    state = {
+      for (final entry in state.entries)
+        entry.key: rewritePostAuthorUsername(entry.value, userId, newUsername),
+    };
+  }
 }
 
 /// Pure lookup used by post detail and tests.

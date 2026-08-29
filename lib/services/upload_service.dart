@@ -54,12 +54,14 @@ class UploadService {
   UploadService(this._apiClient, this._mediaService);
 
   /// Validate image file before upload (10MB max, JPEG/PNG/GIF/WebP only).
-  void validateImageFile(File file) {
-    final length = file.lengthSync();
-    if (length > AppConfig.maxMediaSizeBytes) {
-      throw UploadException(
-        'Image must be ${AppConfig.maxMediaSizeMB}MB or smaller',
-      );
+  void validateImageFile(File file, {bool checkSize = true}) {
+    if (checkSize) {
+      final length = file.lengthSync();
+      if (length > AppConfig.maxMediaSizeBytes) {
+        throw const UploadException(
+          'Image must be ${AppConfig.maxMediaSizeMB}MB or smaller',
+        );
+      }
     }
 
     final ext = _fileExtension(file.path);
@@ -89,11 +91,14 @@ class UploadService {
   }
 
   /// Upload a single post media image. Returns R2 key and optional preview URL.
+  ///
+  /// Originals may exceed [AppConfig.maxMediaSizeBytes]; size is checked after
+  /// compression so GPS EXIF can be read from the source file first.
   Future<UploadResult> uploadPostMedia(
     File file, {
     void Function(int sent, int total)? onSendProgress,
   }) async {
-    validateImageFile(file);
+    validateImageFile(file, checkSize: false);
     return _uploadFile(
       file,
       folder: 'posts',
@@ -124,6 +129,17 @@ class UploadService {
     } catch (_) {
       processedFile = file;
       isTempFile = false;
+    }
+
+    if (processedFile.lengthSync() > AppConfig.maxMediaSizeBytes) {
+      if (isTempFile) {
+        try {
+          await processedFile.delete();
+        } catch (_) {}
+      }
+      throw const UploadException(
+        'Image must be ${AppConfig.maxMediaSizeMB}MB or smaller',
+      );
     }
 
     try {

@@ -36,6 +36,10 @@ class FeedPostMerge {
 
     var merged = incoming;
 
+    // Location labels (`location_name`, `address`) stay on [incoming]. The
+    // server re-geocodes cells after the 6-char precision change, so a
+    // cached "Jakarta Pusat" must not win over a live street-level name.
+
     if (_shouldPreserveMediaUrls(incoming, existing)) {
       merged = merged.copyWith(mediaUrls: existing.mediaUrls);
     }

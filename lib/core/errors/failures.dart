@@ -45,6 +45,31 @@ class AuthFailure extends Failure {
   const AuthFailure({super.message = 'Authentication failed', super.details});
 }
 
+/// Social sign-in hit an existing account with a different method; user must confirm link.
+class EmailInUseFailure extends AuthFailure {
+  final String email;
+  final List<String> existingMethods;
+  final String attemptingMethod;
+
+  const EmailInUseFailure({
+    required this.email,
+    required this.existingMethods,
+    required this.attemptingMethod,
+    super.message =
+        'This email is already used by another sign-in method',
+    super.details,
+  });
+}
+
+/// Apple identityToken was rejected (usually expired ~10 min). Force a new native sheet.
+class AppleIdentityTokenExpiredFailure extends AuthFailure {
+  const AppleIdentityTokenExpiredFailure({
+    super.message =
+        'Your Apple sign-in expired. Please try Sign in with Apple again.',
+    super.details,
+  });
+}
+
 /// Token expired failure
 class TokenExpiredFailure extends AuthFailure {
   const TokenExpiredFailure({
@@ -90,6 +115,26 @@ class RateLimitFailure extends Failure {
     super.message = 'Too many requests. Please try again later.',
     super.details,
     this.retryAfter,
+  });
+}
+
+/// 409 on PUT /users/me/username — taken by another account.
+class UsernameTakenFailure extends ClientFailure {
+  const UsernameTakenFailure({
+    super.message = 'This username is already taken',
+    super.statusCode = 409,
+  });
+}
+
+/// 429 on PUT /users/me/username — cooldown still active.
+class UsernameCooldownFailure extends RateLimitFailure {
+  final DateTime? lastChangedAt;
+  final DateTime nextChangeAt;
+
+  const UsernameCooldownFailure({
+    required this.nextChangeAt,
+    this.lastChangedAt,
+    super.message = 'You cannot change your username yet',
   });
 }
 

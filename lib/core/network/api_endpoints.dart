@@ -6,7 +6,7 @@ class ApiEndpoints {
   static const String _authBase = '/auth';
   static const String _apiBase = '/api/v1';
 
-  static const String _locationsBase = '/locations';
+  static const String _locationsBase = '$_apiBase/locations';
   static const String _notificationsBase = '$_apiBase/notifications';
   static const String _searchBase = '$_apiBase/search';
 
@@ -48,6 +48,15 @@ class ApiEndpoints {
 
   /// PUT - Update current user profile
   static const String updateProfile = '$_apiBase/users/me';
+
+  /// GET - Live username availability (?username=)
+  static const String usernameAvailable = '$_apiBase/users/username-available';
+
+  /// PUT - Change current user's username (body: { username })
+  static const String changeUsername = '$_apiBase/users/me/username';
+
+  /// GET - Current username, cooldown, and rename history (?limit=)
+  static const String usernameHistory = '$_apiBase/users/me/username-history';
 
   /// DELETE - Permanently delete current account (body: password)
   static const String deleteCurrentUser = '$_apiBase/users/me';

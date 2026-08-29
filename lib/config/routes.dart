@@ -15,12 +15,16 @@ import '../presentation/screens/notifications/notifications_screen.dart';
 import '../presentation/screens/post/create_post_screen.dart';
 import '../presentation/screens/post/post_detail_screen.dart';
 import '../presentation/screens/settings/blocked_users_screen.dart';
+import '../presentation/screens/settings/change_username_screen.dart';
 import '../presentation/screens/settings/muted_users_screen.dart';
 import '../presentation/screens/settings/settings_screen.dart';
 import '../presentation/screens/messages/inbox_screen.dart';
 import '../presentation/screens/messages/chat_screen.dart';
 import '../presentation/providers/auth_provider.dart';
 import '../presentation/widgets/app_shell.dart';
+import '../presentation/widgets/auth_card_swap.dart';
+import '../presentation/widgets/route_secondary_animation.dart';
+import '../presentation/widgets/swipe_back_page.dart';
 import '../presentation/widgets/wordmark.dart';
 import '../core/theme/app_colors.dart';
 
@@ -36,6 +40,7 @@ class RoutePaths {
   static const String feed = '/feed';
   static const String createPost = '/create-post';
   static const String postDetail = '/post/:id';
+  static const String profileTab = '/profile';
   static const String profile = '/profile/:id';
   static const String editProfile = '/profile/edit';
   static const String onboarding = '/onboarding';
@@ -44,6 +49,7 @@ class RoutePaths {
   static const String settings = '/settings';
   static const String settingsBlocked = '/settings/blocked';
   static const String settingsMuted = '/settings/muted';
+  static const String settingsUsername = '/settings/username';
   static const String messages = '/messages';
   static const String dmChat = '/messages/chat/:id';
 
@@ -51,11 +57,11 @@ class RoutePaths {
       '/messages/chat/$conversationId?peerUserId=$peerUserId';
 }
 
-int _shellNavDirection = 1;
+final GlobalKey<NavigatorState> _rootNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'root');
 
-void setShellNavTransitionDirection(int direction) {
-  _shellNavDirection = direction == 0 ? 1 : direction.sign;
-}
+/// Kept for call sites that used to drive tab-slide direction.
+void setShellNavTransitionDirection(int direction) {}
 
 /// Router configuration
 ///
@@ -76,6 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(authListenable.dispose);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: RoutePaths.splash,
     debugLogDiagnostics: kDebugMode,
     refreshListenable: authListenable,
@@ -121,147 +128,204 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Auth routes
       GoRoute(
         path: RoutePaths.login,
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => SwipeBackPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            // No page-level motion — the welcome card listens to
+            // [secondaryAnimation] and slides itself out for register.
+            return RouteSecondaryAnimation(
+              animation: secondaryAnimation,
+              child: child,
+            );
+          },
+        ),
       ),
       GoRoute(
         path: RoutePaths.forgotPassword,
-        builder: (context, state) => const ForgotPasswordScreen(),
+        pageBuilder: (context, state) => _buildDetailSlidePage(
+          state: state,
+          child: const ForgotPasswordScreen(),
+        ),
       ),
       GoRoute(
         path: RoutePaths.resetPassword,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final token = state.uri.queryParameters['token'] ?? '';
-          return ResetPasswordScreen(initialToken: token);
+          return _buildDetailSlidePage(
+            state: state,
+            child: ResetPasswordScreen(initialToken: token),
+          );
         },
       ),
       GoRoute(
         path: RoutePaths.register,
-        pageBuilder: (context, state) => CustomTransitionPage(
+        pageBuilder: (context, state) => SwipeBackPage(
           key: state.pageKey,
           opaque: false, // Allow login background to show through
           child: const RegisterScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // Slide from bottom animation
-            const begin = Offset(0.0, 1.0); // Start from bottom
-            const end = Offset.zero;
-            const curve = Curves.easeOutCubic;
-
-            var tween = Tween(
-              begin: begin,
-              end: end,
-            ).chain(CurveTween(curve: curve));
-
             return SlideTransition(
-              position: animation.drive(tween),
+              position: animation.drive(AuthCardSwap.registerOffset),
               child: child,
             );
           },
-          transitionDuration: const Duration(milliseconds: 400),
-          reverseTransitionDuration: const Duration(milliseconds: 350),
+          transitionDuration: AuthCardSwap.duration,
+          reverseTransitionDuration: AuthCardSwap.duration,
         ),
       ),
 
-      // Main app routes — wrapped in ShellRoute for persistent bottom nav
-      ShellRoute(
-        builder: (context, state, child) => AppShell(child: child),
-        routes: [
-          GoRoute(
-            path: RoutePaths.feed,
-            pageBuilder: (context, state) => _buildShellRootPage(
-              state: state,
-              child: const FeedScreen(),
-            ),
-          ),
-          GoRoute(
-            path: RoutePaths.createPost,
-            pageBuilder: (context, state) => _buildDetailSlidePage(
-              state: state,
-              child: const CreatePostScreen(),
-            ),
-          ),
-          GoRoute(
-            path: RoutePaths.postDetail,
-            pageBuilder: (context, state) {
-              final postId = state.pathParameters['id']!;
-              return _buildDetailSlidePage(
-                state: state,
-                child: PostDetailScreen(postId: postId),
-              );
-            },
-          ),
-          // Edit profile must come BEFORE /profile/:id to avoid "edit" being parsed as userId
-          GoRoute(
-            path: RoutePaths.editProfile,
-            pageBuilder: (context, state) => _buildShellRootPage(
-              state: state,
-              child: const EditProfileScreen(),
-            ),
-          ),
-          GoRoute(
-            path: RoutePaths.onboarding,
-            pageBuilder: (context, state) => _buildShellRootPage(
-              state: state,
-              child: const EditProfileScreen(),
-            ),
-          ),
-          GoRoute(
-            path: RoutePaths.profile,
-            pageBuilder: (context, state) {
-              final userId = state.pathParameters['id']!;
-              return _buildShellRootPage(
-                state: state,
-                child: ProfileScreen(userId: userId),
-              );
-            },
-          ),
-          GoRoute(
-            path: RoutePaths.search,
-            pageBuilder: (context, state) => _buildShellRootPage(
-              state: state,
-              child: const SearchScreen(),
-            ),
-          ),
-          GoRoute(
-            path: RoutePaths.notifications,
-            pageBuilder: (context, state) => _buildShellRootPage(
-              state: state,
-              child: const NotificationsScreen(),
-            ),
-          ),
-          GoRoute(
-            path: RoutePaths.settings,
-            builder: (context, state) => const SettingsScreen(),
-          ),
-          GoRoute(
-            path: RoutePaths.settingsBlocked,
-            builder: (context, state) => const BlockedUsersScreen(),
-          ),
-          GoRoute(
-            path: RoutePaths.settingsMuted,
-            builder: (context, state) => const MutedUsersScreen(),
-          ),
-          GoRoute(
-            path: RoutePaths.messages,
-            pageBuilder: (context, state) => _buildShellRootPage(
-              state: state,
-              child: const InboxScreen(),
-            ),
-          ),
-          GoRoute(
-            path: RoutePaths.dmChat,
-            pageBuilder: (context, state) {
-              final conversationId = state.pathParameters['id']!;
-              final peerUserId = state.uri.queryParameters['peerUserId'] ?? '';
-              return _buildDetailSlidePage(
-                state: state,
-                child: ChatScreen(
-                  conversationId: conversationId,
-                  peerUserId: peerUserId,
+      // Tabs stay mounted in an IndexedStack so switching pages does not
+      // dispose them or refetch. Overlay routes sit on the root navigator.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AppShell(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.feed,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: FeedScreen(),
                 ),
-              );
-            },
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.search,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: SearchScreen(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.messages,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: InboxScreen(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.notifications,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: NotificationsScreen(),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: RoutePaths.profileTab,
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: CurrentUserProfileTab(),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.createPost,
+        pageBuilder: (context, state) => _buildDetailSlidePage(
+          state: state,
+          child: const CreatePostScreen(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.postDetail,
+        pageBuilder: (context, state) {
+          final postId = state.pathParameters['id']!;
+          return _buildDetailSlidePage(
+            state: state,
+            child: PostDetailScreen(postId: postId),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.editProfile,
+        pageBuilder: (context, state) => _buildDetailSlidePage(
+          state: state,
+          child: const EditProfileScreen(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.onboarding,
+        pageBuilder: (context, state) => _buildDetailSlidePage(
+          state: state,
+          child: const EditProfileScreen(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.profile,
+        pageBuilder: (context, state) {
+          final userId = state.pathParameters['id']!;
+          return _buildDetailSlidePage(
+            state: state,
+            child: ProfileScreen(userId: userId),
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.settings,
+        pageBuilder: (context, state) => _buildDetailSlidePage(
+          state: state,
+          child: const SettingsScreen(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.settingsUsername,
+        pageBuilder: (context, state) => _buildDetailSlidePage(
+          state: state,
+          child: const ChangeUsernameScreen(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.settingsBlocked,
+        pageBuilder: (context, state) => _buildDetailSlidePage(
+          state: state,
+          child: const BlockedUsersScreen(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.settingsMuted,
+        pageBuilder: (context, state) => _buildDetailSlidePage(
+          state: state,
+          child: const MutedUsersScreen(),
+        ),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: RoutePaths.dmChat,
+        pageBuilder: (context, state) {
+          final conversationId = state.pathParameters['id']!;
+          final peerUserId = state.uri.queryParameters['peerUserId'] ?? '';
+          return _buildDetailSlidePage(
+            state: state,
+            child: ChatScreen(
+              conversationId: conversationId,
+              peerUserId: peerUserId,
+            ),
+          );
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
@@ -270,63 +334,24 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-CustomTransitionPage<void> _buildShellRootPage({
+SwipeBackPage<void> _buildDetailSlidePage({
   required GoRouterState state,
   required Widget child,
 }) {
-  return CustomTransitionPage<void>(
+  return SwipeBackPage<void>(
     key: state.pageKey,
     child: child,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      // Read direction at transition-time so incoming/outgoing pages
-      // participate in the same navigation event direction.
-      final direction = _shellNavDirection.toDouble();
-      final incomingOffset = Tween<Offset>(
-        begin: Offset(direction, 0),
-        end: Offset.zero,
-      ).animate(
-        CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeInOutCubic,
-        ),
-      );
-      final outgoingOffset = Tween<Offset>(
-        begin: Offset.zero,
-        end: Offset(-direction, 0),
-      ).animate(
-        CurvedAnimation(
-          parent: secondaryAnimation,
-          curve: Curves.easeInOutCubic,
-        ),
-      );
-      return SlideTransition(
-        position: outgoingOffset,
-        child: SlideTransition(
-          position: incomingOffset,
-          child: child,
-        ),
-      );
-    },
-    transitionDuration: const Duration(milliseconds: 320),
-    reverseTransitionDuration: const Duration(milliseconds: 320),
-  );
-}
-
-CustomTransitionPage<void> _buildDetailSlidePage({
-  required GoRouterState state,
-  required Widget child,
-}) {
-  return CustomTransitionPage<void>(
-    key: state.pageKey,
-    child: child,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curve = swipeBackGestureInProgress(context)
+          ? Curves.linear
+          : Curves.easeInOutCubic;
       final incomingOffset = Tween<Offset>(
         begin: const Offset(1, 0),
         end: Offset.zero,
       ).animate(
         CurvedAnimation(
           parent: animation,
-          curve: Curves.easeInOutCubic,
+          curve: curve,
         ),
       );
       return SlideTransition(

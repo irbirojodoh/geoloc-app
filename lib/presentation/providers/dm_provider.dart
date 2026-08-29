@@ -128,7 +128,7 @@ class DmInboxNotifier extends StateNotifier<DmInboxState> {
       identityStatus: DmIdentityStatus.ready,
       clearKeysError: true,
     );
-    await loadInbox();
+    await loadInbox(force: true);
   }
 
   Future<void> createNewIdentity() async {
@@ -138,7 +138,7 @@ class DmInboxNotifier extends StateNotifier<DmInboxState> {
       identityStatus: DmIdentityStatus.ready,
       clearKeysError: true,
     );
-    await loadInbox();
+    await loadInbox(force: true);
   }
 
   Future<void> uploadBackup(String passphrase) async {
@@ -166,8 +166,9 @@ class DmInboxNotifier extends StateNotifier<DmInboxState> {
     state = state.copyWith(conversations: updated);
   }
 
-  Future<void> loadInbox() async {
+  Future<void> loadInbox({bool force = false}) async {
     if (state.isLoading) return;
+    if (!force && state.conversations.isNotEmpty) return;
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {

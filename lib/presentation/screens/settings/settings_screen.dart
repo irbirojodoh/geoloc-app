@@ -8,7 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../widgets/dm_backup_dialogs.dart';
 import '../../widgets/top_bar_backdrop.dart';
 
-/// Account & privacy entry point — blocked/muted lists and account deletion.
+/// Account & privacy entry point — blocked/muted lists, logout, and account deletion.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -16,6 +16,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final currentUser = ref.watch(currentUserProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -63,6 +64,22 @@ class SettingsScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(color: cs.outlineVariant),
                   ),
+                  child: _SettingsNavRow(
+                    icon: Icons.alternate_email,
+                    title: 'Username',
+                    subtitle: currentUser != null
+                        ? '@${currentUser.username}'
+                        : 'Change your username',
+                    onTap: () => context.push(RoutePaths.settingsUsername),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  margin: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: cs.outlineVariant),
+                  ),
                   child: Column(
                     children: [
                       _SettingsNavRow(
@@ -84,6 +101,13 @@ class SettingsScreen extends ConsumerWidget {
                         title: 'Muted users',
                         subtitle: 'Manage muted feeds',
                         onTap: () => context.push(RoutePaths.settingsMuted),
+                      ),
+                      Divider(height: 1, color: cs.outlineVariant),
+                      _SettingsNavRow(
+                        icon: Icons.logout,
+                        title: 'Log out',
+                        subtitle: 'Sign out of this device',
+                        onTap: () => _confirmLogout(context, ref),
                       ),
                     ],
                   ),
@@ -120,6 +144,42 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final cs = Theme.of(context).colorScheme;
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: cs.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          title: Text(
+            'Log out?',
+            style: context.textTheme.headlineSmall,
+          ),
+          content: Text(
+            'You will need to sign in again to use Geoloc on this device.',
+            style: context.bodyMedium,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: TextStyle(color: cs.primary)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Log out', style: TextStyle(color: cs.error)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (proceed != true || !context.mounted) return;
+    await ref.read(authStateProvider.notifier).logout();
   }
 
   Future<void> _startDeleteFlow(BuildContext context, WidgetRef ref) async {

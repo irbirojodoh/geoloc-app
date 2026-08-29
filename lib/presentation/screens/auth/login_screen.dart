@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,109 +6,66 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../config/routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/auth_card_swap.dart';
+import '../../widgets/auth_glass_sheet.dart';
+import '../../widgets/route_secondary_animation.dart';
+import '../../widgets/social_auth_buttons.dart';
+import 'social_link_confirm.dart';
 
-/// Material 3 login screen.
-class LoginScreen extends ConsumerStatefulWidget {
+/// Material 3 login screen (Apple / Google only).
+class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
 
-  @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  Future<void> _handleGoogleSignIn(BuildContext context, WidgetRef ref) async {
+    await completeSocialSignInFlow(
+      context: context,
+      ref: ref,
+      signIn: () => ref.read(authStateProvider.notifier).signInWithGoogle(),
+    );
   }
 
-  Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final success = await ref
-        .read(authStateProvider.notifier)
-        .login(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
-
-    if (success && mounted) {
-      context.go(RoutePaths.feed);
-    }
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    final success =
-        await ref.read(authStateProvider.notifier).signInWithGoogle();
-    if (success && mounted) {
-      final authState = ref.read(authStateProvider);
-      if (authState.isNewUser) {
-        context.go(RoutePaths.editProfile);
-      } else {
-        context.go(RoutePaths.feed);
-      }
-    }
-  }
-
-  Future<void> _handleAppleSignIn() async {
-    final success =
-        await ref.read(authStateProvider.notifier).signInWithApple();
-    if (success && mounted) {
-      final authState = ref.read(authStateProvider);
-      if (authState.isNewUser) {
-        context.go(RoutePaths.editProfile);
-      } else {
-        context.go(RoutePaths.feed);
-      }
-    }
+  Future<void> _handleAppleSignIn(BuildContext context, WidgetRef ref) async {
+    await completeSocialSignInFlow(
+      context: context,
+      ref: ref,
+      signIn: () => ref.read(authStateProvider.notifier).signInWithApple(),
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final pillShape = const StadiumBorder();
-    final pillOutline = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(999),
-      borderSide: BorderSide(color: colorScheme.onInverseSurface.withValues(alpha: 0.25)),
-    );
+    // Light-on-glass: navbar-style liquid glass over the photo.
+    const sheetFg = AuthGlassSheet.foreground;
+    const pillShape = StadiumBorder();
 
     // Showcase image: network (cached) with safe fallback so login never breaks.
-    const showcaseImageUrl = 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=60';
+    const showcaseImageUrl =
+        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=60';
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: Theme.of(context).brightness == Brightness.dark
-          ? SystemUiOverlayStyle.light
-          : SystemUiOverlayStyle.dark,
+      value: SystemUiOverlayStyle.light,
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // Background showcase image (cached network) with safe fallback.
             CachedNetworkImage(
               imageUrl: showcaseImageUrl,
               fit: BoxFit.cover,
-              memCacheWidth:
-                  (MediaQuery.sizeOf(context).width *
-                          MediaQuery.devicePixelRatioOf(context))
-                      .round(),
-              memCacheHeight:
-                  (MediaQuery.sizeOf(context).height *
-                          MediaQuery.devicePixelRatioOf(context))
-                      .round(),
+              memCacheWidth: (MediaQuery.sizeOf(context).width *
+                      MediaQuery.devicePixelRatioOf(context))
+                  .round(),
+              memCacheHeight: (MediaQuery.sizeOf(context).height *
+                      MediaQuery.devicePixelRatioOf(context))
+                  .round(),
               fadeInDuration: const Duration(milliseconds: 250),
-              placeholder: (context, _) => Container(
-                color: colorScheme.surfaceContainerHighest,
-              ),
-              errorWidget: (context, _, __) => Container(
+              placeholder: (context, _) =>
+                  Container(color: colorScheme.surfaceContainerHighest),
+              errorWidget: (context, _, _) => Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -125,301 +79,164 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
 
-            // Dark overlay for legibility.
+            // Soft vignette — keep photo visible so liquid glass can refract it.
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.55, 1.0],
+                  stops: const [0.0, 0.45, 1.0],
                   colors: [
-                      colorScheme.scrim.withOpacity(0.25),
-                      colorScheme.scrim.withOpacity(0.45),
-                      colorScheme.scrim.withOpacity(0.60),
+                    Colors.black.withValues(alpha: 0.15),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.black.withValues(alpha: 0.40),
                   ],
                 ),
               ),
             ),
 
-            // Bottom login card.
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: Material(
-                  color: colorScheme.scrim.withOpacity(0.55),
-                  elevation: 3,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(28),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      top: 20,
-                      // Keep the sheet touching the bottom edge; apply safe/keyboard
-                      // inset *inside* the sheet content.
-                      bottom: 16 +
-                          (MediaQuery.viewInsetsOf(context).bottom > 0
-                              ? MediaQuery.viewInsetsOf(context).bottom
-                              : MediaQuery.paddingOf(context).bottom),
-                    ),
-                    child: Theme(
-                      // Pill-only styling for this screen's inputs/buttons.
-                      data: Theme.of(context).copyWith(
-                        inputDecorationTheme:
-                            Theme.of(context).inputDecorationTheme.copyWith(
-                                  filled: true,
-                                  fillColor: colorScheme.onInverseSurface.withValues(alpha: 0.12),
-                                  border: pillOutline,
-                                  enabledBorder: pillOutline,
-                                  focusedBorder: pillOutline,
-                                  hintStyle: TextStyle(
-                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.5),
-                                  ),
-                                  labelStyle: TextStyle(
-                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
-                                  ),
-                                  prefixIconColor: colorScheme.onInverseSurface.withValues(alpha: 0.9),
-                                  suffixIconColor: colorScheme.onInverseSurface.withValues(alpha: 0.9),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 14,
-                                  ),
-                                ),
-                        filledButtonTheme: FilledButtonThemeData(
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(56),
-                            shape: pillShape,
-                            textStyle: textTheme.labelLarge,
-                          ),
+            _slideWelcomeCardAway(
+              context,
+              child: AuthGlassSheet(
+                child: Padding(
+                        padding: EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          top: 16,
+                          bottom: 10 + MediaQuery.paddingOf(context).bottom,
                         ),
-                        textButtonTheme: TextButtonThemeData(
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(48, 48),
-                            shape: pillShape,
-                            textStyle: textTheme.labelLarge,
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            brightness: Brightness.dark,
+                            colorScheme: colorScheme.copyWith(
+                              brightness: Brightness.dark,
+                              onSurface: sheetFg,
+                            ),
+                            textButtonTheme: TextButtonThemeData(
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(48, 40),
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                foregroundColor: sheetFg.withValues(alpha: 0.9),
+                                shape: pillShape,
+                                textStyle: textTheme.labelLarge,
+                              ),
+                            ),
+                            outlinedButtonTheme: OutlinedButtonThemeData(
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(56),
+                                foregroundColor: sheetFg,
+                                backgroundColor: sheetFg.withValues(alpha: 0.10),
+                                side: BorderSide(
+                                  color: sheetFg.withValues(alpha: 0.4),
+                                ),
+                                shape: pillShape,
+                                textStyle: textTheme.labelLarge,
+                              ),
+                            ),
                           ),
-                        ),
-                        outlinedButtonTheme: OutlinedButtonThemeData(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(56),
-                            foregroundColor: colorScheme.onInverseSurface.withValues(alpha: 1),
-                            backgroundColor: colorScheme.onInverseSurface.withValues(alpha: 0.08),
-                            side: BorderSide(
-                              color: colorScheme.onInverseSurface.withValues(alpha: 0.35),
-                            ),
-                            shape: pillShape,
-                            textStyle: textTheme.labelLarge,
-                          ),
-                        ),
-                      ),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.location_on_outlined,
-                                  color: colorScheme.primary,
-                                  size: 28,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Welcome to Geoloc.',
-                                  style: textTheme.titleLarge?.copyWith(
-                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on_outlined,
+                                    color: colorScheme.primary,
+                                    size: 28,
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Enter your credentials',
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onInverseSurface.withValues(alpha: 0.6),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            if (authState.error != null) ...[
-                              Text(
-                                authState.error!,
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.error,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-
-                            TextFormField(
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                              autofillHints: const [AutofillHints.email],
-                              decoration: const InputDecoration(
-                                labelText: 'Email Address',
-                                prefixIcon: Icon(Icons.person_outline),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter your email';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _passwordController,
-                              obscureText: _obscurePassword,
-                              textInputAction: TextInputAction.done,
-                              onFieldSubmitted: (_) => _handleLogin(),
-                              autofillHints: const [AutofillHints.password],
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                suffixIcon: IconButton(
-                                  tooltip: _obscurePassword
-                                      ? 'Show password'
-                                      : 'Hide password',
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                  ),
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your password';
-                                }
-                                if (value.length < 6) {
-                                  return 'Password must be at least 6 characters';
-                                }
-                                return null;
-                              },
-                            ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () =>
-                                    context.push(RoutePaths.forgotPassword),
-                                child: const Text('Forgot Password?'),
-                              ),
-                            ),
-
-                            const SizedBox(height: 8),
-                            FilledButton(
-                              onPressed:
-                                  authState.isLoading ? null : _handleLogin,
-                              child: authState.isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text('Sign In'),
-                            ),
-
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Divider(
-                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.25),
-                                  ),
-                                ),
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 12),
-                                  child: Text(
-                                    'or sign in using',
-                                    style: textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onInverseSurface.withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Divider(
-                                    color: colorScheme.onInverseSurface.withValues(alpha: 0.25),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _SocialAuthButton(
-                                    onPressed: authState.isLoading
-                                        ? null
-                                        : _handleGoogleSignIn,
-                                    icon: Icons.g_mobiledata,
-                                    label: 'Google',
-                                  ),
-                                ),
-                                if (!kIsWeb &&
-                                    (Platform.isIOS || Platform.isMacOS)) ...[
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _SocialAuthButton(
-                                      onPressed: authState.isLoading
-                                          ? null
-                                          : _handleAppleSignIn,
-                                      icon: Icons.apple,
-                                      label: 'Apple',
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Welcome to Geoloc.',
+                                    style: textTheme.titleLarge?.copyWith(
+                                      color: sheetFg,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ],
-                              ],
-                            ),
-
-                            const SizedBox(height: 12),
-                            TextButton(
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                context.push(RoutePaths.register);
-                              },
-                              child: RichText(
-                                text: TextSpan(
-                                  style: textTheme.bodyMedium,
-                                  children: [
-                                    TextSpan(
-                                      text: "Don't have an account? ",
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        color: colorScheme.onInverseSurface.withValues(alpha: 0.6),
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: 'Sign up',
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        color: colorScheme.primary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Sign in with Apple or Google',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: sheetFg.withValues(alpha: 0.78),
                                 ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 24),
+
+                              if (authState.error != null) ...[
+                                Text(
+                                  authState.error!,
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+
+                              if (authState.isLoading) ...[
+                                Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+
+                              SocialAuthButtons(
+                                enabled: !authState.isLoading,
+                                onApple: () =>
+                                    _handleAppleSignIn(context, ref),
+                                onGoogle: () =>
+                                    _handleGoogleSignIn(context, ref),
+                              ),
+
+                              const SizedBox(height: 28),
+                              Divider(
+                                height: 1,
+                                thickness: 0.5,
+                                color: sheetFg.withValues(alpha: 0.28),
+                              ),
+                              const SizedBox(height: 20),
+                              TextButton(
+                                onPressed: () {
+                                  HapticFeedback.lightImpact();
+                                  context.push(RoutePaths.register);
+                                },
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: textTheme.bodyMedium,
+                                    children: [
+                                      TextSpan(
+                                        text: "Don't have an account? ",
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: sheetFg.withValues(
+                                            alpha: 0.75,
+                                          ),
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: 'Sign up',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: colorScheme.primary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ],
         ),
@@ -428,36 +245,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-class _SocialAuthButton extends StatelessWidget {
-  const _SocialAuthButton({
-    required this.onPressed,
-    required this.icon,
-    required this.label,
-  });
+/// Slides the welcome sheet off-screen while register (or another route)
+/// is pushed, so the two cards do not stack.
+Widget _slideWelcomeCardAway(BuildContext context, {required Widget child}) {
+  final secondary = RouteSecondaryAnimation.of(context) ??
+      ModalRoute.of(context)?.secondaryAnimation;
+  if (secondary == null) return child;
 
-  final VoidCallback? onPressed;
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
-        foregroundColor: colorScheme.onInverseSurface.withValues(alpha: 1),
-        backgroundColor: colorScheme.onInverseSurface.withValues(alpha: 0.08),
-        side: BorderSide(color: colorScheme.onInverseSurface.withValues(alpha: 0.35)),
-      ),
-      onPressed: onPressed,
-      icon: Icon(icon),
-      label: Text(
-        label,
-        style: textTheme.labelLarge?.copyWith(
-          color: colorScheme.onInverseSurface.withValues(alpha: 0.9),
-        ),
-      ),
-    );
-  }
+  return SlideTransition(
+    position: secondary.drive(AuthCardSwap.welcomeOffset),
+    child: child,
+  );
 }
+

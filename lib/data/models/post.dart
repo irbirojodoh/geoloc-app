@@ -1,3 +1,4 @@
+import '../../core/logging/app_logger.dart';
 import 'user.dart';
 import 'address.dart';
 
@@ -14,6 +15,7 @@ class Post {
   final String? locationName;
   final Address? address;
   final double? distanceKm;
+  final bool locationVerified;
   final DateTime createdAt;
   final int likeCount;
   final int commentCount;
@@ -32,6 +34,7 @@ class Post {
     this.locationName,
     this.address,
     this.distanceKm,
+    this.locationVerified = false,
     required this.createdAt,
     this.likeCount = 0,
     this.commentCount = 0,
@@ -107,6 +110,7 @@ class Post {
       locationName: json['location_name'] as String?,
       address: address,
       distanceKm: (json['distance_km'] as num?)?.toDouble(),
+      locationVerified: _locationVerifiedFromJson(json),
       createdAt: DateTime.parse(json['created_at'] as String),
       likeCount: json['like_count'] as int? ?? 0,
       // Backend payloads have not been consistent here; accept common variants.
@@ -121,10 +125,14 @@ class Post {
     );
   }
 
-  /// JSON for offline cache — omits ephemeral presigned URLs.
+  /// JSON for offline cache — omits ephemeral presigned URLs and
+  /// session-volatile location labels (street-level names change as cells
+  /// are re-geocoded; always take `location_name` from a live response).
   Map<String, dynamic> toCacheJson() {
     final json = toJson();
     json.remove('media_urls');
+    json.remove('location_name');
+    json.remove('address');
     if (json['author'] is Map<String, dynamic>) {
       final authorJson = Map<String, dynamic>.from(
         json['author'] as Map<String, dynamic>,
@@ -136,7 +144,13 @@ class Post {
     return json;
   }
 
-  factory Post.fromCacheJson(Map<String, dynamic> json) => Post.fromJson(json);
+  /// Restores a cached post, dropping any location labels that slipped onto disk.
+  factory Post.fromCacheJson(Map<String, dynamic> json) {
+    final copy = Map<String, dynamic>.from(json);
+    copy.remove('location_name');
+    copy.remove('address');
+    return Post.fromJson(copy);
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -151,6 +165,7 @@ class Post {
       'location_name': locationName,
       'address': address?.toJson(),
       'distance_km': distanceKm,
+      'location_verified': locationVerified,
       'created_at': createdAt.toIso8601String(),
       'like_count': likeCount,
       'comment_count': commentCount,
@@ -171,6 +186,7 @@ class Post {
     String? locationName,
     Address? address,
     double? distanceKm,
+    bool? locationVerified,
     DateTime? createdAt,
     int? likeCount,
     int? commentCount,
@@ -189,6 +205,7 @@ class Post {
       locationName: locationName ?? this.locationName,
       address: address ?? this.address,
       distanceKm: distanceKm ?? this.distanceKm,
+      locationVerified: locationVerified ?? this.locationVerified,
       createdAt: createdAt ?? this.createdAt,
       likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
@@ -208,4 +225,72 @@ class Post {
   @override
   String toString() =>
       'Post(id: $id, content: ${content.substring(0, content.length > 20 ? 20 : content.length)}...)';
+}
+
+bool _locationVerifiedFromJson(Map<String, dynamic> json) {
+  final raw = _readLocationVerifiedRaw(json);
+  final parsed = _parseBool(raw) ?? false;
+  debugLogApiPostLocation(json, source: 'Post.fromJson', parsed: parsed);
+  return parsed;
+}
+
+/// Reads `location_verified` from common API key variants.
+Object? _readLocationVerifiedRaw(Map<String, dynamic> json) {
+  const candidates = [
+    'location_verified',
+    'is_location_verified',
+    'locationVerified',
+    'LocationVerified',
+    'isLocationVerified',
+    'photo_location_verified',
+    'location_match',
+  ];
+  for (final key in candidates) {
+    if (json.containsKey(key)) return json[key];
+  }
+  for (final key in json.keys) {
+    final lower = key.toLowerCase();
+    if (lower.contains('location') && lower.contains('verif')) {
+      return json[key];
+    }
+  }
+  return null;
+}
+
+bool? _parseBool(Object? value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1') return true;
+    if (normalized == 'false' || normalized == '0') return false;
+  }
+  return null;
+}
+
+/// Debug-only dump of location-verification fields from a raw API post.
+void debugLogApiPostLocation(
+  Map<String, dynamic> json, {
+  required String source,
+  bool? parsed,
+}) {
+  final related = <String, dynamic>{};
+  for (final entry in json.entries) {
+    final key = entry.key.toLowerCase();
+    if (key.contains('location') ||
+        key.contains('verif') ||
+        key.contains('exif') ||
+        key.contains('gps') ||
+        key.contains('geohash') ||
+        key.contains('media_key') ||
+        key.contains('media_keys')) {
+      related[entry.key] = entry.value;
+    }
+  }
+  final raw = _readLocationVerifiedRaw(json);
+  AppLogger.debug(
+    '📍 [$source] id=${json['id']} content=${json['content']} '
+    'raw=$raw parsed=${parsed ?? _parseBool(raw)} '
+    'related=$related allKeys=${json.keys.toList()}',
+  );
 }

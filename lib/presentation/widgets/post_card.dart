@@ -4,6 +4,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../core/cache/image_cache_manager.dart';
 import '../../data/models/post.dart';
+import 'post_location_label.dart';
 import 'user_avatar.dart';
 
 /// Material 3 post card for feed/detail contexts.
@@ -85,25 +86,9 @@ class PostCard extends StatelessWidget {
                         ),
                         if (location.isNotEmpty) ...[
                           const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.location_on_outlined,
-                                size: 13,
-                                color: cs.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  location,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: textTheme.bodySmall?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          PostLocationLabel(
+                            label: location,
+                            verified: post.locationVerified,
                           ),
                         ],
                       ],

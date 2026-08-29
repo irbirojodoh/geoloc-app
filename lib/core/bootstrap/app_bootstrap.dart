@@ -7,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../firebase_options.dart';
 import '../../services/push_notification_service.dart';
+import '../cache/local_migrations.dart';
 import '../logging/app_logger.dart';
 import 'crash_reporting.dart';
 
@@ -26,6 +27,7 @@ final appBootstrapProvider =
 /// Hive must be available before auth/storage providers run.
 Future<void> initLocalStorage() async {
   await Hive.initFlutter();
+  await LocalMigrations.run();
 }
 
 /// Firebase + Crashlytics + push listeners (no permission dialog).

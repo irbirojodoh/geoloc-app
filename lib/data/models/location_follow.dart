@@ -1,4 +1,10 @@
-/// Location subscription model
+/// A geographic area the user follows, identified by a **server-owned**
+/// `geohash_prefix`.
+///
+/// That prefix is currently 6 characters (~1.2 km × 0.6 km). Never persist it
+/// as a durable cache key and never client-compute it for unfollow — Cassandra
+/// deletes are idempotent, so a stale 5-char prefix returns 200 while deleting
+/// nothing. Always use the value from the latest `GET /locations/following`.
 class LocationFollow {
   final String geohashPrefix;
   final String? name;
@@ -20,10 +26,13 @@ class LocationFollow {
       name: json['name'] as String?,
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
     );
   }
 
+  /// API payload only — do not write this map to Hive/SharedPreferences.
   Map<String, dynamic> toJson() {
     return {
       'geohash_prefix': geohashPrefix,

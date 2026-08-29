@@ -124,6 +124,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        leading: IconButton(
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.arrow_back),
+        ),
         flexibleSpace: TopBarBackdrop(
           blurTintColor: colorScheme.surface,
           blendColor: colorScheme.surface,

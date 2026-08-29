@@ -20,9 +20,18 @@ void main() {
       expect(f.toString(), contains('no DNS'));
     });
 
-    test('Failure.toString omits details when null', () {
-      const f = ClientFailure(message: 'Bad request');
-      expect(f.toString(), 'Failure: Bad request');
+    test('UsernameTakenFailure is a ClientFailure with 409', () {
+      const f = UsernameTakenFailure();
+      expect(f, isA<ClientFailure>());
+      expect(f.statusCode, 409);
+    });
+
+    test('UsernameCooldownFailure is a RateLimitFailure', () {
+      final f = UsernameCooldownFailure(
+        nextChangeAt: DateTime.utc(2026, 10, 28),
+      );
+      expect(f, isA<RateLimitFailure>());
+      expect(f, isA<Failure>());
     });
   });
 

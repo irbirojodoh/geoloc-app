@@ -11,21 +11,24 @@ class LocationUtils {
   ///
   /// [latitude] - Latitude value (-90 to 90)
   /// [longitude] - Longitude value (-180 to 180)
-  /// [precision] - Number of characters in geohash (default 5 for ~5km precision)
+  /// [precision] - Number of characters in geohash.
+  ///   Default 7 matches the post `geohash` field (~150 m). Followed-location
+  ///   cells are 6 characters; do not use a client-computed prefix as a
+  ///   durable unfollow key — use `GET /locations/following`.
   ///
   /// Precision reference:
   /// - 1: ~5000km
   /// - 2: ~1250km
   /// - 3: ~156km
   /// - 4: ~39km
-  /// - 5: ~5km
-  /// - 6: ~1.2km
-  /// - 7: ~153m
+  /// - 5: ~4.9km
+  /// - 6: ~1.2km × 0.6km (followed-location cells)
+  /// - 7: ~153m (post `geohash` field)
   /// - 8: ~38m
   static String encodeGeohash(
     double latitude,
     double longitude, {
-    int precision = 5,
+    int precision = 7,
   }) {
     double minLat = -90.0, maxLat = 90.0;
     double minLon = -180.0, maxLon = 180.0;

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/cache/feed_post_merge.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/utils/username_rewrite.dart';
 import '../../data/models/post.dart';
 import '../../data/models/user.dart';
 import '../../../core/logging/app_logger.dart';
@@ -66,8 +67,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
   /// Load user profile and posts
   Future<void> loadProfile({bool force = false}) async {
-    if (!force && state.user != null && state.posts.isNotEmpty) {
-      await refreshProfile();
+    if (!force && state.user != null) {
       return;
     }
 
@@ -260,6 +260,16 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
                 ? FeedPostMerge.mergePost(updatedPost, post)
                 : post,
           )
+          .toList(),
+    );
+  }
+
+  /// Rewrite the profile header and post authors after a username change.
+  void rewriteAuthorUsername(String newUsername) {
+    state = state.copyWith(
+      user: state.user?.copyWith(username: newUsername),
+      posts: state.posts
+          .map((p) => rewritePostAuthorUsername(p, userId, newUsername))
           .toList(),
     );
   }

@@ -19,6 +19,22 @@ import '../../widgets/states/error_state.dart';
 import '../../widgets/top_bar_backdrop.dart';
 import '../../widgets/user_avatar.dart';
 
+/// Own-profile tab. Other users open [ProfileScreen] as an overlay via `/profile/:id`.
+class CurrentUserProfileTab extends ConsumerWidget {
+  const CurrentUserProfileTab({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userId = ref.watch(currentUserProvider)?.id;
+    if (userId == null || userId.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return ProfileScreen(userId: userId);
+  }
+}
+
 /// Material 3 profile screen.
 class ProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -42,6 +58,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     _tabController.addListener(_handleTabChanged);
     _scrollController.addListener(_handleScrollEndReached);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final current = ref.read(profileProvider(widget.userId));
+      if (current.user != null) return;
       ref.read(profileProvider(widget.userId).notifier).loadProfile();
     });
   }
@@ -106,6 +124,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   @override
   bool get wantKeepAlive => true;
 
+  PreferredSizeWidget? _backOnlyAppBar(BuildContext context) {
+    if (!context.canPop()) return null;
+    return AppBar(
+      automaticallyImplyLeading: false,
+      leading: IconButton(
+        tooltip: 'Back',
+        onPressed: () => context.pop(),
+        icon: const Icon(Icons.arrow_back),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -115,8 +145,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final colorScheme = Theme.of(context).colorScheme;
 
     if (profileState.isLoading && profileState.user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        appBar: _backOnlyAppBar(context),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -124,17 +155,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         profileState.user == null &&
         profileState.posts.isEmpty) {
       return Scaffold(
+        appBar: _backOnlyAppBar(context),
         body: ErrorState(
           message: profileState.error!,
-          onRetry: () => ref.read(profileProvider(widget.userId).notifier).loadProfile(),
+          onRetry: () => ref
+              .read(profileProvider(widget.userId).notifier)
+              .loadProfile(force: true),
         ),
       );
     }
 
     final user = profileState.user;
     if (user == null) {
-      return const Scaffold(
-        body: EmptyState(
+      return Scaffold(
+        appBar: _backOnlyAppBar(context),
+        body: const EmptyState(
           icon: Icons.person_off_outlined,
           title: 'Profile unavailable',
           message: 'This profile could not be loaded.',
@@ -194,7 +229,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   title: Text('@${user.username}'),
                   pinned: true,
                   automaticallyImplyLeading: false,
-                  leading: null,
+                  leading: context.canPop()
+                      ? IconButton(
+                          tooltip: 'Back',
+                          onPressed: () => context.pop(),
+                          icon: const Icon(Icons.arrow_back),
+                        )
+                      : null,
                   actions: [
                     if (!isOwnProfile)
                       ProfileOverflowMenuButton(profileUserId: widget.userId),

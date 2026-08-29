@@ -40,5 +40,32 @@ void main() {
     expect(loaded.posts.first.mediaKeys, ['posts/u1/a.jpg']);
     expect(loaded.posts.first.mediaUrls, isEmpty);
     expect(loaded.posts.first.content, 'cached post');
+    expect(loaded.posts.first.locationName, isNull);
+  });
+
+  test('FeedCacheService does not persist location_name across sessions', () async {
+    final service = FeedCacheService();
+    final post = Post.fromJson({
+      'id': 'p1',
+      'user_id': 'u1',
+      'content': 'named',
+      'location_name': 'Jalan Teuku Cik Ditiro, Menteng',
+      'address': {'village': 'Menteng', 'city': 'Jakarta'},
+      'created_at': '2026-06-27T12:00:00Z',
+    });
+
+    await service.saveFeed(
+      posts: [post],
+      latitude: -6.2,
+      longitude: 106.8,
+      radiusKm: 5,
+      hasMore: false,
+    );
+
+    final loaded = await service.loadFeed();
+    expect(loaded, isNotNull);
+    expect(loaded!.posts.first.locationName, isNull);
+    expect(loaded.posts.first.address, isNull);
+    expect(loaded.posts.first.content, 'named');
   });
 }

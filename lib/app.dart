@@ -12,6 +12,8 @@ import 'config/theme.dart';
 import 'core/bootstrap/app_bootstrap.dart';
 import 'core/logging/app_logger.dart';
 import 'l10n/app_localizations.dart';
+import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/followed_locations_provider.dart';
 import 'services/push_notification_service.dart';
 
 /// Root app widget — wires [routerProvider] + password-reset deep links.
@@ -34,6 +36,9 @@ class _GeolocAppState extends ConsumerState<GeolocApp> {
       // Kick deferred Firebase/push bootstrap.
       ref.read(appBootstrapProvider);
       _attachDeepLinks();
+      if (ref.read(authStateProvider).isAuthenticated) {
+        unawaited(ref.read(followedLocationsProvider.notifier).refresh());
+      }
     });
   }
 
@@ -78,6 +83,16 @@ class _GeolocAppState extends ConsumerState<GeolocApp> {
       if (next == null || next.isEmpty) return;
       router.go(next);
       ref.read(pendingPushRouteProvider.notifier).state = null;
+    });
+
+    // After upgrade, persisted 5-char prefixes are gone. Refetch the
+    // server-owned 6-char list so unfollow uses a live identifier.
+    ref.listen<AuthState>(authStateProvider, (prev, next) {
+      if (next.isAuthenticated && prev?.isAuthenticated != true) {
+        unawaited(ref.read(followedLocationsProvider.notifier).refresh());
+      } else if (!next.isAuthenticated && prev?.isAuthenticated == true) {
+        ref.read(followedLocationsProvider.notifier).clear();
+      }
     });
 
     return MaterialApp.router(

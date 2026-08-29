@@ -14,7 +14,6 @@ import 'auth_provider.dart';
 class EditProfileState {
   final User? originalUser;
   final String fullName;
-  final String username;
   final String bio;
   final File? newProfileImage;
   final File? newCoverImage;
@@ -26,7 +25,6 @@ class EditProfileState {
   const EditProfileState({
     this.originalUser,
     this.fullName = '',
-    this.username = '',
     this.bio = '',
     this.newProfileImage,
     this.newCoverImage,
@@ -39,7 +37,6 @@ class EditProfileState {
   bool get hasChanges {
     if (originalUser == null) return false;
     return fullName != (originalUser!.fullName ?? '') ||
-        username != originalUser!.username ||
         bio != (originalUser!.bio ?? '') ||
         newProfileImage != null ||
         newCoverImage != null;
@@ -48,7 +45,6 @@ class EditProfileState {
   EditProfileState copyWith({
     User? originalUser,
     String? fullName,
-    String? username,
     String? bio,
     File? newProfileImage,
     File? newCoverImage,
@@ -63,7 +59,6 @@ class EditProfileState {
     return EditProfileState(
       originalUser: originalUser ?? this.originalUser,
       fullName: fullName ?? this.fullName,
-      username: username ?? this.username,
       bio: bio ?? this.bio,
       newProfileImage:
           clearProfileImage ? null : (newProfileImage ?? this.newProfileImage),
@@ -107,7 +102,6 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
         state = state.copyWith(
           originalUser: user,
           fullName: user.fullName ?? '',
-          username: user.username,
           bio: user.bio ?? '',
           isLoading: false,
         );
@@ -128,11 +122,6 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
   /// Update full name
   void updateFullName(String value) {
     state = state.copyWith(fullName: value, clearError: true);
-  }
-
-  /// Update username
-  void updateUsername(String value) {
-    state = state.copyWith(username: value, clearError: true);
   }
 
   /// Update bio
@@ -276,16 +265,12 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
 
       final hasTextChanges =
           state.fullName != (state.originalUser?.fullName ?? '') ||
-              state.username != state.originalUser?.username ||
               state.bio != (state.originalUser?.bio ?? '');
 
       if (hasTextChanges || avatarKey != null || coverKey != null) {
         await _ref.read(authStateProvider.notifier).updateProfile(
               fullName: state.fullName != (state.originalUser?.fullName ?? '')
                   ? state.fullName
-                  : null,
-              username: state.username != state.originalUser?.username
-                  ? state.username
                   : null,
               bio: state.bio != (state.originalUser?.bio ?? '')
                   ? state.bio
@@ -329,21 +314,9 @@ class EditProfileNotifier extends StateNotifier<EditProfileState> {
       state = EditProfileState(
         originalUser: state.originalUser,
         fullName: state.originalUser!.fullName ?? '',
-        username: state.originalUser!.username,
         bio: state.originalUser!.bio ?? '',
       );
     }
-  }
-
-  /// Validate username format
-  String? validateUsername(String value) {
-    if (value.isEmpty) return 'Username is required';
-    if (value.length < 3) return 'Username must be at least 3 characters';
-    if (value.length > 30) return 'Username must be less than 30 characters';
-    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
-      return 'Username can only contain letters, numbers, and underscores';
-    }
-    return null;
   }
 
   /// Validate full name format

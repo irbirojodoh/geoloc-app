@@ -24,6 +24,11 @@ void main() {
       expect(a, b);
     });
 
+    test('default precision matches the post geohash field (7 chars)', () {
+      final hash = LocationUtils.encodeGeohash(35.0, 135.0);
+      expect(hash.length, 7);
+    });
+
     test('different points produce different hashes', () {
       final a = LocationUtils.encodeGeohash(35.0, 135.0, precision: 7);
       final b = LocationUtils.encodeGeohash(36.0, 135.0, precision: 7);

@@ -11,6 +11,7 @@ import '../../providers/location_provider.dart';
 import '../../../core/cache/image_cache_manager.dart';
 import '../../../data/models/user.dart';
 import '../../widgets/app_bottom_sheet.dart';
+import '../../widgets/post_location_label.dart';
 import '../../widgets/top_bar_backdrop.dart';
 
 /// Create post screen.
@@ -574,57 +575,63 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen>
     final textTheme = Theme.of(context).textTheme;
     return Row(
       children: [
-        Icon(Icons.location_on_outlined, size: 16, color: colorScheme.primary),
-        const SizedBox(width: 6),
-        if (locationState.isLoading || createPostState.isLoadingAddress)
-          Row(
-            children: [
-              SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1,
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Getting location...',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          )
-        else if (locationState.hasLocation && createPostState.locationName != null)
+        if (locationState.hasLocation &&
+            createPostState.locationName != null &&
+            !locationState.isLoading &&
+            !createPostState.isLoadingAddress)
           Expanded(
-            child: Text(
-              createPostState.locationName!,
+            child: PostLocationLabel(
+              label: createPostState.locationName!,
+              verified: createPostState.locationVerified,
+            ),
+          )
+        else ...[
+          Icon(
+            Icons.location_on_outlined,
+            size: 16,
+            color: colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          if (locationState.isLoading || createPostState.isLoadingAddress)
+            Row(
+              children: [
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Getting location...',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            )
+          else if (locationState.hasLocation)
+            Text(
+              'Location available',
               style: textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          )
-        else if (locationState.hasLocation)
-          Text(
-            'Location available',
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          )
-        else
-          GestureDetector(
-            onTap: () {
-              ref.read(locationStateProvider.notifier).requestPermission();
-            },
-            child: Text(
-              'Enable location',
-              style: textTheme.labelMedium?.copyWith(
-                color: colorScheme.primary,
+            )
+          else
+            GestureDetector(
+              onTap: () {
+                ref.read(locationStateProvider.notifier).requestPermission();
+              },
+              child: Text(
+                'Enable location',
+                style: textTheme.labelMedium?.copyWith(
+                  color: colorScheme.primary,
+                ),
               ),
             ),
-          ),
+        ],
       ],
     );
   }

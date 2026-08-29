@@ -122,11 +122,19 @@ class AuthService {
 
   /// Sign in with a Google ID token obtained from the native SDK.
   /// POSTs to /auth/google/token and returns the full auth response.
-  Future<AuthResponse> signInWithGoogleToken(String idToken) async {
+  /// Throws [EmailInUseFailure] when the email belongs to another method
+  /// and [confirmLink] is false.
+  Future<AuthResponse> signInWithGoogleToken(
+    String idToken, {
+    bool confirmLink = false,
+  }) async {
     try {
       final response = await _apiClient.post(
         ApiEndpoints.googleToken,
-        data: {'id_token': idToken},
+        data: {
+          'id_token': idToken,
+          'confirm_link': confirmLink,
+        },
       );
 
       if (response.statusCode == 200) {
@@ -147,12 +155,17 @@ class AuthService {
   /// Sign in with an Apple ID token obtained from the native SDK.
   /// POSTs to /auth/apple/token with the ID token and optionally the
   /// user's full name (Apple only provides the name on the very first sign-in).
+  /// Throws [EmailInUseFailure] when confirmation is required.
   Future<AuthResponse> signInWithAppleToken(
     String idToken, {
     String? fullName,
+    bool confirmLink = false,
   }) async {
     try {
-      final payload = <String, dynamic>{'id_token': idToken};
+      final payload = <String, dynamic>{
+        'id_token': idToken,
+        'confirm_link': confirmLink,
+      };
       if (fullName != null && fullName.isNotEmpty) {
         payload['full_name'] = fullName;
       }
@@ -373,6 +386,9 @@ class AuthService {
     );
   }
 
+  /// Persist [user] as the signed-in account (secure storage).
+  Future<void> persistCurrentUser(User user) => _storeCurrentUser(user);
+
   /// Store current user
   Future<void> _storeCurrentUser(User user) async {
     await _storage.write(
@@ -404,13 +420,34 @@ class AuthService {
         case 400:
           return ValidationFailure(message: message ?? 'Invalid request');
         case 401:
-          return InvalidCredentialsFailure(
-            message: message ?? 'Authentication failed',
-          );
+          final msg = message ?? 'Authentication failed';
+          if (msg.toLowerCase().contains('invalid or expired apple token') ||
+              msg.toLowerCase().contains('expired apple')) {
+            return AppleIdentityTokenExpiredFailure(details: msg);
+          }
+          return InvalidCredentialsFailure(message: msg);
         case 403:
           return const AuthFailure(message: 'Access denied');
         case 404:
           return NotFoundFailure(message: message ?? 'Not found');
+        case 409:
+          if (data is Map && data['code'] == 'email_in_use') {
+            final existing = data['existing_methods'];
+            return EmailInUseFailure(
+              email: data['email'] as String? ?? '',
+              existingMethods: existing is List
+                  ? existing.map((e) => e.toString()).toList()
+                  : const <String>[],
+              attemptingMethod:
+                  data['attempting_method'] as String? ?? '',
+              message: message ??
+                  'This email is already used by another sign-in method',
+            );
+          }
+          return ClientFailure(
+            message: message ?? 'Conflict',
+            statusCode: statusCode,
+          );
         case 429:
           return const RateLimitFailure();
         default:

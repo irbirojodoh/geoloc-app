@@ -10,18 +10,14 @@ import '../providers/auth_provider.dart';
 import '../providers/dm_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../../data/models/sse_event.dart';
-import 'ambient_glow_background.dart';
 import 'native_glass_card.dart';
 import 'new_message_sheet.dart';
 
-const _navVisibilityQueryKey = 'fromNav';
-const _navDirectionQueryKey = 'navDir';
-
 /// Persistent shell with capsule-shaped bottom navigation.
 class AppShell extends ConsumerWidget {
-  const AppShell({super.key, required this.child});
+  const AppShell({super.key, required this.navigationShell});
 
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,25 +49,11 @@ class AppShell extends ConsumerWidget {
       }
     });
 
-    final user = ref.watch(currentUserProvider);
     final unreadCount = ref.watch(unreadCountProvider);
     final dmUnreadCount = ref.watch(dmUnreadCountProvider);
-    final selectedIndex = _calculateSelectedIndex(context);
-    final routerState = GoRouterState.of(context);
-    final location = routerState.uri.path;
-    final isNavTriggered =
-        routerState.uri.queryParameters[_navVisibilityQueryKey] == '1';
-    final isProfileDetailRoute = location.startsWith('/profile/') &&
-        !location.startsWith(RoutePaths.editProfile);
-    final isMessagesInboxRoute = location == RoutePaths.messages;
-    final isMainNavRoute = location.startsWith(RoutePaths.feed) ||
-        location.startsWith(RoutePaths.search) ||
-        location.startsWith(RoutePaths.messages) ||
-        location.startsWith(RoutePaths.notifications) ||
-        isProfileDetailRoute;
-    final isHomeRoute = location.startsWith(RoutePaths.feed);
-    final showNavigationBar = isHomeRoute || (isMainNavRoute && isNavTriggered);
-    final showCreateButton = showNavigationBar && location.startsWith(RoutePaths.feed);
+    final selectedIndex = navigationShell.currentIndex;
+    final showCreateButton = selectedIndex == 0;
+    final isMessagesInboxRoute = selectedIndex == 2;
     final colorScheme = Theme.of(context).colorScheme;
 
     final activeColor = colorScheme.primary;
@@ -111,12 +93,8 @@ class AppShell extends ConsumerWidget {
       extendBody: true,
       body: Stack(
         children: [
-          const Positioned.fill(
-            child: AmbientGlowBackground(),
-          ),
-          child,
-          if (showNavigationBar)
-            Positioned(
+          navigationShell,
+          Positioned(
               left: 0,
               right: 0,
               bottom: 0,
@@ -152,8 +130,7 @@ class AppShell extends ConsumerWidget {
             child: SlideTransition(position: slide, child: child),
           );
         },
-        child: showNavigationBar
-            ? SafeArea(
+        child: SafeArea(
                 key: const ValueKey('nav-visible'),
                 top: false,
                 child: Padding(
@@ -294,8 +271,6 @@ class AppShell extends ConsumerWidget {
                                         onTap: () => _onItemTapped(
                                           i,
                                           currentIndex: selectedIndex,
-                                          context: context,
-                                          userId: user?.id,
                                         ),
                                       ),
                                     ),
@@ -347,15 +322,14 @@ class AppShell extends ConsumerWidget {
                   ),
                 ),
               ),
-            )
-            : const SizedBox(key: ValueKey('nav-hidden')),
+            ),
       ),
     );
 
     return Stack(
       children: [
         scaffold,
-        if (showNavigationBar && isMessagesInboxRoute)
+        if (isMessagesInboxRoute)
           Positioned(
             right: 16,
             bottom: bottomSafeInset +
@@ -369,7 +343,6 @@ class AppShell extends ConsumerWidget {
               label: const Text('New'),
             ),
           ),
-        if (showNavigationBar)
           Positioned.fill(
             child: IgnorePointer(
               child: AnimatedSwitcher(
@@ -403,51 +376,20 @@ class AppShell extends ConsumerWidget {
     );
   }
 
-  int _calculateSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith(RoutePaths.feed)) return 0;
-    if (location.startsWith(RoutePaths.search)) return 1;
-    if (location.startsWith(RoutePaths.messages)) return 2;
-    if (location.startsWith(RoutePaths.notifications)) return 3;
-    if (location.startsWith('/profile')) return 4;
-    return 0;
-  }
-
   void _onItemTapped(
     int index, {
     required int currentIndex,
-    required BuildContext context,
-    required String? userId,
   }) {
-    // Home=0, Search=1, Messages=2, Notifications=3, Profile=4
     final direction = index > currentIndex
         ? 1
         : index < currentIndex
             ? -1
             : 0;
     setShellNavTransitionDirection(direction);
-    final navQuery = '$_navVisibilityQueryKey=1&$_navDirectionQueryKey=$direction';
-    switch (index) {
-      case 0:
-        context.go('${RoutePaths.feed}?$navQuery');
-        break;
-      case 1:
-        context.go('${RoutePaths.search}?$navQuery');
-        break;
-      case 2:
-        context.go('${RoutePaths.messages}?$navQuery');
-        break;
-      case 3:
-        context.go('${RoutePaths.notifications}?$navQuery');
-        break;
-      case 4:
-        if (userId != null && userId.isNotEmpty) {
-          context.go('/profile/$userId?$navQuery');
-        } else {
-          context.go('${RoutePaths.feed}?$navQuery');
-        }
-        break;
-    }
+    navigationShell.goBranch(
+      index,
+      initialLocation: index == currentIndex,
+    );
   }
 }
 

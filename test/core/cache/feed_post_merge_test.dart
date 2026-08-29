@@ -92,5 +92,26 @@ void main() {
       expect(merged.first.mediaUrls.first, contains('sig=1'));
       expect(merged.last.id, 'p2');
     });
+
+    test('takes location_name from the live response, not the cache', () {
+      final existing = Post.fromJson({
+        'id': 'p1',
+        'user_id': 'u1',
+        'content': 'hello',
+        'location_name': 'Jakarta Pusat',
+        'created_at': '2026-06-27T12:00:00Z',
+      });
+      final incoming = Post.fromJson({
+        'id': 'p1',
+        'user_id': 'u1',
+        'content': 'hello',
+        'location_name': 'Jalan Teuku Cik Ditiro, Menteng',
+        'created_at': '2026-06-27T12:00:00Z',
+      });
+
+      final merged = FeedPostMerge.mergePost(incoming, existing);
+
+      expect(merged.locationName, 'Jalan Teuku Cik Ditiro, Menteng');
+    });
   });
 }

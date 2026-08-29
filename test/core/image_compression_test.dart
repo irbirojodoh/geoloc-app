@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geoloc_app/core/utils/photo_exif.dart';
 import 'package:geoloc_app/services/upload_service.dart';
 import 'package:image/image.dart' as img;
 
@@ -110,5 +112,43 @@ void main() {
 
     final resultPath = await compressAndResizeImageIsolate(file.path);
     expect(resultPath, equals(file.path));
+  });
+
+  Uint8List jpegWithGps({required int width, required int height}) {
+    final image = img.Image(width: width, height: height);
+    img.fill(image, color: img.ColorRgb8(255, 0, 0));
+    final jpeg = Uint8List.fromList(img.encodeJpg(image));
+    final exif = img.ExifData();
+    exif.gpsIfd[0x0001] = img.IfdValueAscii('N');
+    exif.gpsIfd[0x0002] = img.IfdValueRational(40785091, 1000000);
+    exif.gpsIfd[0x0003] = img.IfdValueAscii('W');
+    exif.gpsIfd[0x0004] = img.IfdValueRational(73968285, 1000000);
+    return img.injectJpgExif(jpeg, exif)!;
+  }
+
+  test('compression preserves GPS EXIF on a JPEG that is re-encoded', () async {
+    final file = File('${tempDir.path}/gps_small.jpg');
+    file.writeAsBytesSync(jpegWithGps(width: 800, height: 600));
+    expect(PhotoExif.readGpsFromBytes(file.readAsBytesSync()), isNotNull);
+
+    final compressedPath = await compressAndResizeImageIsolate(file.path);
+    final gps = PhotoExif.readGpsFromBytes(File(compressedPath).readAsBytesSync());
+    expect(gps, isNotNull, reason: 're-encode must keep GPS EXIF');
+    expect(gps!.latitude, closeTo(40.785091, 0.00001));
+    expect(gps.longitude, closeTo(-73.968285, 0.00001));
+    if (compressedPath != file.path) File(compressedPath).deleteSync();
+  });
+
+  test('compression preserves GPS EXIF on a JPEG that is resized', () async {
+    final file = File('${tempDir.path}/gps_large.jpg');
+    file.writeAsBytesSync(jpegWithGps(width: 3000, height: 2000));
+
+    final compressedPath = await compressAndResizeImageIsolate(file.path);
+    expect(compressedPath, isNot(equals(file.path)));
+    final gps = PhotoExif.readGpsFromBytes(File(compressedPath).readAsBytesSync());
+    expect(gps, isNotNull, reason: 'resize+re-encode must keep GPS EXIF');
+    expect(gps!.latitude, closeTo(40.785091, 0.00001));
+    expect(gps.longitude, closeTo(-73.968285, 0.00001));
+    File(compressedPath).deleteSync();
   });
 }

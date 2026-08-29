@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../config/app_config.dart';
 import '../core/network/api_client.dart';
 import '../core/network/api_endpoints.dart';
 import '../data/models/post.dart';
@@ -72,7 +73,7 @@ class SearchService {
     String query, {
     required double lat,
     required double lon,
-    double radiusKm = 5,
+    double radiusKm = AppConfig.defaultFeedRadiusKm,
     String type = 'all',
   }) async {
     if (query.trim().isEmpty) return const SearchResponse();
@@ -83,7 +84,7 @@ class SearchService {
         'q': query,
         'lat': lat,
         'lon': lon,
-        'radius_km': radiusKm,
+        'radius_km': AppConfig.clampFeedRadiusKm(radiusKm),
         'type': type,
       },
     );

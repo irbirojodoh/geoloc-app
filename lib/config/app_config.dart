@@ -50,6 +50,10 @@ class AppConfig {
   static const Duration receiveTimeout = Duration(seconds: 30);
   static const Duration sendTimeout = Duration(seconds: 30);
 
+  /// Nearby feed reads many partitions concurrently; p95 is higher than
+  /// other GETs. Do not add client retries — they multiply DB fan-out.
+  static const Duration feedReceiveTimeout = Duration(seconds: 45);
+
   /// JWT Token Configuration
   static const Duration accessTokenDuration = Duration(minutes: 15);
   static const Duration refreshTokenDuration = Duration(days: 7);
@@ -73,9 +77,51 @@ class AppConfig {
   /// Hive box for offline feed cache (stores keys, not presigned URLs)
   static const String feedCacheBox = 'feed_cache';
 
+  /// Hive box for one-time local schema migrations (not user data).
+  static const String appMetaBox = 'app_meta';
+
+  /// Candidate Hive boxes that may have stored geohash_prefix as a durable
+  /// key before location cells moved from 5 to 6 characters. Purged once.
+  static const List<String> followedLocationCacheBoxes = [
+    'followed_locations',
+    'location_follows',
+    'followedLocations',
+    'locations_following',
+  ];
+
   /// Location Configuration
+  ///
+  /// Server clamps `GET /api/v1/feed?radius_km=` at 15 km (silent). The
+  /// picker and request must not advertise a larger radius.
+  static const double minFeedRadiusKm = 1.0;
+  static const double maxFeedRadiusKm = 15.0;
   static const double defaultFeedRadiusKm = 5.0;
-  static const int geohashPrecision = 5; // ~5km precision
+  static const List<double> feedRadiusOptionsKm = [1.0, 2.0, 5.0, 10.0, 15.0];
+
+  /// Followed-location cells are 6-char geohashes (~1.2 km × 0.6 km).
+  /// Never persist or client-compute these prefixes; use the server list.
+  static const int locationFollowGeohashPrecision = 6;
+
+  /// Post `geohash` remains 7 characters (~150 m). Do not send or persist
+  /// a client-computed follow prefix derived from this field.
+  static const int postGeohashPrecision = 7;
+
+  /// Clamp a feed/search radius to the server-enforced range.
+  static double clampFeedRadiusKm(double radiusKm) {
+    if (radiusKm.isNaN || radiusKm.isInfinite || radiusKm <= 0) {
+      return defaultFeedRadiusKm;
+    }
+    return radiusKm.clamp(minFeedRadiusKm, maxFeedRadiusKm);
+  }
+
+  /// Display string for the radius the request will actually use.
+  static String formatFeedRadiusKm(double radiusKm) {
+    final clamped = clampFeedRadiusKm(radiusKm);
+    if (clamped == clamped.roundToDouble()) {
+      return '${clamped.round()} km';
+    }
+    return '${clamped.toStringAsFixed(1)} km';
+  }
 
   /// Pagination
   static const int defaultPageSize = 20;

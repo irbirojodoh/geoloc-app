@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../config/app_config.dart';
 import '../../../config/routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../data/models/post.dart';
 import '../../helpers/open_post_detail.dart';
 import '../../providers/feed_provider.dart';
 import '../../providers/location_provider.dart';
+import '../../widgets/feed_radius_picker.dart';
 import '../../widgets/loading_shimmer.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/post_overflow_menu_button.dart';
@@ -53,12 +55,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
 
     if (!ref.read(locationStateProvider).hasLocation) return;
 
-    final feedNotifier = ref.read(feedStateProvider.notifier);
-    if (ref.read(feedStateProvider).hasCachedContent) {
-      await feedNotifier.refreshIfStale();
-      return;
-    }
-    await feedNotifier.loadFeed();
+    // Already in memory from a previous visit — do not refetch on tab switch.
+    if (ref.read(feedStateProvider).hasCachedContent) return;
+
+    await ref.read(feedStateProvider.notifier).loadFeed();
   }
 
   void _onScroll() {
@@ -102,7 +102,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
       );
     }
 
-    if (feedState.isLoading && feedState.posts.isEmpty) {
+    final resolvingLocation = locationState.isLoading ||
+        (locationState.hasPermission &&
+            !locationState.hasLocation &&
+            locationState.error == null);
+    final showFeedPlaceholder = feedState.posts.isEmpty &&
+        feedState.error == null &&
+        (resolvingLocation ||
+            feedState.isLoading ||
+            feedState.lastFetchedAt == null && locationState.hasLocation);
+
+    if (showFeedPlaceholder) {
       return const Scaffold(body: FeedShimmer());
     }
 
@@ -116,11 +126,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     }
 
     if (feedState.posts.isEmpty) {
+      final radiusLabel = AppConfig.formatFeedRadiusKm(feedState.radiusKm);
       return Scaffold(
         body: EmptyState(
           icon: Icons.explore_outlined,
           title: 'No posts nearby',
-          message: 'Be the first to post in your area.',
+          message:
+              'No posts within $radiusLabel. Be the first to post in your area.',
           actionLabel: 'Post',
           onAction: () {
             // Home(0) -> Create post(5): slide from right.
@@ -174,7 +186,26 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
                       color: colorScheme.onSurface,
                     ),
                   ),
-                  actions: const [],
+                  actions: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: TextButton(
+                        onPressed: () async {
+                          final picked = await showFeedRadiusPicker(
+                            context: context,
+                            selectedKm: feedState.radiusKm,
+                          );
+                          if (picked == null || !context.mounted) return;
+                          await ref
+                              .read(feedStateProvider.notifier)
+                              .setRadius(picked);
+                        },
+                        child: Text(
+                          AppConfig.formatFeedRadiusKm(feedState.radiusKm),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 if (feedState.isFromCache)
                   SliverToBoxAdapter(

@@ -13,8 +13,13 @@ import UIKit
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
-    let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "SwiftUIGlassPlugin")!
-    let factory = SwiftUIGlassFactory(messenger: registrar.messenger())
-    registrar.register(factory, withId: "com.example.native_liquid_glass")
+    let glassRegistrar = engineBridge.pluginRegistry.registrar(forPlugin: "SwiftUIGlassPlugin")!
+    let glassFactory = SwiftUIGlassFactory(messenger: glassRegistrar.messenger())
+    glassRegistrar.register(glassFactory, withId: "com.example.native_liquid_glass")
+
+    let appleRegistrar =
+      engineBridge.pluginRegistry.registrar(forPlugin: "AppleSignInButtonPlugin")!
+    let appleFactory = AppleSignInButtonFactory(messenger: appleRegistrar.messenger())
+    appleRegistrar.register(appleFactory, withId: "com.irphotoarts.geoloc.apple_id_button")
   }
 }

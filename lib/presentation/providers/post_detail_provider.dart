@@ -4,6 +4,7 @@ import '../../config/app_config.dart';
 import '../../core/cache/feed_post_merge.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/utils/username_rewrite.dart';
 import '../../data/models/post.dart';
 import '../../data/models/comment.dart';
 import '../../data/models/user.dart';
@@ -157,6 +158,9 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
 
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
+        AppLogger.debug(
+          '📍 [GET /posts/:id] envelopeKeys=${data.keys.toList()}',
+        );
 
         final postJson = data['post'] as Map<String, dynamic>;
         final userJson = data['user'] as Map<String, dynamic>;
@@ -567,6 +571,19 @@ class PostDetailNotifier extends StateNotifier<PostDetailState> {
   void removeCommentsByAuthor(String userId) {
     state = state.copyWith(
       comments: _filterCommentsWithoutUser(state.comments, userId),
+    );
+  }
+
+  /// Rewrite post + comment author handles after a username change.
+  void rewriteAuthorUsername(String userId, String newUsername) {
+    final post = state.post;
+    state = state.copyWith(
+      post: post == null
+          ? null
+          : rewritePostAuthorUsername(post, userId, newUsername),
+      comments: state.comments
+          .map((c) => rewriteCommentAuthorUsername(c, userId, newUsername))
+          .toList(),
     );
   }
 }

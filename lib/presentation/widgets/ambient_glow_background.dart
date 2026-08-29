@@ -1,26 +1,37 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-/// Deep midnight base for dark mode ambient glow.
-const Color _kMidnightBase = Color(0xFF0A0F1C);
-
-/// Soft slate base for light mode.
-const Color _kLightSlateBase = Color(0xFFF0F2FA);
-
-/// Premium animated ambient background — drifting radial light sources.
+/// Animated ambient backdrop — a top-down water surface. Crossing families of
+/// ripples weave a caustic net of light over the app's own surface color, the
+/// way sunlight pools on the bottom of a pool.
 ///
-/// Layer order (bottom → top):
-/// 1. Solid slate / midnight base
-/// 2. Purple-indigo glow (slow Lissajous path)
-/// 3. Teal-blue glow (independent async path)
-/// 4. Optional [child] wrapped in [SafeArea]
+/// Each ripple crest is warped by a slow spatial field, so the straight wave
+/// fronts bend into an organic, interlocking mesh. Brightness along a crest is
+/// deliberately patchy, so most of the screen keeps reading as the plain app
+/// background instead of a full-screen wash.
 ///
-/// Use without [child] when the UI lives in a sibling [Stack] layer (e.g. [AppShell]).
+/// Dark mode composites with [BlendMode.screen] (crests read as light on the
+/// water); light mode uses [BlendMode.multiply] with pastel tints (crests read
+/// as colored ripples rather than grey haze).
+///
+/// Every oscillator uses an **integer** multiple of the controller phase and
+/// crest travel is padded past the canvas edge, so the loop is seamless — no
+/// snap or pop when the controller wraps.
+///
+/// Use without [child] when the UI lives in a sibling [Stack] layer (e.g.
+/// [AppShell]).
 class AmbientGlowBackground extends StatefulWidget {
-  const AmbientGlowBackground({super.key, this.child});
+  const AmbientGlowBackground({super.key, this.child, this.seed});
 
   final Widget? child;
+
+  /// Fixes the random layout — supply in tests/goldens for a stable frame.
+  final int? seed;
+
+  /// One full pass of the slowest oscillator.
+  static const period = Duration(seconds: 90);
 
   @override
   State<AmbientGlowBackground> createState() => _AmbientGlowBackgroundState();
@@ -28,211 +39,352 @@ class AmbientGlowBackground extends StatefulWidget {
 
 class _AmbientGlowBackgroundState extends State<AmbientGlowBackground>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  late final AnimationController _driftController;
+  late final AnimationController _drift;
+  late final List<_Ripples> _families;
+  bool _appActive = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _driftController = AnimationController(
+    _families = _buildFamilies(math.Random(widget.seed));
+    _drift = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 56),
-    )..repeat();
+      duration: AmbientGlowBackground.period,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncTicker();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    switch (state) {
-      case AppLifecycleState.resumed:
-        if (!_driftController.isAnimating) _driftController.repeat();
-      case AppLifecycleState.inactive:
-      case AppLifecycleState.paused:
-      case AppLifecycleState.hidden:
-      case AppLifecycleState.detached:
-        _driftController.stop();
+    _appActive = state == AppLifecycleState.resumed;
+    _syncTicker();
+  }
+
+  /// Animate only while foregrounded and motion is allowed.
+  void _syncTicker() {
+    if (!mounted) return;
+    final allowed = _appActive && !MediaQuery.disableAnimationsOf(context);
+    if (allowed && !_drift.isAnimating) {
+      _drift.repeat();
+    } else if (!allowed && _drift.isAnimating) {
+      _drift.stop();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _driftController.dispose();
+    _drift.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
 
     return ClipRect(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
-
-          return AnimatedBuilder(
-            animation: _driftController,
-            builder: (context, _) {
-              final t = _driftController.value * math.pi * 2;
-              final purple = _purpleOrbLayout(width, height, t);
-              final teal = _tealOrbLayout(width, height, t);
-
-              return Stack(
-                clipBehavior: Clip.hardEdge,
-                fit: StackFit.expand,
-                children: [
-                  ColoredBox(
-                    color: isDark ? _kMidnightBase : _kLightSlateBase,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _drift,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: _AmbientPainter(
+                    phase: _drift.value * 2 * math.pi,
+                    isDark: isDark,
+                    base: colorScheme.surface,
+                    families: _families,
                   ),
-                  RepaintBoundary(
-                    child: Stack(
-                      clipBehavior: Clip.hardEdge,
-                      children: [
-                        Positioned(
-                          left: purple.left,
-                          top: purple.top,
-                          child: _GlowOrb(
-                            size: purple.size,
-                            gradient: _purpleGradient(isDark, t),
-                          ),
-                        ),
-                        Positioned(
-                          left: teal.left,
-                          top: teal.top,
-                          child: _GlowOrb(
-                            size: teal.size,
-                            gradient: _tealGradient(isDark, t),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (widget.child != null) SafeArea(child: widget.child!),
-                ],
-              );
-            },
-          );
-        },
+                  isComplex: true,
+                  willChange: _drift.isAnimating,
+                );
+              },
+            ),
+          ),
+          if (widget.child != null) SafeArea(child: widget.child!),
+        ],
       ),
     );
   }
-
-  /// Large purple orb — drifts from the upper-left quadrant.
-  _OrbLayout _purpleOrbLayout(double width, double height, double t) {
-    final size = width * (1.12 + 0.04 * math.sin(t * 0.11));
-
-    final baseLeft = -width * 0.30;
-    final baseTop = -height * 0.24;
-
-    // Incommensurate frequencies → fluid, non-rigid motion within each cycle.
-    final dx =
-        math.sin(t * 0.31) * width * 0.11 +
-        math.cos(t * 0.17 + 0.6) * width * 0.07 +
-        math.sin(t * 0.09 + 1.1) * width * 0.04;
-    final dy =
-        math.cos(t * 0.23 + 0.4) * height * 0.09 +
-        math.sin(t * 0.13) * height * 0.06 +
-        math.cos(t * 0.07 + 2.0) * height * 0.03;
-
-    return _OrbLayout(
-      left: baseLeft + dx,
-      top: baseTop + dy,
-      size: size,
-    );
-  }
-
-  /// Teal orb — independent path through the middle / right side.
-  _OrbLayout _tealOrbLayout(double width, double height, double t) {
-    final size = width * (0.92 + 0.03 * math.cos(t * 0.14 + 0.8));
-
-    final baseLeft = width * 0.38;
-    final baseTop = height * 0.12;
-
-    final dx =
-        math.cos(t * 0.19 + 1.2) * width * 0.13 +
-        math.sin(t * 0.27 + 0.3) * width * 0.08 +
-        math.cos(t * 0.11 + 2.4) * width * 0.05;
-    final dy =
-        math.sin(t * 0.21 + 0.9) * height * 0.11 +
-        math.cos(t * 0.15 + 1.7) * height * 0.07 +
-        math.sin(t * 0.08) * height * 0.04;
-
-    return _OrbLayout(
-      left: baseLeft + dx,
-      top: baseTop + dy,
-      size: size,
-    );
-  }
-
-  RadialGradient _purpleGradient(bool isDark, double t) {
-    final breathe = 1 + 0.06 * math.sin(t * 0.25);
-    final centerAlpha = (isDark ? 0.20 : 0.10) * breathe;
-    final midAlpha = (isDark ? 0.05 : 0.03) * breathe;
-
-    return RadialGradient(
-      center: Alignment.center,
-      radius: 0.72,
-      colors: [
-        const Color(0xFF9333EA).withValues(alpha: centerAlpha.clamp(0.0, 0.24)),
-        const Color(0xFF312E81).withValues(alpha: midAlpha.clamp(0.0, 0.08)),
-        Colors.transparent,
-      ],
-      stops: const [0.0, 0.48, 1.0],
-    );
-  }
-
-  RadialGradient _tealGradient(bool isDark, double t) {
-    final breathe = 1 + 0.05 * math.cos(t * 0.22 + 0.5);
-    final centerAlpha = (isDark ? 0.15 : 0.08) * breathe;
-    final midAlpha = centerAlpha * 0.45;
-
-    return RadialGradient(
-      center: Alignment.center,
-      radius: 0.68,
-      colors: [
-        const Color(0xFF14B8A6).withValues(alpha: centerAlpha.clamp(0.0, 0.18)),
-        const Color(0xFF2563EB).withValues(alpha: midAlpha.clamp(0.0, 0.10)),
-        Colors.transparent,
-      ],
-      stops: const [0.0, 0.42, 1.0],
-    );
-  }
 }
 
-class _OrbLayout {
-  const _OrbLayout({
-    required this.left,
-    required this.top,
-    required this.size,
+/// One family of parallel ripples travelling in a single direction. Two or
+/// three of these crossing each other is what produces the caustic mesh.
+class _Ripples {
+  const _Ripples({
+    required this.dark,
+    required this.light,
+    required this.angle,
+    required this.wavelength,
+    required this.speed,
+    required this.warp,
+    required this.warpCounts,
+    required this.harmonics,
+    required this.phase,
+    required this.darkAlpha,
+    required this.lightAlpha,
   });
 
-  final double left;
-  final double top;
-  final double size;
+  /// Emissive hue for dark mode (screen blend).
+  final Color dark;
+
+  /// Pastel tint for light mode (multiply blend).
+  final Color light;
+
+  /// Direction the crests travel, in radians.
+  final double angle;
+
+  /// Crest spacing as a fraction of the shortest side.
+  final double wavelength;
+
+  /// Wavelengths travelled per loop — integer keeps the loop seamless.
+  final int speed;
+
+  /// How far crests bend, as a fraction of [wavelength].
+  final double warp;
+
+  /// Spatial frequency of the warp field, in cycles across the canvas.
+  final (int, int) warpCounts;
+
+  /// Integer oscillator speeds — keeps the loop seamless.
+  final (int, int) harmonics;
+
+  final double phase;
+  final double darkAlpha;
+  final double lightAlpha;
 }
 
-class _GlowOrb extends StatelessWidget {
-  const _GlowOrb({
-    required this.size,
-    required this.gradient,
+/// Cool indigo → teal core with a warm gold accent that ties into the brand.
+const _palette = <(Color, Color)>[
+  (Color(0xFF7C4DFF), Color(0xFFCBB8FF)),
+  (Color(0xFF06B6D4), Color(0xFF9FE3F2)),
+  (Color(0xFF2563EB), Color(0xFFB6D2FF)),
+  (Color(0xFFC9A84C), Color(0xFFFFE0A8)),
+  (Color(0xFFDB2777), Color(0xFFFFC2D8)),
+];
+
+const _harmonics = <(int, int)>[(1, 2), (1, 3), (2, 3), (2, 5), (3, 5), (1, 5)];
+
+/// Segments used to trace each crest — enough for a smooth curve on phones.
+const _segments = 36;
+
+/// Sample points of the brightness envelope along a crest.
+const _envelopeStops = <double>[0.0, 0.25, 0.5, 0.75, 1.0];
+
+List<_Ripples> _buildFamilies(math.Random random) {
+  double between(double min, double max) =>
+      min + random.nextDouble() * (max - min);
+
+  final hues = [..._palette]..shuffle(random);
+  final count = 2 + random.nextInt(2);
+  // Spread the families apart in angle so they genuinely cross instead of
+  // running nearly parallel.
+  final lead = random.nextDouble() * math.pi;
+
+  return List<_Ripples>.generate(count, (i) {
+    final (dark, light) = hues[i % hues.length];
+
+    return _Ripples(
+      dark: dark,
+      light: light,
+      angle: lead + i * (math.pi / count) + between(-0.20, 0.20),
+      wavelength: between(0.26, 0.42),
+      speed: 1 + random.nextInt(2),
+      warp: between(0.30, 0.60),
+      warpCounts: (1 + random.nextInt(2), 2 + random.nextInt(2)),
+      harmonics: _harmonics[random.nextInt(_harmonics.length)],
+      phase: random.nextDouble() * 2 * math.pi,
+      darkAlpha: between(0.26, 0.38),
+      lightAlpha: between(0.18, 0.28),
+    );
+  });
+}
+
+class _AmbientPainter extends CustomPainter {
+  const _AmbientPainter({
+    required this.phase,
+    required this.isDark,
+    required this.base,
+    required this.families,
   });
 
-  final double size;
-  final Gradient gradient;
+  final double phase;
+  final bool isDark;
+  final Color base;
+  final List<_Ripples> families;
 
   @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: gradient,
-          ),
-        ),
-      ),
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = base);
+
+    final blend = isDark ? BlendMode.screen : BlendMode.multiply;
+    final center = size.center(Offset.zero);
+
+    for (final family in families) {
+      final wavelength = size.shortestSide * family.wavelength;
+      final travel = family.direction;
+      final along = Offset(-travel.dy, travel.dx);
+
+      // Half-extent of the canvas measured along the travel direction, so the
+      // crest indices always cover the whole surface.
+      final depth =
+          (size.width * travel.dx).abs() / 2 +
+          (size.height * travel.dy).abs() / 2;
+      // Pad past the edge by the full distance travelled in one loop, so no
+      // crest pops into view when the controller wraps.
+      final crests = (depth / wavelength).ceil() + family.speed + 1;
+      final shift = family.speed * wavelength * phase / (2 * math.pi);
+      final reach = size.longestSide;
+
+      final color = isDark ? family.dark : family.light;
+      final peak = isDark ? family.darkAlpha : family.lightAlpha;
+
+      for (var n = -crests; n <= crests; n++) {
+        final offset = n * wavelength + shift;
+        final crest = _crest(
+          family,
+          anchor: center + travel * offset,
+          along: along,
+          reach: reach,
+          wavelength: wavelength,
+        );
+        final envelope = _envelope(family, n);
+
+        final start = crest.first;
+        final end = crest.last;
+
+        // Wide soft pass reads as the glow under the surface, the hairline on
+        // top as the lit crest itself.
+        canvas.drawPath(
+          crest.path,
+          Paint()
+            ..blendMode = blend
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round
+            ..strokeWidth = wavelength * 0.34
+            ..shader = _shader(start, end, color, envelope, peak * 0.42),
+        );
+        canvas.drawPath(
+          crest.path,
+          Paint()
+            ..blendMode = blend
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round
+            ..strokeWidth = 1.4
+            ..shader = _shader(start, end, color, envelope, peak),
+        );
+      }
+    }
+  }
+
+  /// Traces one crest across the canvas, bending it with the warp field so the
+  /// wave fronts interlock instead of staying ruler-straight.
+  _Crest _crest(
+    _Ripples family, {
+    required Offset anchor,
+    required Offset along,
+    required double reach,
+    required double wavelength,
+  }) {
+    final (fast, slow) = family.harmonics;
+    final (nearCount, farCount) = family.warpCounts;
+    final travel = family.direction;
+    final amplitude = wavelength * family.warp;
+    final path = Path();
+    late Offset first;
+    late Offset last;
+
+    for (var i = 0; i <= _segments; i++) {
+      final t = (i / _segments - 0.5) * 2 * reach;
+      final straight = anchor + along * t;
+      // Two counter-travelling components, so the bend reshapes over time
+      // rather than sliding along rigidly.
+      final bend =
+          math.sin(nearCount * t / reach * math.pi + fast * phase + family.phase) *
+              0.62 +
+          math.sin(
+                farCount * t / reach * math.pi -
+                    slow * phase +
+                    family.phase * 1.9,
+              ) *
+              0.38;
+      final point = straight + travel * (amplitude * bend);
+
+      if (i == 0) {
+        first = point;
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+      last = point;
+    }
+
+    return _Crest(path: path, first: first, last: last);
+  }
+
+  /// Brightness along a crest. Biased dark so light gathers in a few bright
+  /// patches and the surface color shows through everywhere else.
+  List<double> _envelope(_Ripples family, int n) {
+    final (fast, slow) = family.harmonics;
+
+    return List<double>.generate(_envelopeStops.length, (i) {
+      final a =
+          math.sin(family.phase + n * 0.8 + i * 1.9 + slow * phase) * 0.5 + 0.5;
+      final b =
+          math.sin(family.phase * 1.7 + n * 1.6 + i * 1.1 - fast * phase) *
+              0.5 +
+          0.5;
+      return math.pow(a * 0.65 + b * 0.35, 1.9).toDouble();
+    });
+  }
+
+  ui.Shader _shader(
+    Offset from,
+    Offset to,
+    Color color,
+    List<double> envelope,
+    double scale,
+  ) {
+    return ui.Gradient.linear(
+      from,
+      to,
+      [
+        for (final level in envelope)
+          color.withValues(alpha: (level * scale).clamp(0.0, 1.0)),
+      ],
+      _envelopeStops,
     );
   }
+
+  @override
+  bool shouldRepaint(_AmbientPainter oldDelegate) =>
+      oldDelegate.phase != phase ||
+      oldDelegate.isDark != isDark ||
+      oldDelegate.base != base ||
+      !identical(oldDelegate.families, families);
+}
+
+/// A traced crest plus its endpoints, which the brightness gradient spans.
+class _Crest {
+  const _Crest({required this.path, required this.first, required this.last});
+
+  final Path path;
+  final Offset first;
+  final Offset last;
+}
+
+extension on _Ripples {
+  /// Unit vector the crests travel along.
+  Offset get direction => Offset(math.cos(angle), math.sin(angle));
 }

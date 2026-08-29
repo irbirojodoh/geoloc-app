@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/app_config.dart';
 import '../../../core/cache/feed_post_merge.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../core/utils/username_rewrite.dart';
 import '../../../data/models/post.dart';
 import '../../../services/feed_cache_service.dart';
 import '../../../services/media_service.dart';
@@ -251,9 +255,10 @@ class FeedNotifier extends StateNotifier<FeedState> {
     }
   }
 
-  /// Change feed radius
+  /// Change feed radius. Values above the server cap (15 km) are clamped
+  /// so the UI never promises coverage the API will silently drop.
   Future<void> setRadius(double radiusKm) async {
-    state = state.copyWith(radiusKm: radiusKm);
+    state = state.copyWith(radiusKm: AppConfig.clampFeedRadiusKm(radiusKm));
     await refreshFeed();
   }
 
@@ -267,6 +272,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
         posts: hydrated,
         hasMore: cached.hasMore,
         cursor: cached.cursor,
+        radiusKm: AppConfig.clampFeedRadiusKm(cached.radiusKm),
         isFromCache: true,
       );
     } catch (_) {
@@ -286,7 +292,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
         posts: posts,
         latitude: latitude,
         longitude: longitude,
-        radiusKm: state.radiusKm,
+        radiusKm: AppConfig.clampFeedRadiusKm(state.radiusKm),
         cursor: cursor,
         hasMore: hasMore,
       );
@@ -312,6 +318,7 @@ class FeedNotifier extends StateNotifier<FeedState> {
           isRefreshing: false,
           hasMore: cached.hasMore,
           cursor: cached.cursor,
+          radiusKm: AppConfig.clampFeedRadiusKm(cached.radiusKm),
           clearError: true,
           isFromCache: true,
         );
@@ -335,19 +342,33 @@ class FeedNotifier extends StateNotifier<FeedState> {
     required double longitude,
     String? cursor,
   }) async {
+    final radiusKm = AppConfig.clampFeedRadiusKm(state.radiusKm);
+    if (radiusKm != state.radiusKm) {
+      state = state.copyWith(radiusKm: radiusKm);
+    }
+
     final response = await _apiClient.get(
       ApiEndpoints.feed,
       queryParameters: {
         'latitude': latitude,
         'longitude': longitude,
-        'radius_km': state.radiusKm,
+        'radius_km': radiusKm,
         'limit': AppConfig.defaultPageSize,
         if (cursor != null) 'cursor': cursor,
       },
+      options: Options(
+        receiveTimeout: AppConfig.feedReceiveTimeout,
+        sendTimeout: AppConfig.feedReceiveTimeout,
+      ),
     );
 
     if (response.statusCode == 200) {
       final data = response.data as Map<String, dynamic>;
+      AppLogger.debug(
+        '📍 [GET /feed] envelopeKeys=${data.keys.toList()} '
+        'dataLen=${(data['data'] as List?)?.length} '
+        'postsLen=${(data['posts'] as List?)?.length}',
+      );
       final postsJson =
           data['data'] as List<dynamic>? ??
           data['posts'] as List<dynamic>? ??
@@ -476,6 +497,35 @@ class FeedNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(
       posts: state.posts.where((p) => p.userId != userId).toList(),
     );
+  }
+
+  /// Rewrite author handles after the signed-in user changes their username.
+  void rewriteAuthorUsername(String userId, String newUsername) {
+    final updatedPosts = state.posts
+        .map((p) => rewritePostAuthorUsername(p, userId, newUsername))
+        .toList();
+    state = state.copyWith(posts: updatedPosts);
+    unawaited(_persistRewrittenAuthors(userId, newUsername));
+  }
+
+  Future<void> _persistRewrittenAuthors(
+    String userId,
+    String newUsername,
+  ) async {
+    try {
+      final cached = await _feedCache.loadFeed();
+      if (cached == null) return;
+      await _feedCache.saveFeed(
+        posts: cached.posts
+            .map((p) => rewritePostAuthorUsername(p, userId, newUsername))
+            .toList(),
+        latitude: cached.latitude,
+        longitude: cached.longitude,
+        radiusKm: cached.radiusKm,
+        cursor: cached.cursor,
+        hasMore: cached.hasMore,
+      );
+    } catch (_) {}
   }
 
   /// Get error message from exception

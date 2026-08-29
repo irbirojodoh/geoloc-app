@@ -40,6 +40,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
       setState(() => _filterQuery = _filterController.text.trim().toLowerCase());
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final inbox = ref.read(dmInboxProvider);
+      if (inbox.conversations.isNotEmpty || inbox.isLoading) return;
       ref.read(dmInboxProvider.notifier).loadInbox();
     });
   }

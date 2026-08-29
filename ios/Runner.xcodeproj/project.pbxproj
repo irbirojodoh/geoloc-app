@@ -14,9 +14,11 @@
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		B7E3A1012F4A4C8A9D01E001 /* SwiftUIGlassView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E3A1012F4A4C8A9D01E002 /* SwiftUIGlassView.swift */; };
 		B7E3A1012F4A4C8A9D01E003 /* GlassViewFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E3A1012F4A4C8A9D01E004 /* GlassViewFactory.swift */; };
+		B7E3A1012F4A4C8A9D01E011 /* AppleSignInButtonFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E3A1012F4A4C8A9D01E012 /* AppleSignInButtonFactory.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
+		A1B2C3D42F37000100ICON01 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F37000100ICON02 /* AppIcon.icon */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		AF521952731EE42A24560F70 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 810D7333D88B9B2A7A68CC27 /* GoogleService-Info.plist */; };
 		B9125F6A45AA084BE6031A20 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A6A6192D650A7209DF43FD90 /* Pods_RunnerTests.framework */; };
@@ -59,6 +61,7 @@
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		B7E3A1012F4A4C8A9D01E002 /* SwiftUIGlassView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftUIGlassView.swift; sourceTree = "<group>"; };
 		B7E3A1012F4A4C8A9D01E004 /* GlassViewFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassViewFactory.swift; sourceTree = "<group>"; };
+		B7E3A1012F4A4C8A9D01E012 /* AppleSignInButtonFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInButtonFactory.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		810D7333D88B9B2A7A68CC27 /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Runner/GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -69,6 +72,7 @@
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		97C146FB1CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A1B2C3D42F37000100ICON02 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A6A6192D650A7209DF43FD90 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -146,6 +150,7 @@
 			children = (
 				84FFC0623001E34B00770033 /* Runner.entitlements */,
 				97C146FA1CF9000F007C117D /* Main.storyboard */,
+				A1B2C3D42F37000100ICON02 /* AppIcon.icon */,
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
 				97C147021CF9000F007C117D /* Info.plist */,
@@ -155,6 +160,7 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				B7E3A1012F4A4C8A9D01E002 /* SwiftUIGlassView.swift */,
 				B7E3A1012F4A4C8A9D01E004 /* GlassViewFactory.swift */,
+				B7E3A1012F4A4C8A9D01E012 /* AppleSignInButtonFactory.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -285,6 +291,7 @@
 			files = (
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
+				A1B2C3D42F37000100ICON01 /* AppIcon.icon in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				AF521952731EE42A24560F70 /* GoogleService-Info.plist in Resources */,
@@ -404,6 +411,7 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				B7E3A1012F4A4C8A9D01E001 /* SwiftUIGlassView.swift in Sources */,
 				B7E3A1012F4A4C8A9D01E003 /* GlassViewFactory.swift in Sources */,
+				B7E3A1012F4A4C8A9D01E011 /* AppleSignInButtonFactory.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 			);

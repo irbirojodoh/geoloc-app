@@ -2,8 +2,11 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/logging/app_logger.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_endpoints.dart';
+import '../../core/utils/photo_exif.dart';
+import '../../data/models/post.dart';
 import '../../services/upload_service.dart';
 import 'location_provider.dart';
 
@@ -21,6 +24,7 @@ class CreatePostState {
   final bool isLoadingAddress;
   final int? uploadingMediaIndex;
   final double uploadProgress;
+  final bool locationVerified;
 
   const CreatePostState({
     this.content = '',
@@ -32,6 +36,7 @@ class CreatePostState {
     this.isLoadingAddress = false,
     this.uploadingMediaIndex,
     this.uploadProgress = 0,
+    this.locationVerified = false,
   });
 
   CreatePostState copyWith({
@@ -44,6 +49,7 @@ class CreatePostState {
     bool? isLoadingAddress,
     int? uploadingMediaIndex,
     double? uploadProgress,
+    bool? locationVerified,
     bool clearUploadProgress = false,
   }) {
     return CreatePostState(
@@ -60,6 +66,7 @@ class CreatePostState {
       uploadProgress: clearUploadProgress
           ? 0
           : (uploadProgress ?? this.uploadProgress),
+      locationVerified: locationVerified ?? this.locationVerified,
     );
   }
 
@@ -74,7 +81,13 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
   final ImagePicker _imagePicker = ImagePicker();
 
   CreatePostNotifier(this._apiClient, this._uploadService, this._ref)
-    : super(const CreatePostState());
+    : super(const CreatePostState()) {
+    _ref.listen<LocationState>(locationStateProvider, (prev, next) {
+      if (next.hasLocation && state.mediaFiles.isNotEmpty) {
+        _refreshLocationVerified();
+      }
+    });
+  }
 
   /// Update post content
   void setContent(String content) {
@@ -133,7 +146,9 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
 
   String? _validatePickedFile(File file) {
     try {
-      _uploadService.validateImageFile(file);
+      // Size is checked after compression at upload so GPS EXIF can be read
+      // from the original file.
+      _uploadService.validateImageFile(file, checkSize: false);
       return null;
     } on UploadException catch (e) {
       return e.message;
@@ -151,10 +166,9 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
     }
 
     try {
+      // Pick originals so GPS EXIF is preserved long enough to verify location.
       final images = await _imagePicker.pickMultiImage(
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
+        requestFullMetadata: true,
       );
 
       if (images.isEmpty) return;
@@ -187,6 +201,7 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
                 ? 'Only $kCreatePostMaxMediaCount images are allowed'
                 : null),
       );
+      await _refreshLocationVerified();
     } catch (e) {
       state = state.copyWith(error: 'Failed to pick images');
     }
@@ -204,9 +219,7 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
     try {
       final image = await _imagePicker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
+        requestFullMetadata: true,
       );
 
       if (image != null) {
@@ -221,6 +234,7 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
           mediaFiles: [...state.mediaFiles, file],
           error: null,
         );
+        await _refreshLocationVerified();
       }
     } catch (e) {
       state = state.copyWith(error: 'Failed to capture image');
@@ -233,7 +247,38 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
       final newFiles = List<File>.from(state.mediaFiles);
       newFiles.removeAt(index);
       state = state.copyWith(mediaFiles: newFiles);
+      _refreshLocationVerified();
     }
+  }
+
+  Future<void> _refreshLocationVerified() async {
+    final locationState = _ref.read(locationStateProvider);
+    if (state.mediaFiles.isEmpty || !locationState.hasLocation) {
+      if (state.locationVerified) {
+        state = state.copyWith(locationVerified: false);
+      }
+      return;
+    }
+
+    final verified = await PhotoExif.filesMatchCurrentLocation(
+      files: state.mediaFiles,
+      currentLat: locationState.latitude!,
+      currentLng: locationState.longitude!,
+    );
+    AppLogger.debug(
+      '📍 [EXIF] files=${state.mediaFiles.length} '
+      'current=(${locationState.latitude}, ${locationState.longitude}) '
+      'verified=$verified',
+    );
+    for (final file in state.mediaFiles) {
+      final gps = await PhotoExif.readGpsFromFile(file);
+      AppLogger.debug(
+        '📍 [EXIF] file=${file.path} gps='
+        '${gps == null ? 'none' : '(${gps.latitude}, ${gps.longitude})'}',
+      );
+    }
+    if (!mounted) return;
+    state = state.copyWith(locationVerified: verified);
   }
 
   /// Submit post
@@ -259,6 +304,21 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
     );
 
     try {
+      final locationVerified = state.mediaFiles.isEmpty
+          ? false
+          : await PhotoExif.filesMatchCurrentLocation(
+              files: state.mediaFiles,
+              currentLat: locationState.latitude!,
+              currentLng: locationState.longitude!,
+            );
+      AppLogger.debug(
+        '📍 [POST /posts] computed location_verified=$locationVerified '
+        'mediaCount=${state.mediaFiles.length}',
+      );
+      if (locationVerified != state.locationVerified) {
+        state = state.copyWith(locationVerified: locationVerified);
+      }
+
       final mediaKeys = <String>[];
 
       for (var i = 0; i < state.mediaFiles.length; i++) {
@@ -281,15 +341,30 @@ class CreatePostNotifier extends StateNotifier<CreatePostState> {
 
       state = state.copyWith(clearUploadProgress: true);
 
+      final payload = {
+        'content': state.content.trim(),
+        'latitude': locationState.latitude,
+        'longitude': locationState.longitude,
+        'location_verified': locationVerified,
+        if (mediaKeys.isNotEmpty) 'media_keys': mediaKeys,
+      };
+      AppLogger.debug('📍 [POST /posts] request=$payload');
+
       final response = await _apiClient.post(
         ApiEndpoints.createPost,
-        data: {
-          'content': state.content.trim(),
-          'latitude': locationState.latitude,
-          'longitude': locationState.longitude,
-          if (mediaKeys.isNotEmpty) 'media_keys': mediaKeys,
-        },
+        data: payload,
       );
+
+      AppLogger.debug(
+        '📍 [POST /posts] status=${response.statusCode} body=${response.data}',
+      );
+      final responseData = response.data;
+      if (responseData is Map<String, dynamic>) {
+        final postJson = responseData['post'];
+        if (postJson is Map<String, dynamic>) {
+          debugLogApiPostLocation(postJson, source: 'POST /posts response');
+        }
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         state = state.copyWith(isSubmitting: false, isSuccess: true);
